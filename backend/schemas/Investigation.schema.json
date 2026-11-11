@@ -1,0 +1,1037 @@
+{
+  "$defs": {
+    "Budget": {
+      "properties": {
+        "active_seconds": {
+          "default": 0.0,
+          "title": "Active Seconds",
+          "type": "number"
+        },
+        "agent_calls": {
+          "default": 0,
+          "title": "Agent Calls",
+          "type": "integer"
+        }
+      },
+      "title": "Budget",
+      "type": "object"
+    },
+    "Bug": {
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "enum": [
+                "timezone_conversion",
+                "midnight_rollover",
+                "dst_transition",
+                "expiry_boundary",
+                "other_temporal"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "baseline",
+              "type": "string"
+            }
+          ],
+          "title": "Category"
+        },
+        "clock": {
+          "$ref": "#/$defs/ClockConfig"
+        },
+        "experiment_id": {
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "failure": {
+          "title": "Failure",
+          "type": "string"
+        },
+        "fix": {
+          "$ref": "#/$defs/Fix",
+          "default": {
+            "attempts": [],
+            "label": "Suggested fix \u00b7 not verified",
+            "state": "not-started",
+            "user_decision": "pending"
+          }
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "issue_match": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue Match"
+        },
+        "issue_match_label": {
+          "default": "No matching public issue found",
+          "title": "Issue Match Label",
+          "type": "string"
+        },
+        "regression_test": {
+          "title": "Regression Test",
+          "type": "string"
+        },
+        "regression_test_path": {
+          "title": "Regression Test Path",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "observed-anomaly",
+            "reproduced",
+            "known-issue-match",
+            "fixed-version-verified",
+            "inconclusive"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "candidate_id",
+        "experiment_id",
+        "title",
+        "category",
+        "status",
+        "clock",
+        "failure",
+        "regression_test_path",
+        "regression_test"
+      ],
+      "title": "Bug",
+      "type": "object"
+    },
+    "Candidate": {
+      "properties": {
+        "bug_categories": {
+          "items": {
+            "enum": [
+              "timezone_conversion",
+              "midnight_rollover",
+              "dst_transition",
+              "expiry_boundary",
+              "other_temporal"
+            ],
+            "type": "string"
+          },
+          "title": "Bug Categories",
+          "type": "array"
+        },
+        "existing_tests": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Existing Tests",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "score_parts": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Score Parts",
+          "type": "object"
+        },
+        "selected": {
+          "default": false,
+          "title": "Selected",
+          "type": "boolean"
+        },
+        "signal_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Signal Ids",
+          "type": "array"
+        },
+        "status": {
+          "const": "candidate",
+          "default": "candidate",
+          "title": "Status",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "unit": {
+          "$ref": "#/$defs/CodeUnit"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "unit",
+        "signal_ids",
+        "bug_categories",
+        "score",
+        "score_parts"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "CapabilityItem": {
+      "properties": {
+        "files": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "reason"
+      ],
+      "title": "CapabilityItem",
+      "type": "object"
+    },
+    "CapabilityReport": {
+      "properties": {
+        "items": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CapabilityItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "kind": {
+          "const": "Capability report",
+          "default": "Capability report",
+          "title": "Kind",
+          "type": "string"
+        },
+        "node_version": {
+          "default": "22",
+          "title": "Node Version",
+          "type": "string"
+        },
+        "package_manager": {
+          "anyOf": [
+            {
+              "enum": [
+                "npm",
+                "pnpm",
+                "yarn"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Package Manager"
+        },
+        "scripts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Scripts",
+          "type": "object"
+        },
+        "test_runner": {
+          "anyOf": [
+            {
+              "enum": [
+                "vitest",
+                "jest"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Test Runner"
+        }
+      },
+      "title": "CapabilityReport",
+      "type": "object"
+    },
+    "ClockConfig": {
+      "properties": {
+        "instant": {
+          "title": "Instant",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "scope": {
+          "const": "test_process",
+          "default": "test_process",
+          "title": "Scope",
+          "type": "string"
+        },
+        "time_zone": {
+          "title": "Time Zone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instant",
+        "time_zone",
+        "label"
+      ],
+      "title": "ClockConfig",
+      "type": "object"
+    },
+    "CodeUnit": {
+      "properties": {
+        "end_line": {
+          "title": "End Line",
+          "type": "integer"
+        },
+        "exported": {
+          "title": "Exported",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "start_line": {
+          "title": "Start Line",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "name",
+        "start_line",
+        "end_line",
+        "exported"
+      ],
+      "title": "CodeUnit",
+      "type": "object"
+    },
+    "CreateInvestigation": {
+      "properties": {
+        "area": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area"
+        },
+        "auto": {
+          "default": false,
+          "title": "Auto",
+          "type": "boolean"
+        },
+        "issue_url": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issue Url"
+        },
+        "mode": {
+          "default": "open-hunt",
+          "enum": [
+            "known-issue",
+            "blind-hunt",
+            "open-hunt"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "ref": {
+          "maxLength": 200,
+          "title": "Ref",
+          "type": "string"
+        },
+        "repository_url": {
+          "maxLength": 300,
+          "title": "Repository Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository_url",
+        "ref"
+      ],
+      "title": "CreateInvestigation",
+      "type": "object"
+    },
+    "Experiment": {
+      "properties": {
+        "adapter": {
+          "const": "js_tests",
+          "default": "js_tests",
+          "title": "Adapter",
+          "type": "string"
+        },
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "enum": [
+                "timezone_conversion",
+                "midnight_rollover",
+                "dst_transition",
+                "expiry_boundary",
+                "other_temporal"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "baseline",
+              "type": "string"
+            }
+          ],
+          "title": "Category"
+        },
+        "clocks": {
+          "items": {
+            "$ref": "#/$defs/ClockConfig"
+          },
+          "title": "Clocks",
+          "type": "array"
+        },
+        "executability": {
+          "enum": [
+            "ready",
+            "needs_setup",
+            "not_controllable"
+          ],
+          "title": "Executability",
+          "type": "string"
+        },
+        "executability_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Executability Reason"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "candidate_id",
+        "category",
+        "clocks",
+        "executability"
+      ],
+      "title": "Experiment",
+      "type": "object"
+    },
+    "FeatureMap": {
+      "properties": {
+        "candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "kind": {
+          "const": "Discovery candidates, not verified bugs",
+          "default": "Discovery candidates, not verified bugs",
+          "title": "Kind",
+          "type": "string"
+        },
+        "note": {
+          "const": "These are candidates, not proven bugs.",
+          "default": "These are candidates, not proven bugs.",
+          "title": "Note",
+          "type": "string"
+        },
+        "signals": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Signal"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "skipped": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Skipped",
+          "type": "object"
+        }
+      },
+      "title": "FeatureMap",
+      "type": "object"
+    },
+    "Fix": {
+      "properties": {
+        "attempts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FixAttempt"
+          },
+          "title": "Attempts",
+          "type": "array"
+        },
+        "label": {
+          "default": "Suggested fix \u00b7 not verified",
+          "title": "Label",
+          "type": "string"
+        },
+        "state": {
+          "default": "not-started",
+          "enum": [
+            "not-started",
+            "in-progress",
+            "verified",
+            "no-safe-fix",
+            "skipped"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "user_decision": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "accepted",
+            "rejected"
+          ],
+          "title": "User Decision",
+          "type": "string"
+        }
+      },
+      "title": "Fix",
+      "type": "object"
+    },
+    "FixAttempt": {
+      "properties": {
+        "accepted_by_gates": {
+          "default": false,
+          "title": "Accepted By Gates",
+          "type": "boolean"
+        },
+        "attempt": {
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "diff": {
+          "title": "Diff",
+          "type": "string"
+        },
+        "gates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GateResult"
+          },
+          "title": "Gates",
+          "type": "array"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt",
+        "summary",
+        "diff"
+      ],
+      "title": "FixAttempt",
+      "type": "object"
+    },
+    "GateResult": {
+      "properties": {
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "gate": {
+          "enum": [
+            "test_first",
+            "fixed",
+            "no_regressions",
+            "no_new_anomalies",
+            "diff_limits",
+            "static_checks",
+            "independent_review",
+            "mutation_check"
+          ],
+          "title": "Gate",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "gate",
+        "passed",
+        "detail"
+      ],
+      "title": "GateResult",
+      "type": "object"
+    },
+    "RunResult": {
+      "properties": {
+        "clock": {
+          "$ref": "#/$defs/ClockConfig"
+        },
+        "experiment_id": {
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure"
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "assertion_failed",
+            "error",
+            "timeout"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "clock",
+        "outcome"
+      ],
+      "title": "RunResult",
+      "type": "object"
+    },
+    "Signal": {
+      "properties": {
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "excerpt": {
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "in_test": {
+          "default": false,
+          "title": "In Test",
+          "type": "boolean"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "line": {
+          "title": "Line",
+          "type": "integer"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "path",
+        "line",
+        "confidence",
+        "excerpt"
+      ],
+      "title": "Signal",
+      "type": "object"
+    },
+    "Target": {
+      "properties": {
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "repository_url": {
+          "title": "Repository Url",
+          "type": "string"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        }
+      },
+      "required": [
+        "repository_url",
+        "owner",
+        "repo",
+        "ref"
+      ],
+      "title": "Target",
+      "type": "object"
+    },
+    "TestPlan": {
+      "properties": {
+        "capped": {
+          "default": false,
+          "title": "Capped",
+          "type": "boolean"
+        },
+        "experiments": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Experiment"
+          },
+          "title": "Experiments",
+          "type": "array"
+        },
+        "kind": {
+          "const": "Planned experiments, not run",
+          "default": "Planned experiments, not run",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "title": "TestPlan",
+      "type": "object"
+    },
+    "Version": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "includes_suggested_fix": {
+          "default": false,
+          "title": "Includes Suggested Fix",
+          "type": "boolean"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "result": {
+          "default": "not-run",
+          "enum": [
+            "fails",
+            "passes",
+            "not-run",
+            "inconclusive"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "affected",
+            "patched",
+            "under-test"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "source": {
+          "const": "user-input",
+          "default": "user-input",
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "role"
+      ],
+      "title": "Version",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "budget": {
+      "$ref": "#/$defs/Budget",
+      "default": {
+        "active_seconds": 0.0,
+        "agent_calls": 0
+      }
+    },
+    "bugs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Bug"
+      },
+      "title": "Bugs",
+      "type": "array"
+    },
+    "capabilities": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CapabilityReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "feature_map": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FeatureMap"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "notes": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+    },
+    "replay_label": {
+      "default": "Live",
+      "enum": [
+        "Live",
+        "Recorded investigation replay"
+      ],
+      "title": "Replay Label",
+      "type": "string"
+    },
+    "request": {
+      "$ref": "#/$defs/CreateInvestigation"
+    },
+    "revealed": {
+      "default": false,
+      "title": "Revealed",
+      "type": "boolean"
+    },
+    "runs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RunResult"
+      },
+      "title": "Runs",
+      "type": "array"
+    },
+    "runtime": {
+      "default": "stub",
+      "title": "Runtime",
+      "type": "string"
+    },
+    "runtime_label": {
+      "default": "Stub runtime, not a Kiro Crew run",
+      "title": "Runtime Label",
+      "type": "string"
+    },
+    "stage": {
+      "default": "queued",
+      "enum": [
+        "queued",
+        "cloning",
+        "analyzing",
+        "discovering",
+        "planning",
+        "awaiting-plan-approval",
+        "installing",
+        "experimenting",
+        "verifying",
+        "fixing",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "title": "Stage",
+      "type": "string"
+    },
+    "status": {
+      "default": "planned",
+      "enum": [
+        "planned",
+        "observed-anomaly",
+        "reproduced",
+        "known-issue-match",
+        "fixed-version-verified",
+        "inconclusive"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "target": {
+      "$ref": "#/$defs/Target"
+    },
+    "test_plan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TestPlan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "versions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Version"
+      },
+      "title": "Versions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "created_at",
+    "request",
+    "target"
+  ],
+  "title": "Investigation",
+  "type": "object"
+}

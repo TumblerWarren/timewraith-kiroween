@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "keyColor": "#FF00FF",
+  "assets": {
+    "doctor-stitch/pose": {
+      "id": "doctor-stitch/pose",
+      "mascot": "doctor-stitch",
+      "kind": "pose",
+      "status": "pass",
+      "source": "codex",
+      "master": "masters/doctor-stitch/pose-v01.png",
+      "files": {
+        "png": "cutouts/doctor-stitch/pose.png",
+        "webp": "cutouts/doctor-stitch/pose.webp"
+      },
+      "size": {
+        "w": 320,
+        "h": 378
+      },
+      "display": {
+        "w": 160,
+        "h": 189
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "bytes": {
+        "png": 152452,
+        "webp": 34616
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1
+      },
+      "alt": "Doctor Stitch, a patchwork ghoul doctor holding a curved sewing needle and a spool of thread",
+      "fallback": null
+    },
+    "mini-bat/pose-rest": {
+      "id": "mini-bat/pose-rest",
+      "mascot": "mini-bat",
+      "kind": "pose",
+      "status": "pass",
+      "source": "codex",
+      "master": "masters/mini-bat/pose-rest-v01.png",
+      "files": {
+        "png": "cutouts/mini-bat/pose-rest.png",
+        "webp": "cutouts/mini-bat/pose-rest.webp"
+      },
+      "size": {
+        "w": 190,
+        "h": 160
+      },
+      "display": {
+        "w": 95,
+        "h": 80
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "bytes": {
+        "png": 37892,
+        "webp": 9062
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1
+      },
+      "alt": "Mini Bat, a tiny round bat with crooked half-open wings and one fang, at rest",
+      "fallback": null
+    },
+    "mini-ghost/pose": {
+      "id": "mini-ghost/pose",
+      "mascot": "mini-ghost",
+      "kind": "pose",
+      "status": "pass",
+      "source": "codex",
+      "master": "masters/mini-ghost/pose-v01.png",
+      "files": {
+        "png": "cutouts/mini-ghost/pose.png",
+        "webp": "cutouts/mini-ghost/pose.webp"
+      },
+      "size": {
+        "w": 168,
+        "h": 178
+      },
+      "display": {
+        "w": 84,
+        "h": 89
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7
+      },
+      "bytes": {
+        "png": 33882,
+        "webp": 7400
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1
+      },
+      "alt": "Mini Ghost, a small friendly floating ghost with big eyes glancing sideways and a wavy hem",
+      "fallback": null
+    },
+    "mummy-wrapper/pose": {
+      "id": "mummy-wrapper/pose",
+      "mascot": "mummy-wrapper",
+      "kind": "pose",
+      "status": "pass",
+      "source": "codex",
+      "master": "masters/mummy-wrapper/pose-v01.png",
+      "files": {
+        "png": "cutouts/mummy-wrapper/pose.png",
+        "webp": "cutouts/mummy-wrapper/pose.webp"
+      },
+      "size": {
+        "w": 280,
+        "h": 345
+      },
+      "display": {
+        "w": 140,
+        "h": 172
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "bytes": {
+        "png": 118891,
+        "webp": 27694
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1
+      },
+      "alt": "Mummy Wrapper, a short mummy in loose cream bandages with one eye showing and a bandage end trailing",
+      "fallback": null
+    },
+    "wraith-director/pose": {
+      "id": "wraith-director/pose",
+      "mascot": "wraith-director",
+      "kind": "pose",
+      "status": "pass",
+      "source": "codex",
+      "master": "masters/wraith-director/pose-v01.png",
+      "files": {
+        "png": "cutouts/wraith-director/pose.png",
+        "webp": "cutouts/wraith-director/pose.webp"
+      },
+      "size": {
+        "w": 244,
+        "h": 400
+      },
+      "display": {
+        "w": 122,
+        "h": 200
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "bytes": {
+        "png": 107892,
+        "webp": 27958
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1
+      },
+      "alt": "Wraith Director, a tall hooded wraith in a tattered pale cloak raising a small lantern",
+      "fallback": null
+    }
+  }
+}

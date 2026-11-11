@@ -1,0 +1,968 @@
+{
+  "390": {
+    "hero": {
+      "handDistinctAngles": 37,
+      "handFirst": 180,
+      "handLast": -6
+    },
+    "pageHeight": 22847,
+    "ghostScroll": {
+      "frames": 832,
+      "ghostW": 48,
+      "ghostH": 60,
+      "viewportXRange": 13.4,
+      "viewportYRange": 81,
+      "pageYTravel": 22011.4,
+      "pageYTravelPxTotal": 22011,
+      "tiltMin": 0,
+      "tiltMax": 6,
+      "minX": 22,
+      "maxX": 35,
+      "viewportYMin": 460,
+      "viewportYMax": 541,
+      "fullyInViewFrames": 832,
+      "opacityMin": 1
+    },
+    "jankScroll": {
+      "frames": 832,
+      "p50": 16.7,
+      "p95": 16.9,
+      "p99": 33.2,
+      "max": 33.4,
+      "over50": 0
+    },
+    "ghostTrack": [
+      {
+        "t": 7,
+        "sy": 0,
+        "x": 26.5,
+        "y": 470.5,
+        "w": 57.1,
+        "h": 60.1,
+        "tilt": 0
+      },
+      {
+        "t": 1007,
+        "sy": 219,
+        "x": 28,
+        "y": 477.6,
+        "w": 57.4,
+        "h": 67.1,
+        "tilt": 2.5
+      },
+      {
+        "t": 2007,
+        "sy": 888,
+        "x": 29.9,
+        "y": 491.6,
+        "w": 58,
+        "h": 73.7,
+        "tilt": 5.3
+      },
+      {
+        "t": 3007,
+        "sy": 2005,
+        "x": 28.1,
+        "y": 493.9,
+        "w": 59.4,
+        "h": 77.3,
+        "tilt": 6
+      },
+      {
+        "t": 4007,
+        "sy": 3572,
+        "x": 25,
+        "y": 517.6,
+        "w": 58.7,
+        "h": 76.4,
+        "tilt": 6
+      },
+      {
+        "t": 5007,
+        "sy": 5587,
+        "x": 26.7,
+        "y": 521.8,
+        "w": 59.4,
+        "h": 77.3,
+        "tilt": 6
+      },
+      {
+        "t": 6007,
+        "sy": 8053,
+        "x": 27.8,
+        "y": 533.5,
+        "w": 58.6,
+        "h": 76.2,
+        "tilt": 6
+      },
+      {
+        "t": 7024,
+        "sy": 11018,
+        "x": 28.7,
+        "y": 531.9,
+        "w": 58.8,
+        "h": 76.4,
+        "tilt": 6
+      },
+      {
+        "t": 8024,
+        "sy": 13935,
+        "x": 27.1,
+        "y": 526.6,
+        "w": 59.4,
+        "h": 77.2,
+        "tilt": 6
+      },
+      {
+        "t": 9157,
+        "sy": 16697,
+        "x": 25.2,
+        "y": 533.7,
+        "w": 58.3,
+        "h": 75.8,
+        "tilt": 6
+      },
+      {
+        "t": 10157,
+        "sy": 18655,
+        "x": 31,
+        "y": 510.1,
+        "w": 59.8,
+        "h": 77.7,
+        "tilt": 6
+      },
+      {
+        "t": 11157,
+        "sy": 20165,
+        "x": 29.3,
+        "y": 506.5,
+        "w": 58.3,
+        "h": 75.8,
+        "tilt": 6
+      },
+      {
+        "t": 12157,
+        "sy": 21225,
+        "x": 31,
+        "y": 460.1,
+        "w": 50.1,
+        "h": 86.2,
+        "tilt": 5.1
+      },
+      {
+        "t": 13157,
+        "sy": 21836,
+        "x": 26.2,
+        "y": 482.9,
+        "w": 56.9,
+        "h": 66.7,
+        "tilt": 2.4
+      }
+    ],
+    "ghostWheel": {
+      "frames": 198,
+      "ghostW": 51,
+      "ghostH": 59,
+      "viewportXRange": 6.6,
+      "viewportYRange": 82.4,
+      "pageYTravel": 2608.6,
+      "pageYTravelPxTotal": 2609,
+      "tiltMin": -2,
+      "tiltMax": 6,
+      "minX": 25,
+      "maxX": 32,
+      "viewportYMin": 456,
+      "viewportYMax": 538,
+      "fullyInViewFrames": 198,
+      "opacityMin": 1
+    },
+    "ghostDom": {
+      "exists": true,
+      "artTag": "IMG",
+      "artData": "pose",
+      "width": "56",
+      "z": "40",
+      "overlayOverflow": "hidden",
+      "opacity": "1",
+      "visibility": "visible",
+      "bobAnimation": "ghost-bob",
+      "bobRange": "0px -5.24323px",
+      "rect": [
+        25.397974014282227,
+        471.1806945800781,
+        57.004051208496094,
+        59.952117919921875
+      ],
+      "topAtCenter": [
+        "DIV.section__inner",
+        "SECTION.section section--lost-hour",
+        "MAIN.",
+        "DIV."
+      ]
+    },
+    "jankRuns": [
+      {
+        "frames": 479,
+        "p50": 16.7,
+        "p95": 16.9,
+        "p99": 16.9,
+        "max": 33.3,
+        "over50": 0
+      },
+      {
+        "frames": 476,
+        "p50": 16.7,
+        "p95": 16.9,
+        "p99": 33.2,
+        "max": 33.4,
+        "over50": 0
+      }
+    ],
+    "batBurst": {
+      "samples": 155,
+      "maxConcurrent": 3,
+      "wMin": 51,
+      "wMax": 107,
+      "hMin": 43,
+      "hMax": 102,
+      "peakOpacity": 1
+    },
+    "batClick": {
+      "samples": 59,
+      "maxConcurrent": 1,
+      "wMin": 74,
+      "wMax": 119,
+      "hMin": 57,
+      "hMax": 116,
+      "peakOpacity": 1,
+      "spot": {
+        "x": 330,
+        "y": 420
+      }
+    },
+    "batNode": {
+      "samples": 75,
+      "maxConcurrent": 1,
+      "wMin": 67,
+      "wMax": 115,
+      "hMin": 58,
+      "hMax": 112,
+      "peakOpacity": 1
+    },
+    "batPlaces": {
+      "perch": [
+        [
+          43,
+          37
+        ]
+      ],
+      "hero": [
+        [
+          65,
+          59
+        ]
+      ],
+      "problem": [
+        [
+          53,
+          48
+        ]
+      ],
+      "library": [
+        [
+          48,
+          41
+        ]
+      ],
+      "problemGhost": [
+        [
+          77,
+          79
+        ]
+      ],
+      "pool": [
+        [
+          72,
+          60
+        ],
+        [
+          72,
+          60
+        ],
+        [
+          72,
+          60
+        ],
+        [
+          72,
+          60
+        ]
+      ],
+      "crew": [
+        [
+          36,
+          30
+        ]
+      ],
+      "all": 23
+    },
+    "crewSizes": [
+      [
+        "wraith-director",
+        158,
+        197
+      ],
+      [
+        "watchtower-warden",
+        78,
+        121
+      ],
+      [
+        "bat-scout",
+        98,
+        77
+      ],
+      [
+        "pumpkin-mechanic",
+        90,
+        91
+      ],
+      [
+        "raven-archivist",
+        85,
+        96
+      ],
+      [
+        "doctor-stitch",
+        79,
+        93
+      ],
+      [
+        "gargoyle-gatekeeper",
+        55,
+        59
+      ],
+      [
+        "cauldron-cat",
+        69,
+        69
+      ],
+      [
+        "spider-weaver",
+        51,
+        64
+      ],
+      [
+        "mummy-wrapper",
+        53,
+        72
+      ],
+      [
+        "two-faced-jack",
+        57,
+        80
+      ],
+      [
+        "skeleton-scribe",
+        63,
+        56
+      ],
+      [
+        "mini-bat",
+        36,
+        30
+      ],
+      [
+        "mini-ghost",
+        31,
+        33
+      ]
+    ],
+    "proofTransforms": {
+      "watchedElements": 148,
+      "changedAfterEnter": 8,
+      "changedAtRest1500ms": 3
+    },
+    "mummy": {
+      "proof": {
+        "tag": "IMG",
+        "kind": "pose",
+        "attrW": "64",
+        "attrH": "87",
+        "rect": [
+          64,
+          12967,
+          52.8,
+          71.4
+        ],
+        "viewBox": null,
+        "cssW": "52px",
+        "cssH": "70.6875px",
+        "svgOverflow": "clip",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "contain",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": null
+      },
+      "crew": {
+        "tag": "IMG",
+        "kind": "pose",
+        "attrW": "92",
+        "attrH": "125",
+        "rect": [
+          71,
+          16036,
+          53,
+          72
+        ],
+        "viewBox": null,
+        "cssW": "52.3125px",
+        "cssH": "71.0625px",
+        "svgOverflow": "clip",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "contain",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": null
+      },
+      "flow": {
+        "tag": "IMG",
+        "kind": "pose",
+        "attrW": "80",
+        "attrH": "109",
+        "rect": [
+          212,
+          20767,
+          65.3,
+          89.4
+        ],
+        "viewBox": null,
+        "cssW": "64px",
+        "cssH": "87.1875px",
+        "svgOverflow": "clip",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "contain",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": null
+      }
+    }
+  },
+  "1440": {
+    "hero": {
+      "handDistinctAngles": 27,
+      "handFirst": 180,
+      "handLast": -6
+    },
+    "pageHeight": 15754,
+    "ghostScroll": {
+      "frames": 696,
+      "ghostW": 72,
+      "ghostH": 90,
+      "viewportXRange": 16.4,
+      "viewportYRange": 71.3,
+      "pageYTravel": 14861.7,
+      "pageYTravelPxTotal": 14862,
+      "tiltMin": 0,
+      "tiltMax": 12,
+      "minX": 153,
+      "maxX": 169,
+      "viewportYMin": 466,
+      "viewportYMax": 537,
+      "fullyInViewFrames": 696,
+      "opacityMin": 1
+    },
+    "jankScroll": {
+      "frames": 696,
+      "p50": 16.7,
+      "p95": 49.9,
+      "p99": 66.7,
+      "max": 83.4,
+      "over50": 24
+    },
+    "ghostTrack": [
+      {
+        "t": 6,
+        "sy": 0,
+        "x": 159,
+        "y": 489.6,
+        "w": 85.5,
+        "h": 90.4,
+        "tilt": 0
+      },
+      {
+        "t": 1006,
+        "sy": 148,
+        "x": 160.1,
+        "y": 490.9,
+        "w": 86.1,
+        "h": 98.2,
+        "tilt": 1.7
+      },
+      {
+        "t": 2006,
+        "sy": 598,
+        "x": 162.2,
+        "y": 502.5,
+        "w": 85.5,
+        "h": 103.9,
+        "tilt": 3.5
+      },
+      {
+        "t": 3006,
+        "sy": 1352,
+        "x": 159.8,
+        "y": 496.6,
+        "w": 88.9,
+        "h": 113.5,
+        "tilt": 5.4
+      },
+      {
+        "t": 4006,
+        "sy": 2409,
+        "x": 156.8,
+        "y": 513.1,
+        "w": 88.2,
+        "h": 113.8,
+        "tilt": 7.2
+      },
+      {
+        "t": 5072,
+        "sy": 3871,
+        "x": 167.7,
+        "y": 489.4,
+        "w": 78.3,
+        "h": 125.8,
+        "tilt": 9.2
+      },
+      {
+        "t": 6222,
+        "sy": 5833,
+        "x": 158.8,
+        "y": 529.8,
+        "w": 91.9,
+        "h": 113.1,
+        "tilt": 11.2
+      },
+      {
+        "t": 7506,
+        "sy": 8424,
+        "x": 158.7,
+        "y": 528.2,
+        "w": 98.5,
+        "h": 122.3,
+        "tilt": 11.9
+      },
+      {
+        "t": 9122,
+        "sy": 11170,
+        "x": 156.1,
+        "y": 524.6,
+        "w": 92.5,
+        "h": 117.5,
+        "tilt": 9
+      },
+      {
+        "t": 10956,
+        "sy": 13416,
+        "x": 162.4,
+        "y": 508.2,
+        "w": 87.3,
+        "h": 113.2,
+        "tilt": 5.6
+      },
+      {
+        "t": 12422,
+        "sy": 14468,
+        "x": 159.7,
+        "y": 491.6,
+        "w": 80.9,
+        "h": 99.8,
+        "tilt": 3
+      },
+      {
+        "t": 13422,
+        "sy": 14800,
+        "x": 158.2,
+        "y": 497.8,
+        "w": 84.3,
+        "h": 94.6,
+        "tilt": 1.1
+      }
+    ],
+    "ghostWheel": {
+      "frames": 183,
+      "ghostW": 79,
+      "ghostH": 89,
+      "viewportXRange": 7.5,
+      "viewportYRange": 76.9,
+      "pageYTravel": 2607,
+      "pageYTravelPxTotal": 2607,
+      "tiltMin": -2,
+      "tiltMax": 12,
+      "minX": 155,
+      "maxX": 162,
+      "viewportYMin": 466,
+      "viewportYMax": 543,
+      "fullyInViewFrames": 183,
+      "opacityMin": 1
+    },
+    "ghostDom": {
+      "exists": true,
+      "artTag": "IMG",
+      "artData": "pose",
+      "width": "84",
+      "z": "40",
+      "overlayOverflow": "hidden",
+      "opacity": "1",
+      "visibility": "visible",
+      "bobAnimation": "ghost-bob",
+      "bobRange": "0px -4.47925px",
+      "rect": [
+        155.65225219726562,
+        490.409912109375,
+        85.29550170898438,
+        90.2216796875
+      ],
+      "topAtCenter": [
+        "DIV.rail",
+        "DIV.section__inner",
+        "SECTION.section section--lost-hour",
+        "MAIN."
+      ]
+    },
+    "jankRuns": [
+      {
+        "frames": 452,
+        "p50": 16.7,
+        "p95": 33.3,
+        "p99": 33.4,
+        "max": 50.1,
+        "over50": 2
+      },
+      {
+        "frames": 379,
+        "p50": 16.7,
+        "p95": 50,
+        "p99": 66.7,
+        "max": 83.3,
+        "over50": 16
+      }
+    ],
+    "batBurst": {
+      "samples": 296,
+      "maxConcurrent": 7,
+      "wMin": 79,
+      "wMax": 156,
+      "hMin": 69,
+      "hMax": 152,
+      "peakOpacity": 1
+    },
+    "batClick": {
+      "samples": 70,
+      "maxConcurrent": 1,
+      "wMin": 90,
+      "wMax": 175,
+      "hMin": 80,
+      "hMax": 152,
+      "peakOpacity": 1,
+      "spot": {
+        "x": 1380,
+        "y": 220
+      }
+    },
+    "batNode": {
+      "samples": 69,
+      "maxConcurrent": 1,
+      "wMin": 97,
+      "wMax": 176,
+      "hMin": 83,
+      "hMax": 175,
+      "peakOpacity": 1
+    },
+    "batPlaces": {
+      "perch": [
+        [
+          52,
+          45
+        ]
+      ],
+      "hero": [
+        [
+          130,
+          118
+        ]
+      ],
+      "problem": [
+        [
+          99,
+          90
+        ]
+      ],
+      "library": [
+        [
+          49,
+          41
+        ]
+      ],
+      "problemGhost": [
+        [
+          112,
+          116
+        ]
+      ],
+      "pool": [
+        [
+          104,
+          87
+        ],
+        [
+          104,
+          87
+        ],
+        [
+          104,
+          87
+        ],
+        [
+          104,
+          87
+        ]
+      ],
+      "crew": [
+        [
+          64,
+          54
+        ]
+      ],
+      "all": 47
+    },
+    "crewSizes": [
+      [
+        "wraith-director",
+        309,
+        383
+      ],
+      [
+        "watchtower-warden",
+        176,
+        271
+      ],
+      [
+        "bat-scout",
+        183,
+        144
+      ],
+      [
+        "pumpkin-mechanic",
+        163,
+        165
+      ],
+      [
+        "raven-archivist",
+        154,
+        173
+      ],
+      [
+        "doctor-stitch",
+        153,
+        182
+      ],
+      [
+        "gargoyle-gatekeeper",
+        123,
+        130
+      ],
+      [
+        "cauldron-cat",
+        123,
+        123
+      ],
+      [
+        "spider-weaver",
+        94,
+        118
+      ],
+      [
+        "mummy-wrapper",
+        94,
+        128
+      ],
+      [
+        "two-faced-jack",
+        103,
+        143
+      ],
+      [
+        "skeleton-scribe",
+        130,
+        115
+      ],
+      [
+        "mini-bat",
+        65,
+        55
+      ],
+      [
+        "mini-ghost",
+        57,
+        61
+      ]
+    ],
+    "proofTransforms": {
+      "watchedElements": 148,
+      "changedAfterEnter": 3,
+      "changedAtRest1500ms": 3
+    },
+    "mummy": {
+      "proof": {
+        "tag": "IMG",
+        "kind": "pose",
+        "attrW": "64",
+        "attrH": "87",
+        "rect": [
+          816,
+          8711,
+          66.2,
+          89.4
+        ],
+        "viewBox": null,
+        "cssW": "64px",
+        "cssH": "87px",
+        "svgOverflow": "clip",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "contain",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": null
+      },
+      "crew": {
+        "tag": "IMG",
+        "kind": "pose",
+        "attrW": "92",
+        "attrH": "125",
+        "rect": [
+          1105,
+          10509,
+          93.3,
+          126.2
+        ],
+        "viewBox": null,
+        "cssW": "92.0312px",
+        "cssH": "125.031px",
+        "svgOverflow": "clip",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "contain",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": null
+      },
+      "flow": {
+        "tag": "IMG",
+        "kind": "pose",
+        "attrW": "80",
+        "attrH": "109",
+        "rect": [
+          435,
+          13909,
+          81.1,
+          109.8
+        ],
+        "viewBox": null,
+        "cssW": "80px",
+        "cssH": "109px",
+        "svgOverflow": "clip",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "contain",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": null
+      }
+    }
+  }
+}

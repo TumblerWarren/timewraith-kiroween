@@ -1,0 +1,1 @@
+﻿{"id": "mummy-wrapper/pose", "attempt": 1, "thread_id": "01a1c8e5-dd33-7e42-bb90-4c42d67149cf", "exit_code": 0, "latency_s": 70.0, "master": "frontend/assets/masters/mummy-wrapper/pose-v01.png", "width": 1234, "height": 1275, "mode": "RGBA", "bytes": 977143, "quota_primary_first": 1.0, "quota_primary_last": 1.0, "quota_weekly_first": 79.0, "quota_weekly_last": 79.0}

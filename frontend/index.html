@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-reduce-motion="false">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TimeWraith Case Board: open a date-boundary case</title>
+    <meta
+      name="description"
+      content="TimeWraith is an autonomous regression investigator for date-sensitive apps: a Crew of agents that investigates time-zone, DST and date-boundary failures by controlling the browser clock. Sample data and local drafts only."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      // Sets html[data-reduce-motion] before first paint: stored choice first, else the OS media query.
+      // Keep in sync with ReduceMotionProvider (storage key "tw.reduceMotion", values "on" or "off").
+      (function () {
+        var root = document.documentElement;
+        var reduce = false;
+        try {
+          var stored = null;
+          try {
+            stored = window.localStorage.getItem("tw.reduceMotion");
+          } catch (e) {
+            stored = null;
+          }
+          if (stored === "on") reduce = true;
+          else if (stored === "off") reduce = false;
+          else reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        } catch (e) {
+          reduce = false;
+        }
+        root.setAttribute("data-reduce-motion", reduce ? "true" : "false");
+      })();
+    </script>
+    <!-- Font preload links (IM Fell English and Libre Franklin, latin) are injected at build time by the
+         fontPreload plugin in vite.config.ts, because the woff2 file names are hashed. -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      <main style="max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; font-family: Georgia, serif; line-height: 1.5">
+        <h1>Bugs are hiding in time.</h1>
+        <p>Send your Crew to investigate date-boundary failures.</p>
+        <p>An autonomous regression investigator for date-sensitive apps.</p>
+        <p>
+          <small>
+            The TimeWraith Case Board needs JavaScript: it holds two sample cases with illustrative data and the
+            draft cases you open in this browser. Demo mode, simulated status. Turn on JavaScript to open a case.
+          </small>
+        </p>
+      </main>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

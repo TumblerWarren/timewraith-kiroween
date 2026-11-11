@@ -1,0 +1,2 @@
+2026-11-10T14:45:52.889648Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+2026-11-10T14:45:54.609076Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer error=\"invalid_token\", error_description=\"Invalid access token\", resource_metadata=\"https://mcp.supabase.com/.well-known/oauth-protected-resource/mcp\"" })

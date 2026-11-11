@@ -1,0 +1,72 @@
+/* Shared component styles: mascot art and the placeholder-link footnote mark. Colors come from tokens only. */
+
+/* Art keeps its reserved box; a pose image never stretches inside it. */
+.art-pose {
+  flex: none;
+  object-fit: contain;
+}
+
+.art-placeholder {
+  flex: none;
+  /* The inked wobble may touch the viewBox edge; do not clip it. */
+  overflow: visible;
+}
+
+/* Two-plate misregistration (visual revision R1): the shifted colour plate keeps only its colour, so the ink plate
+   on top prints the lines once and a sliver of colour escapes the outline on one side. */
+.art-plate--fill [stroke="var(--ink-900)"] {
+  stroke: none;
+}
+
+.art-plate--fill [fill="var(--ink-900)"] {
+  fill: none;
+}
+
+/* Placeholder link mark (Requirement 5.7, visual revision R1): a footnote dagger after the link text, in the
+   link's own color, and one shared footnote line near the links. Marked by a character, not color alone. */
+.footnote-mark {
+  margin-inline-start: 0.1em;
+  font-family: var(--font-display);
+  font-size: 0.8em;
+  font-weight: 400;
+  line-height: 0;
+  vertical-align: 0.45em;
+}
+
+/* Inside a flex button the mark is a flex item: pull it back against the label and raise it. */
+.btn .footnote-mark {
+  position: relative;
+  top: -0.3em;
+  margin-inline-start: calc(0.1em - var(--space-2));
+  line-height: 1;
+}
+
+.placeholder-footnote {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.placeholder-footnote .footnote-mark {
+  margin-inline: 0 0.15em;
+  color: var(--fg);
+}
+
+/* Evidence status shapes (EvidenceLadder, LadderStrip): a fixed square box that never shrinks. */
+.evidence-shape {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+/* Real pose art (Codex cutouts) has dark ink outlines that sink into tower-950 (1.03:1) and walnut-700 (1.6:1).
+   On the night and dusk regions and in the header every pose image gets the zero-blur moonlit rim (--figure-rim,
+   paper.css; mist-300 is 7.53 on tower-950 and 4.71 on walnut-700). The Closing (moon-200) needs none. */
+.site-header .art-pose,
+.section--open .art-pose,
+.section--lost-hour .art-pose,
+.section--library .art-pose,
+.section--case .art-pose,
+.section--crew .art-pose,
+.section--flow .art-pose {
+  filter: var(--figure-rim);
+}

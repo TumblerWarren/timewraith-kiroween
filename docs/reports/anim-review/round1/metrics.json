@@ -1,0 +1,995 @@
+{
+  "390": {
+    "hero": {
+      "handDistinctAngles": 36,
+      "handFirst": 180,
+      "handLast": -6
+    },
+    "pageHeight": 22823,
+    "ghostScroll": {
+      "frames": 841,
+      "ghostW": 40,
+      "ghostH": 48,
+      "viewportXRange": 7.1,
+      "viewportYRange": 1016,
+      "pageYTravel": 20964.2,
+      "pageYTravelPxTotal": 20964,
+      "tiltMin": 0,
+      "tiltMax": 0,
+      "minX": 10,
+      "maxX": 17,
+      "viewportYMin": -534,
+      "viewportYMax": 482,
+      "fullyInViewFrames": 432,
+      "opacityMin": 1
+    },
+    "jankScroll": {
+      "frames": 841,
+      "p50": 16.7,
+      "p95": 16.9,
+      "p99": 17,
+      "max": 17,
+      "over50": 0
+    },
+    "ghostTrack": [
+      {
+        "t": 5,
+        "sy": 0,
+        "x": 13.1,
+        "y": 482.2,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 1005,
+        "sy": 219,
+        "x": 13.5,
+        "y": 386.2,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 2005,
+        "sy": 886,
+        "x": 15.2,
+        "y": 282.4,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 3005,
+        "sy": 2001,
+        "x": 14.5,
+        "y": 172.4,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 4005,
+        "sy": 3566,
+        "x": 10.3,
+        "y": 60.6,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 5005,
+        "sy": 5579,
+        "x": 14.4,
+        "y": -46.2,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 6005,
+        "sy": 8040,
+        "x": 12.7,
+        "y": -156.7,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 7005,
+        "sy": 10950,
+        "x": 14.4,
+        "y": -266.1,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 8005,
+        "sy": 13871,
+        "x": 13,
+        "y": -194.8,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 9005,
+        "sy": 16344,
+        "x": 10.4,
+        "y": -87.7,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 10005,
+        "sy": 18367,
+        "x": 13.5,
+        "y": 22.8,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 11005,
+        "sy": 19943,
+        "x": 16.8,
+        "y": 134.7,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 12005,
+        "sy": 21070,
+        "x": 12.4,
+        "y": 240.4,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 13005,
+        "sy": 21749,
+        "x": 12,
+        "y": -305.9,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      },
+      {
+        "t": 14005,
+        "sy": 21979,
+        "x": 12,
+        "y": -533.8,
+        "w": 40,
+        "h": 48,
+        "tilt": 0
+      }
+    ],
+    "ghostWheel": {
+      "frames": 205,
+      "ghostW": 40,
+      "ghostH": 48,
+      "viewportXRange": 4,
+      "viewportYRange": 910.1,
+      "pageYTravel": 2563.7,
+      "pageYTravelPxTotal": 2564,
+      "tiltMin": 0,
+      "tiltMax": 0,
+      "minX": 12,
+      "maxX": 16,
+      "viewportYMin": -428,
+      "viewportYMax": 482,
+      "fullyInViewFrames": 168,
+      "opacityMin": 1
+    },
+    "ghostDom": {
+      "exists": true,
+      "artTag": "svg",
+      "artData": "placeholder",
+      "width": "40",
+      "z": "40",
+      "overlayOverflow": "hidden",
+      "opacity": "1",
+      "visibility": "visible",
+      "bobAnimation": "ghost-bob",
+      "bobRange": "0px -5.04527px",
+      "rect": [
+        11.899999618530273,
+        477.354736328125,
+        40,
+        48
+      ],
+      "topAtCenter": [
+        "DIV.rail",
+        "DIV.section__inner",
+        "SECTION.section section--lost-hour",
+        "MAIN."
+      ]
+    },
+    "jankRuns": [
+      {
+        "frames": 481,
+        "p50": 16.7,
+        "p95": 16.9,
+        "p99": 17,
+        "max": 17,
+        "over50": 0
+      },
+      {
+        "frames": 481,
+        "p50": 16.7,
+        "p95": 16.9,
+        "p99": 17,
+        "max": 17.6,
+        "over50": 0
+      }
+    ],
+    "batBurst": {
+      "samples": 128,
+      "maxConcurrent": 3,
+      "wMin": 41,
+      "wMax": 49,
+      "hMin": 20,
+      "hMax": 44,
+      "peakOpacity": 1
+    },
+    "batClick": {
+      "samples": 35,
+      "maxConcurrent": 1,
+      "wMin": 40,
+      "wMax": 44,
+      "hMin": 20,
+      "hMax": 35,
+      "peakOpacity": 1,
+      "spot": {
+        "x": 330,
+        "y": 420
+      }
+    },
+    "batNode": {
+      "samples": 41,
+      "maxConcurrent": 1,
+      "wMin": 41,
+      "wMax": 44,
+      "hMin": 19,
+      "hMax": 36,
+      "peakOpacity": 1
+    },
+    "batPlaces": {
+      "perch": [
+        [
+          42,
+          34
+        ]
+      ],
+      "hero": [
+        [
+          0,
+          0
+        ]
+      ],
+      "problem": [
+        [
+          52,
+          47
+        ]
+      ],
+      "library": [
+        [
+          48,
+          38
+        ]
+      ],
+      "problemGhost": [
+        [
+          78,
+          87
+        ]
+      ],
+      "pool": [
+        [
+          42,
+          34
+        ],
+        [
+          40,
+          32
+        ],
+        [
+          40,
+          32
+        ],
+        [
+          40,
+          32
+        ]
+      ],
+      "crew": [
+        [
+          35,
+          28
+        ]
+      ],
+      "all": 11
+    },
+    "crewSizes": [
+      [
+        "wraith-director",
+        155,
+        194
+      ],
+      [
+        "watchtower-warden",
+        76,
+        119
+      ],
+      [
+        "bat-scout",
+        97,
+        75
+      ],
+      [
+        "pumpkin-mechanic",
+        89,
+        89
+      ],
+      [
+        "raven-archivist",
+        83,
+        94
+      ],
+      [
+        "doctor-stitch",
+        78,
+        91
+      ],
+      [
+        "gargoyle-gatekeeper",
+        54,
+        57
+      ],
+      [
+        "cauldron-cat",
+        68,
+        68
+      ],
+      [
+        "spider-weaver",
+        50,
+        63
+      ],
+      [
+        "mummy-wrapper",
+        52,
+        71
+      ],
+      [
+        "two-faced-jack",
+        56,
+        79
+      ],
+      [
+        "skeleton-scribe",
+        62,
+        54
+      ],
+      [
+        "mini-bat",
+        35,
+        28
+      ],
+      [
+        "mini-ghost",
+        31,
+        37
+      ]
+    ],
+    "proofTransforms": {
+      "watchedElements": 148,
+      "changedAfterEnter": 0,
+      "changedAtRest1500ms": 0
+    },
+    "mummy": {
+      "proof": {
+        "tag": "svg",
+        "kind": "placeholder",
+        "attrW": "80",
+        "attrH": "109",
+        "rect": [
+          64,
+          12924,
+          60,
+          81.8
+        ],
+        "viewBox": "0 0 140 190",
+        "cssW": "60px",
+        "cssH": "81.75px",
+        "svgOverflow": "visible",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "fill",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": "translate(-1.83 -1.64)"
+      },
+      "crew": {
+        "tag": "svg",
+        "kind": "placeholder",
+        "attrW": "92",
+        "attrH": "125",
+        "rect": [
+          72,
+          16013,
+          52.3,
+          71.1
+        ],
+        "viewBox": "0 0 140 190",
+        "cssW": "52.3125px",
+        "cssH": "71.0625px",
+        "svgOverflow": "visible",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "fill",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": "translate(-1.83 -1.64)"
+      },
+      "flow": {
+        "tag": "svg",
+        "kind": "placeholder",
+        "attrW": "80",
+        "attrH": "109",
+        "rect": [
+          212,
+          20745,
+          64,
+          87.2
+        ],
+        "viewBox": "0 0 140 190",
+        "cssW": "64px",
+        "cssH": "87.1875px",
+        "svgOverflow": "visible",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "fill",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": "translate(-1.83 -1.64)"
+      }
+    }
+  },
+  "1440": {
+    "hero": {
+      "handDistinctAngles": 32,
+      "handFirst": 180,
+      "handLast": -6
+    },
+    "pageHeight": 15754,
+    "ghostScroll": {
+      "frames": 839,
+      "ghostW": 52,
+      "ghostH": 62,
+      "viewportXRange": 8.9,
+      "viewportYRange": 645.8,
+      "pageYTravel": 14209.8,
+      "pageYTravelPxTotal": 14210,
+      "tiltMin": 0,
+      "tiltMax": 10,
+      "minX": 129,
+      "maxX": 138,
+      "viewportYMin": -137,
+      "viewportYMax": 509,
+      "fullyInViewFrames": 675,
+      "opacityMin": 1
+    },
+    "jankScroll": {
+      "frames": 839,
+      "p50": 16.7,
+      "p95": 16.9,
+      "p99": 17.1,
+      "max": 33.3,
+      "over50": 0
+    },
+    "ghostTrack": [
+      {
+        "t": 9,
+        "sy": 0,
+        "x": 135.7,
+        "y": 508.8,
+        "w": 52,
+        "h": 62,
+        "tilt": 0
+      },
+      {
+        "t": 1009,
+        "sy": 149,
+        "x": 135.3,
+        "y": 434.8,
+        "w": 54.8,
+        "h": 64.3,
+        "tilt": 2.6
+      },
+      {
+        "t": 2026,
+        "sy": 610,
+        "x": 135,
+        "y": 354.4,
+        "w": 58.3,
+        "h": 67.2,
+        "tilt": 6.1
+      },
+      {
+        "t": 3042,
+        "sy": 1385,
+        "x": 132.9,
+        "y": 269,
+        "w": 61.7,
+        "h": 69.9,
+        "tilt": 9.7
+      },
+      {
+        "t": 4042,
+        "sy": 2454,
+        "x": 130.1,
+        "y": 179.6,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 5043,
+        "sy": 3825,
+        "x": 129.6,
+        "y": 105.6,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 6042,
+        "sy": 5499,
+        "x": 130.8,
+        "y": 19.3,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 7043,
+        "sy": 7477,
+        "x": 133.2,
+        "y": -63.8,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 8042,
+        "sy": 9440,
+        "x": 131.2,
+        "y": -3.2,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 9042,
+        "sy": 11100,
+        "x": 129.3,
+        "y": 76.4,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 10042,
+        "sy": 12457,
+        "x": 133.3,
+        "y": 158.7,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 11042,
+        "sy": 13511,
+        "x": 134.7,
+        "y": 243.4,
+        "w": 62,
+        "h": 70.1,
+        "tilt": 10
+      },
+      {
+        "t": 12042,
+        "sy": 14262,
+        "x": 132,
+        "y": 323.9,
+        "w": 60.3,
+        "h": 68.8,
+        "tilt": 8.2
+      },
+      {
+        "t": 13042,
+        "sy": 14709,
+        "x": 132.3,
+        "y": 4.8,
+        "w": 56.7,
+        "h": 65.9,
+        "tilt": 4.5
+      }
+    ],
+    "ghostWheel": {
+      "frames": 203,
+      "ghostW": 52,
+      "ghostH": 62,
+      "viewportXRange": 7.6,
+      "viewportYRange": 954.8,
+      "pageYTravel": 2560.1,
+      "pageYTravelPxTotal": 2560,
+      "tiltMin": 0,
+      "tiltMax": 10,
+      "minX": 130,
+      "maxX": 137,
+      "viewportYMin": -448,
+      "viewportYMax": 507,
+      "fullyInViewFrames": 164,
+      "opacityMin": 1
+    },
+    "ghostDom": {
+      "exists": true,
+      "artTag": "svg",
+      "artData": "placeholder",
+      "width": "52",
+      "z": "40",
+      "overlayOverflow": "hidden",
+      "opacity": "1",
+      "visibility": "visible",
+      "bobAnimation": "ghost-bob",
+      "bobRange": "0px -5.90022px",
+      "rect": [
+        132.3000030517578,
+        503.09979248046875,
+        52,
+        62
+      ],
+      "topAtCenter": [
+        "DIV.rail",
+        "DIV.section__inner",
+        "SECTION.section section--lost-hour",
+        "MAIN."
+      ]
+    },
+    "jankRuns": [
+      {
+        "frames": 481,
+        "p50": 16.7,
+        "p95": 16.9,
+        "p99": 17,
+        "max": 17.1,
+        "over50": 0
+      },
+      {
+        "frames": 481,
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 17,
+        "max": 18.1,
+        "over50": 0
+      }
+    ],
+    "batBurst": {
+      "samples": 286,
+      "maxConcurrent": 7,
+      "wMin": 53,
+      "wMax": 64,
+      "hMin": 25,
+      "hMax": 58,
+      "peakOpacity": 1
+    },
+    "batClick": {
+      "samples": 35,
+      "maxConcurrent": 1,
+      "wMin": 52,
+      "wMax": 57,
+      "hMin": 26,
+      "hMax": 46,
+      "peakOpacity": 1,
+      "spot": {
+        "x": 1380,
+        "y": 220
+      }
+    },
+    "batNode": {
+      "samples": 41,
+      "maxConcurrent": 1,
+      "wMin": 53,
+      "wMax": 57,
+      "hMin": 25,
+      "hMax": 47,
+      "peakOpacity": 1
+    },
+    "batPlaces": {
+      "perch": [
+        [
+          51,
+          43
+        ]
+      ],
+      "hero": [
+        [
+          76,
+          66
+        ]
+      ],
+      "problem": [
+        [
+          97,
+          87
+        ]
+      ],
+      "library": [
+        [
+          48,
+          38
+        ]
+      ],
+      "problemGhost": [
+        [
+          117,
+          130
+        ]
+      ],
+      "pool": [
+        [
+          55,
+          45
+        ],
+        [
+          52,
+          42
+        ],
+        [
+          52,
+          42
+        ],
+        [
+          52,
+          42
+        ]
+      ],
+      "crew": [
+        [
+          64,
+          51
+        ]
+      ],
+      "all": 19
+    },
+    "crewSizes": [
+      [
+        "wraith-director",
+        300,
+        375
+      ],
+      [
+        "watchtower-warden",
+        170,
+        267
+      ],
+      [
+        "bat-scout",
+        180,
+        140
+      ],
+      [
+        "pumpkin-mechanic",
+        160,
+        160
+      ],
+      [
+        "raven-archivist",
+        150,
+        169
+      ],
+      [
+        "doctor-stitch",
+        150,
+        177
+      ],
+      [
+        "gargoyle-gatekeeper",
+        120,
+        127
+      ],
+      [
+        "cauldron-cat",
+        120,
+        120
+      ],
+      [
+        "spider-weaver",
+        92,
+        115
+      ],
+      [
+        "mummy-wrapper",
+        92,
+        125
+      ],
+      [
+        "two-faced-jack",
+        100,
+        140
+      ],
+      [
+        "skeleton-scribe",
+        128,
+        112
+      ],
+      [
+        "mini-bat",
+        64,
+        51
+      ],
+      [
+        "mini-ghost",
+        56,
+        67
+      ]
+    ],
+    "proofTransforms": {
+      "watchedElements": 148,
+      "changedAfterEnter": 0,
+      "changedAtRest1500ms": 0
+    },
+    "mummy": {
+      "proof": {
+        "tag": "svg",
+        "kind": "placeholder",
+        "attrW": "80",
+        "attrH": "109",
+        "rect": [
+          816,
+          8676,
+          72,
+          98.1
+        ],
+        "viewBox": "0 0 140 190",
+        "cssW": "72px",
+        "cssH": "98.0938px",
+        "svgOverflow": "visible",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "fill",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": "translate(-1.83 -1.64)"
+      },
+      "crew": {
+        "tag": "svg",
+        "kind": "placeholder",
+        "attrW": "92",
+        "attrH": "125",
+        "rect": [
+          1106,
+          10510,
+          92,
+          125
+        ],
+        "viewBox": "0 0 140 190",
+        "cssW": "92.0312px",
+        "cssH": "125.031px",
+        "svgOverflow": "visible",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "fill",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": "translate(-1.83 -1.64)"
+      },
+      "flow": {
+        "tag": "svg",
+        "kind": "placeholder",
+        "attrW": "80",
+        "attrH": "109",
+        "rect": [
+          436,
+          13910,
+          80,
+          109
+        ],
+        "viewBox": "0 0 140 190",
+        "cssW": "80px",
+        "cssH": "109px",
+        "svgOverflow": "visible",
+        "filter": "drop-shadow(rgb(169, 184, 184) 1.5px 0px 0px) drop-shadow(rgb(169, 184, 184) -1.",
+        "objectFit": "fill",
+        "clippingAncestors": [
+          {
+            "el": "BODY.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          },
+          {
+            "el": "HTML.",
+            "overflow": "clip visible",
+            "clipPath": "none",
+            "contain": "none",
+            "xf": ""
+          }
+        ],
+        "plateShift": "translate(-1.83 -1.64)"
+      }
+    }
+  }
+}

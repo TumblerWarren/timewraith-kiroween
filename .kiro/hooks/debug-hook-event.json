@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Debug: dump hook event",
+      "description": "Disabled. Enable once to record one real STDIN event to .kiro/hook-events/events.jsonl. Schema pinned in task 2.5 (see docs/kiro-usage.md); re-enable only to inspect a new trigger, then disable again.",
+      "trigger": "PostFileSave",
+      "action": { "type": "command", "command": "node scripts/hooks/dump-event.mjs" },
+      "timeout": 10,
+      "enabled": false
+    }
+  ]
+}

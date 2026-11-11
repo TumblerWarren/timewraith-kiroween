@@ -1,0 +1,266 @@
+/*
+ * Lost Hour (region 2, night, tower-950; was Problem). The Lost Hour: the Clock reads 01:59, a crack opens through it and the thread, the
+ * next reading is 03:00. Not a centered diagram: the Clock stands left of center, the two readings are stamps
+ * slapped onto the scene at an angle over the Clock's rim (01:59 high on the left, 03:00 low on the right), a Mini
+ * Bat clings to the crack and the Mini Ghost peeks round the rim at the gap.
+ *
+ * The scene (.problem__scene) has a fixed aspect ratio and is a size container, so every position is in cqi
+ * (1% of its width) and the overlaps hold at every width. The thread's cut sits at the Clock's center.
+ * The scroll task sets data-scene="sticky" on .problem__track to get the tall scroll distance and a sticky stage
+ * (CSS sticky, no GSAP pin); the scene is centered inside it. Reduce Motion always returns to the static layout.
+ *
+ * Class names: problem__intro, problem__track, problem__stage, problem__scene, problem__thread (--row, --column),
+ * problem__stamp (--before, --after), problem__stamp-time, problem__stamp-label, problem__clock, problem__crack
+ * (problem__crack-ink, problem__crack-line), problem__bat, problem__ghost, problem__caption.
+ */
+
+.problem__intro {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--measure);
+  margin-block-end: var(--space-7);
+}
+
+.problem__intro p {
+  color: var(--fg-muted);
+  font-size: var(--text-lg);
+}
+
+.problem__track {
+  position: relative;
+  display: grid;
+  gap: var(--space-6);
+}
+
+.problem__stage {
+  position: relative;
+  display: grid;
+  align-content: center;
+}
+
+/* Narrow screens: a portrait scene, the thread running down through the Clock. */
+.problem__scene {
+  position: relative;
+  container-type: inline-size;
+  width: 100%;
+  max-width: 34rem;
+  margin-inline: auto;
+  aspect-ratio: 1 / 1.25;
+}
+
+.problem__scene > * {
+  position: absolute;
+}
+
+/* The thread runs behind everything and is cut at the crack: the second piece is shifted. */
+.problem__thread {
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--gold-500);
+  stroke-width: 3;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.problem__thread path {
+  vector-effect: non-scaling-stroke;
+}
+
+.problem__thread--row {
+  display: none;
+}
+
+/* Center (50cqi, 62.5cqi) = the column thread's cut at 50% of the scene height. */
+.problem__clock {
+  z-index: 2;
+  top: 30cqi;
+  left: 18cqi;
+  width: 64cqi;
+}
+
+/* The crack is an ink line across the Clock and the thread; this is its box, the path is drawn in SVG. */
+.problem__crack {
+  position: absolute;
+  inset: -8% -12%;
+  width: 124%;
+  height: 116%;
+  max-width: none;
+  fill: none;
+  stroke-linejoin: miter;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.problem__crack path {
+  vector-effect: non-scaling-stroke;
+}
+
+.problem__crack-ink {
+  stroke: var(--ink-900);
+  stroke-width: 8;
+}
+
+.problem__crack-line {
+  stroke: var(--gold-500);
+  stroke-width: 3;
+}
+
+/* Mini Bat clinging to the crack low on the dial, below the hands' reach; its wing tips lie along the crack. */
+.problem__bat {
+  position: absolute;
+  z-index: 1;
+  top: 64%;
+  left: 37%;
+  width: 22%;
+  rotate: -18deg;
+  pointer-events: none;
+}
+
+/* Mini Ghost behind the Clock's upper-right rim, leaning out toward the crack. */
+.problem__ghost {
+  z-index: 1;
+  top: 34cqi;
+  left: 66cqi;
+  width: 20cqi;
+  rotate: -14deg;
+  pointer-events: none;
+}
+
+.problem__bat > *,
+.problem__ghost > * {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Rubber stamps: squared boxes with a heavy border, slapped on at a bold seeded angle (.stamp, --tilt from
+   slapTilt) and struck twice: a zero-blur text-shadow and a ghost border 1 to 2px off, in a darker related tone. */
+.problem__stamp {
+  --strike: var(--walnut-700);
+  z-index: 3;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg);
+  border: 3px solid var(--paper-100);
+  text-align: center;
+}
+
+.problem__stamp::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--walnut-700);
+  translate: var(--strike-x, 1px) var(--strike-y, 1px);
+  pointer-events: none;
+}
+
+.problem__stamp--before {
+  top: 2cqi;
+  left: 0;
+}
+
+.problem__stamp--after {
+  right: 0;
+  bottom: 2cqi;
+  border-color: var(--gold-500);
+}
+
+.problem__stamp-time {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 1.2rem + 4vw, 4rem);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  color: var(--fg);
+}
+
+.problem__stamp-label {
+  color: var(--mist-300);
+  font-size: var(--text-sm);
+}
+
+.problem__stamp--after .problem__stamp-time {
+  border-block-end: 4px solid var(--gold-500);
+}
+
+.problem__caption {
+  max-width: 40rem;
+  color: var(--mist-300);
+  font-size: var(--text-sm);
+}
+
+/* Wide screens: a landscape scene (40cqi tall), the thread running across. Clock center (47cqi, 21cqi), 52.5% of
+   the height, is the row thread's cut. */
+@media (min-width: 768px) {
+  .problem__scene {
+    max-width: none;
+    aspect-ratio: 2.5 / 1;
+  }
+
+  .problem__thread--row {
+    display: block;
+  }
+
+  .problem__thread--column {
+    display: none;
+  }
+
+  .problem__clock {
+    top: 4cqi;
+    left: 30cqi;
+    width: 34cqi;
+  }
+
+  .problem__ghost {
+    top: 5cqi;
+    left: 56cqi;
+    width: 8.5cqi;
+  }
+
+  .problem__stamp--before {
+    top: 1cqi;
+    left: 12cqi;
+  }
+
+  .problem__stamp--after {
+    top: 26cqi;
+    right: auto;
+    bottom: auto;
+    left: 60cqi;
+  }
+
+  .problem__caption {
+    margin-inline-start: 28%;
+  }
+}
+
+/* Scrubbed scene: opt in with data-scene="sticky". */
+.problem__track[data-scene="sticky"] {
+  height: 120vh;
+}
+
+/* Desktop scrub distance (decision D18: the Lost Hour is a short explainer, 160vh, was 220vh). */
+@media (min-width: 768px) {
+  .problem__track[data-scene="sticky"] {
+    height: 160vh;
+  }
+}
+
+.problem__track[data-scene="sticky"] .problem__stage {
+  position: sticky;
+  top: var(--nav-h);
+  height: calc(100vh - var(--nav-h));
+  height: calc(100svh - var(--nav-h));
+}
+
+html[data-reduce-motion="true"] .problem__track[data-scene="sticky"] {
+  height: auto;
+}
+
+html[data-reduce-motion="true"] .problem__track[data-scene="sticky"] .problem__stage {
+  position: static;
+  height: auto;
+}

@@ -1,0 +1,61 @@
+{
+  "properties": {
+    "area": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Area"
+    },
+    "auto": {
+      "default": false,
+      "title": "Auto",
+      "type": "boolean"
+    },
+    "issue_url": {
+      "anyOf": [
+        {
+          "maxLength": 300,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Issue Url"
+    },
+    "mode": {
+      "default": "open-hunt",
+      "enum": [
+        "known-issue",
+        "blind-hunt",
+        "open-hunt"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "ref": {
+      "maxLength": 200,
+      "title": "Ref",
+      "type": "string"
+    },
+    "repository_url": {
+      "maxLength": 300,
+      "title": "Repository Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "repository_url",
+    "ref"
+  ],
+  "title": "CreateInvestigation",
+  "type": "object"
+}

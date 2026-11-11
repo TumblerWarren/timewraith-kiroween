@@ -1,0 +1,122 @@
+{
+  "$defs": {
+    "Target": {
+      "properties": {
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        },
+        "repo": {
+          "title": "Repo",
+          "type": "string"
+        },
+        "repository_url": {
+          "title": "Repository Url",
+          "type": "string"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        }
+      },
+      "required": [
+        "repository_url",
+        "owner",
+        "repo",
+        "ref"
+      ],
+      "title": "Target",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "bug_count": {
+      "title": "Bug Count",
+      "type": "integer"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "known-issue",
+        "blind-hunt",
+        "open-hunt"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "replay_label": {
+      "title": "Replay Label",
+      "type": "string"
+    },
+    "runtime_label": {
+      "title": "Runtime Label",
+      "type": "string"
+    },
+    "stage": {
+      "enum": [
+        "queued",
+        "cloning",
+        "analyzing",
+        "discovering",
+        "planning",
+        "awaiting-plan-approval",
+        "installing",
+        "experimenting",
+        "verifying",
+        "fixing",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "title": "Stage",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "observed-anomaly",
+        "reproduced",
+        "known-issue-match",
+        "fixed-version-verified",
+        "inconclusive"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "target": {
+      "$ref": "#/$defs/Target"
+    }
+  },
+  "required": [
+    "id",
+    "created_at",
+    "target",
+    "mode",
+    "stage",
+    "status",
+    "bug_count",
+    "replay_label",
+    "runtime_label"
+  ],
+  "title": "InvestigationSummary",
+  "type": "object"
+}

@@ -1,0 +1,99 @@
+/*
+ * Design tokens. This is the ONLY file that may contain color literals (scripts/check-style-guard.mjs).
+ * Every other stylesheet uses var(--token) or the semantic aliases below.
+ *
+ * Contrast pairs that are allowed (WCAG ratios from the design):
+ *   paper-100 on tower-950 13.62 | moon-200 on tower-950 11.09 | mist-300 on tower-950 7.53
+ *   gold-500 on tower-950 5.48 (small accents, focus ring) | paper-100 on walnut-700 8.52
+ *   ink-900 on moon-200 10.73 | ink-900 on parchment-200 11.52 | ink-900 on paper-100 13.17
+ *   walnut-700 on paper-100 8.52 | walnut-700 on parchment-200 7.45
+ *   sage-700 / brick-700 on paper-100 5.17 / 6.29, on parchment-200 4.53 / 5.51
+ *   ink-900 on pumpkin-600 3.60: large bold text only (>= 18.66px), 2px ink-900 border
+ *   pumpkin-600: shapes and decoration, never text. divider-300 and gold-500 on light: decoration only.
+ */
+:root {
+  /* ---- The twelve required colors (Requirement 12.1) ---- */
+  --tower-950: #24251f;
+  --ink-900: #292720;
+  --walnut-700: #4d4336;
+  --paper-100: #f8f0de;
+  --parchment-200: #ece1ca;
+  --divider-300: #d0c4ae;
+  --pumpkin-600: #b7683c;
+  --gold-500: #b79557;
+  --sage-700: #526b50;
+  --brick-700: #913e33;
+  --moon-200: #e8d9bc;
+  --mist-300: #a9b8b8;
+
+  /* ---- Spacing: multiples of 4 and 8 (Requirement 12.2) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* ---- Type ---- */
+  /* Visual revision R2: IM Fell English (400 roman and italic only, no bold) for headings, Libre Franklin for
+     interface text, JetBrains Mono for times and evidence values. */
+  --font-display: "IM Fell English", "IM Fell English Fallback", Georgia, "Times New Roman", serif;
+  --font-ui: "Libre Franklin Variable", "Libre Franklin", "Libre Franklin Fallback", Arial, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --text-sm: 0.875rem; /* 14px: short captions only */
+  --text-base: 1.0625rem; /* 17px: body copy never goes below this */
+  --text-lg: 1.125rem; /* 18px */
+  /* Heading sizes are about 10% larger than in R1: IM Fell English has a small x-height and no bold weight. */
+  --text-xl: clamp(1.375rem, 1.2rem + 0.7vw, 1.625rem);
+  --text-cta: 1.25rem; /* 20px; bold CTA labels must stay >= 18.66px (decision D7) */
+  --text-h2: clamp(2rem, 1.35rem + 2.5vw, 3.375rem);
+  --text-display: clamp(2.5rem, 1.5rem + 4vw, 5rem);
+  --leading-tight: 1.1;
+  --leading-snug: 1.3;
+  --leading-body: 1.6;
+  --measure: 66ch; /* body copy line length, 60 to 70 characters */
+
+  /* ---- Shape: hard offset only, zero blur; one radius, cards never nest ----
+   * --shadow-ink, --shadow-card and --border-ink are for interactive controls only (buttons, CTAs, the Reduce
+   * Motion toggle, the scrubber, Tier 2 mascot buttons). Static paper objects use paper.css instead. */
+  --shadow-ink: 4px 4px 0 var(--ink-900);
+  --border-ink: 2px solid var(--ink-900);
+  --radius: 6px;
+
+  /* ---- Motion ---- */
+  --ease-snap: cubic-bezier(0.2, 0.9, 0.25, 1);
+  --ease-ink: cubic-bezier(0.4, 0, 0.2, 1);
+  --reduced-fade: 120ms; /* must stay <= 150ms (REDUCED_FADE_MS) */
+
+  /* ---- Stacking order (design: overlay 40 < ledge 45 < node anchors 46 < nav 50) ---- */
+  --z-thread: 10;
+  --z-content: 20;
+  --z-overlay: 40;
+  --z-ledge: 45;
+  --z-node: 46;
+  --z-nav: 50;
+  --z-skip: 60;
+
+  /* ---- Layout metrics ---- */
+  --seam-h: 64px; /* section seam height; seams never hold text */
+  --nav-h: 64px;
+  --target-min: 44px; /* minimum touch target (Requirement 11) */
+  --content-max: 1280px;
+  --rail-w: 96px;
+  --aside-w: 280px;
+  --gutter: var(--space-6);
+
+  /* ---- Semantic aliases (default theme = night; section themes in layout.css override them) ---- */
+  --bg: var(--tower-950);
+  --fg: var(--paper-100);
+  --fg-muted: var(--moon-200);
+  --rule: var(--walnut-700); /* decorative rules only */
+  --edge: var(--mist-300); /* interactive boundaries, at least 3:1 on --bg */
+  --focus-color: var(--gold-500);
+  --shadow-card: 4px 4px 0 var(--walnut-700);
+}

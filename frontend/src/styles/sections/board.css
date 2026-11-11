@@ -1,0 +1,447 @@
+/*
+ * Case Board additions (task 5.5). The regions reuse the landing sections' styles (hero.css for the Open-a-case
+ * stage, problem.css for the Lost Hour, replay.css and proof.css for the Case view, final.css for the Closing);
+ * this file holds what is new: the positioning line and the form sheet in region 1, the Case library shelf and
+ * its paper folder (region 3), the Case view's proof heading and Doctor Stitch's fix sheet (region 4).
+ *
+ * Class names: open__positioning, open__sheet, open__sheet-title, open__sheet-note, open__sheet-draft,
+ * library__intro, library__shelf, library__cards, library__item, library__scribe, library__bat, case-card,
+ * case-card__sample, case-card__title, case-card__facts, case-card__mode, case-card__status, case-card__open,
+ * case__proof, case__proof-title, case__fix, case__stitch, fix-sheet, fix-sheet__title, fix-sheet__labels,
+ * fix-sheet__label, fix-sheet__note, fix-sheet__check.
+ */
+
+/* ---------------------------------------------------------------- region 1: positioning line and form sheet */
+
+.open__positioning {
+  max-width: 30rem;
+  padding-inline-start: var(--space-4);
+  border-inline-start: 3px solid var(--gold-500);
+  color: var(--fg);
+  font-size: var(--text-lg);
+}
+
+/* The paper-100 form sheet on the night stage. Static paper (no outline, no shadow); the form's inputs carry the
+   ink border and hard offset when task 7.4 mounts them. */
+.open__sheet {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 34rem;
+  padding: var(--space-6) var(--space-5);
+  color: var(--fg);
+}
+
+.open__sheet-title {
+  font-size: var(--text-xl);
+  font-style: italic;
+}
+
+.open__sheet-note {
+  font-size: var(--text-base);
+}
+
+.open__sheet-draft {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------- region 3: Case library */
+
+.library__intro {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--measure);
+  margin-block-end: var(--space-7);
+}
+
+.library__intro p {
+  font-size: var(--text-lg);
+}
+
+.library__shelf {
+  position: relative;
+  padding-block-end: var(--space-6);
+  /* The shelf plank the folders lean on: walnut-700 is the wall, so the plank is ink with a gold edge. */
+  border-block-end: 8px solid var(--ink-900);
+  box-shadow: 0 2px 0 var(--gold-500);
+}
+
+.library__cards {
+  display: grid;
+  gap: var(--space-6);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.library__item {
+  max-width: 34rem;
+}
+
+.library__item[data-side="end"] {
+  justify-self: end;
+}
+
+/* A paper-100 folder: deckled, grained, no outline or shadow (R2). Only its button is a control. */
+.case-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  color: var(--fg);
+}
+
+.case-card__sample {
+  --strike: var(--divider-300);
+  justify-self: start;
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid var(--walnut-700);
+  color: var(--walnut-700);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.case-card__title {
+  font-size: var(--text-xl);
+  font-style: italic;
+}
+
+.case-card__facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.case-card__facts > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.case-card__facts dt {
+  min-width: 4.5rem;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.case-card__facts dd {
+  margin: 0;
+}
+
+.case-card__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.case-card__open {
+  justify-self: start;
+}
+
+.case-card__open[aria-current="true"] {
+  background: var(--ink-900);
+  color: var(--paper-100);
+  box-shadow: 4px 4px 0 var(--gold-500);
+}
+
+/* ---- folder details (task 8.3) ---- */
+
+/* The card is focusable (a new draft's card takes focus after submit). It sits on the walnut wall, so the ring is
+   paper-100 (8.52 on walnut-700), drawn outside the deckled edge. */
+.case-card:focus-visible {
+  outline: 3px solid var(--paper-100);
+  outline-offset: 8px;
+}
+
+/* The folder tab sticks up from the top edge, on the left; the paper colour and grain match the folder. */
+.case-card__tab {
+  position: absolute;
+  z-index: -1;
+  top: -18px;
+  left: var(--space-5);
+  width: 112px;
+  height: 26px;
+  background: var(--grain-layer), var(--parchment-200);
+  clip-path: polygon(10% 0, 90% 0, 100% 100%, 0 100%);
+  rotate: var(--tilt, 0deg);
+}
+
+.case-card--current .case-card__tab {
+  background: var(--grain-layer), var(--paper-100);
+}
+
+/* A brass pin through the current folder's tab (gold on paper is decoration only). */
+.case-card__pin {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ink-900);
+  border-radius: 50%;
+  background: var(--gold-500);
+  translate: -50% 0;
+}
+
+.case-card__title {
+  overflow-wrap: anywhere;
+}
+
+.case-card__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.case-card__target {
+  overflow-wrap: anywhere;
+}
+
+.case-card__issue {
+  overflow-wrap: anywhere;
+}
+
+.case-card__issue[data-issue-hidden="true"] {
+  padding: 0 var(--space-2);
+  background: var(--ink-900);
+  color: var(--paper-100);
+  font-weight: 600;
+}
+
+.case-card__sample--draft {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-style: dashed;
+  border-color: var(--ink-900);
+  color: var(--ink-900);
+}
+
+.case-card__status--draft {
+  font-weight: 600;
+}
+
+.case-card__unsaved {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--brick-700);
+  font-weight: 600;
+}
+
+.case-card__unsaved-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  background: var(--brick-700);
+  color: var(--paper-100);
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+
+.case-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin-block-start: var(--space-2);
+}
+
+.case-card__remove {
+  border-color: var(--walnut-700);
+  box-shadow: 4px 4px 0 var(--walnut-700);
+  font-weight: 500;
+}
+
+/* ---- Version_History_Strip: flat stamps in check order ---- */
+
+.version-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  border-block-start: 2px solid var(--divider-300);
+  list-style: none;
+}
+
+.version-strip__stamp {
+  --strike: var(--divider-300);
+  display: grid;
+  gap: 2px;
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid var(--walnut-700);
+  color: var(--ink-900);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.version-strip__stamp[data-result="fails"] {
+  border-color: var(--brick-700);
+}
+
+.version-strip__stamp[data-result="passes"] {
+  border-color: var(--sage-700);
+}
+
+.version-strip__stamp[data-result="not-run"] {
+  border-style: dashed;
+  border-color: var(--ink-900);
+}
+
+.version-strip__label {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.version-strip__pin {
+  color: var(--walnut-700);
+}
+
+.version-strip__result {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 700;
+}
+
+.version-strip__result[data-result="fails"] {
+  color: var(--brick-700);
+}
+
+.version-strip__result[data-result="passes"] {
+  color: var(--sage-700);
+}
+
+/* Skeleton Scribe's hand rests on the shelf plank, right of the folders; a Mini Bat hangs from the plank. */
+.library__scribe,
+.library__bat {
+  position: absolute;
+  pointer-events: none;
+}
+
+.library__scribe {
+  right: 2%;
+  bottom: -6px;
+  width: 96px;
+}
+
+.library__bat {
+  right: 22%;
+  top: 100%;
+  width: 48px;
+  rotate: 180deg;
+  translate: 0 4px;
+}
+
+.library__scribe > *,
+.library__bat > * {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Placeholder figures on the walnut wall get the same rim as the real art. */
+.library__scribe svg,
+.library__bat svg {
+  filter: var(--figure-rim);
+}
+
+@media (min-width: 768px) {
+  .library__scribe {
+    width: 132px;
+  }
+}
+
+/* ---------------------------------------------------------------- region 4: proof heading and the fix sheet */
+
+.case__proof {
+  margin-block-start: var(--space-9);
+}
+
+.case__proof-title {
+  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
+  line-height: var(--leading-tight);
+}
+
+/* Doctor Stitch stands left of his fix sheet with his needle raised over its edge. */
+.case__fix {
+  position: relative;
+  display: grid;
+  align-items: end;
+  gap: var(--space-4);
+  margin-block-start: var(--space-9);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.case__stitch {
+  width: 120px;
+  justify-self: start;
+  pointer-events: none;
+}
+
+.case__stitch > * {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.case__stitch svg {
+  filter: var(--figure-rim);
+}
+
+.fix-sheet {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 40rem;
+  padding: var(--space-6) var(--space-5);
+  color: var(--fg);
+}
+
+.fix-sheet__title {
+  font-size: var(--text-xl);
+  font-style: italic;
+}
+
+.fix-sheet__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* Stamped labels: brick-700 on paper-100 is 6.29:1. */
+.fix-sheet__label {
+  --strike: var(--divider-300);
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid var(--brick-700);
+  color: var(--brick-700);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.fix-sheet__check {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 768px) {
+  .case__fix {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .case__stitch {
+    width: 170px;
+    justify-self: end;
+    margin-inline-end: calc(-1 * var(--space-6));
+    position: relative;
+    z-index: 1;
+  }
+}

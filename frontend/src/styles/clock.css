@@ -1,0 +1,26 @@
+/*
+ * Clock. The face is a placeholder SVG (replaced by painted art later); the hands are a separate SVG stacked
+ * on top. Both share one 200 x 200 viewBox, so the hands keep their pivot when the face is swapped.
+ * Class names: clock, clock__face, clock__hands, clock__hand, clock__hand--hour, clock__hand--minute.
+ * Hands rotate about the viewBox center (transform-box: view-box); the director animates `transform` only.
+ */
+
+.clock {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.clock__face,
+.clock__hands {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.clock__hand {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}

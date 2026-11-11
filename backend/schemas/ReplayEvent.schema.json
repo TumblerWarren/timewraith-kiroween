@@ -1,0 +1,177 @@
+{
+  "$defs": {
+    "ServerClockReading": {
+      "properties": {
+        "dateUnderTest": {
+          "title": "Dateundertest",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "method": {
+          "const": "unit-test",
+          "default": "unit-test",
+          "title": "Method",
+          "type": "string"
+        },
+        "tz": {
+          "title": "Tz",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tz",
+        "dateUnderTest",
+        "label"
+      ],
+      "title": "ServerClockReading",
+      "type": "object"
+    }
+  },
+  "description": "The frontend's ReplayEvent shape (frontend/src/data/types.ts) plus `data` for backend-only kinds.",
+  "properties": {
+    "actor": {
+      "enum": [
+        "wraith-director",
+        "watchtower-warden",
+        "bat-scout",
+        "pumpkin-mechanic",
+        "spider-weaver",
+        "raven-archivist",
+        "two-faced-jack",
+        "doctor-stitch"
+      ],
+      "title": "Actor",
+      "type": "string"
+    },
+    "browserClock": {
+      "default": null,
+      "title": "Browserclock",
+      "type": "null"
+    },
+    "check": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Check"
+    },
+    "data": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data"
+    },
+    "evidence": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "plan",
+        "dispatch",
+        "explore",
+        "clock",
+        "step",
+        "observe",
+        "repeat",
+        "verify",
+        "note",
+        "reveal",
+        "fix",
+        "compare",
+        "stage",
+        "capability",
+        "approval",
+        "gate"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "seq": {
+      "title": "Seq",
+      "type": "integer"
+    },
+    "serverClock": {
+      "anyOf": [
+        {
+          "const": "not controlled",
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/ServerClockReading"
+        }
+      ],
+      "default": "not controlled",
+      "title": "Serverclock"
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "observed-anomaly",
+        "reproduced",
+        "known-issue-match",
+        "fixed-version-verified",
+        "inconclusive"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "tOffsetMs": {
+      "title": "Toffsetms",
+      "type": "integer"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "versionId": {
+      "title": "Versionid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "seq",
+    "tOffsetMs",
+    "actor",
+    "kind",
+    "text",
+    "status",
+    "versionId"
+  ],
+  "title": "ReplayEvent",
+  "type": "object"
+}

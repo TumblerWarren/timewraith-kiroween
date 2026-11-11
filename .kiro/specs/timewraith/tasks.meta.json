@@ -1,0 +1,744 @@
+{
+  "pbtResults": {
+    "3.9 Write property test for text-pair contrast": {
+      "status": "passed",
+      "lastRunTimestamp": 1794311168102
+    },
+    "11.4 Write property test for thread geometry (was 5.4)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331204315
+    },
+    "12.6 Write property test for director preemption (was 7.6)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331204409
+    },
+    "12.7 Write property test for concurrency caps (was 7.7)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331205029
+    },
+    "12.8 Write property test for the P2 queue timeout (was 7.8)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331205834
+    },
+    "12.9 Write property test for P3 gating and cooldown (was 7.9)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331207009
+    },
+    "12.10 Write property test for duplicate requests (was 7.10)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331208363
+    },
+    "12.11 Write property test for Reduce Motion fallback coverage (was 7.11)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331208979
+    },
+    "12.13 Write property test for burst plan invariants (was 7.13)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331210517
+    },
+    "12.14 Write property test for sprite timing (was 7.14)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794331210670
+    },
+    "7.6 Write property test for form validation": {
+      "status": "passed",
+      "lastRunTimestamp": 1794340428012
+    },
+    "7.7 Write property test for the draft storage round-trip": {
+      "status": "passed",
+      "lastRunTimestamp": 1794340428229
+    },
+    "8.4 Write property test for mock stream validity": {
+      "status": "passed",
+      "lastRunTimestamp": 1794340428536
+    },
+    "8.5 Write property test for case selection": {
+      "status": "passed",
+      "lastRunTimestamp": 1794340429542
+    },
+    "8.6 Write property test for drafts never looking run": {
+      "status": "passed",
+      "lastRunTimestamp": 1794340430249
+    },
+    "11.5 Write property test for ghost placement (was 5.5)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794340438686
+    },
+    "12.12 Write property test for once-only region reactions (was 7.12)": {
+      "status": "passed",
+      "lastRunTimestamp": 1794340438836
+    },
+    "9.9 Write property test for reveal honesty": {
+      "status": "passed",
+      "lastRunTimestamp": 1794368128683
+    },
+    "9.16 Write property test for sample-case sources and labels": {
+      "status": "passed",
+      "lastRunTimestamp": 1794368128930
+    },
+    "9.15 Write property test for the Version_Timeline": {
+      "status": "passed",
+      "lastRunTimestamp": 1794368137082
+    }
+  },
+  "executionHistory": {
+    "1.1 Test one Codex CLI image generation and record the result": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305747121
+      },
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305764908
+      },
+      {
+        "executionId": "95e9bee3-82c9-445f-82da-35d84730fba4",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305846825
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794306699998
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307855424
+      }
+    ],
+    "1.2 Check OpenCode CLI and the local toolchain, then record the work split": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305748364
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307861517
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307993422
+      }
+    ],
+    "2.1 Create the steering files in `.kiro/steering/`": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305748542
+      },
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305765016
+      },
+      {
+        "executionId": "95e9bee3-82c9-445f-82da-35d84730fba4",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305846990
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794306699792
+      }
+    ],
+    "2.2 Create the hook helper scripts and the style guard": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305748698
+      },
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305765325
+      },
+      {
+        "executionId": "95e9bee3-82c9-445f-82da-35d84730fba4",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305847147
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794306700147
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307855621
+      }
+    ],
+    "2.3 Create the eight hook definitions in `.kiro/hooks/`": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305748823
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307861652
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307994170
+      }
+    ],
+    "2.4 Create the four workspace skills and seed the usage log": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305748908
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307861768
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307994715
+      }
+    ],
+    "2.5 Pin the hook event schema and verify open research items": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305748993
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308001491
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308280272
+      }
+    ],
+    "3.1 Scaffold the `frontend/` application": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749233
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308001676
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308280587
+      }
+    ],
+    "3.2 Create the design tokens, fonts and base styles": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749326
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308289658
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308687651
+      }
+    ],
+    "3.3 Create content, configuration and mock data modules": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749408
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308289924
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308687842
+      }
+    ],
+    "3.4 Create the mascot and art layer with placeholder art": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749493
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308701302
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794309296366
+      }
+    ],
+    "3.5 Create the app shell, providers, navigation and footer": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749610
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308701434
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794309296777
+      }
+    ],
+    "3.6 Build the Hero, Problem and Crew sections (static)": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749700
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794309311034
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794310003750
+      }
+    ],
+    "3.7 Build the Flow, Replay_Lab, Proof and Final_CTA sections (static)": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749773
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794310015276
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794310933985
+      }
+    ],
+    "3.9 Write property test for text-pair contrast": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749843
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794310949775
+      },
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794311182780
+      }
+    ],
+    "4. Checkpoint - Skeleton page review": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305749950
+      }
+    ],
+    "5.1 Implement the pure thread geometry": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750048
+      }
+    ],
+    "5.2 Implement the Timeline_Thread, Section_Nodes and the scroll layer": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750131
+      }
+    ],
+    "5.3 Implement the Mini Ghost, ledge occlusion and mount the layers": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750227
+      }
+    ],
+    "5.4 Write property test for thread geometry": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750311
+      }
+    ],
+    "6. Checkpoint - Thread and ghost": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750399
+      }
+    ],
+    "7.1 Implement the MotionDirector core": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750492
+      }
+    ],
+    "7.2 Implement burst paths and sprite strips": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750598
+      }
+    ],
+    "7.3 Create the effect registry and the phase 3 effects": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750685
+      }
+    ],
+    "7.4 Integrate the director with React and the Overlay_Layer": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750762
+      }
+    ],
+    "7.5 Wire the Hero clock entry, the primary CTA and the click interactions": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750859
+      }
+    ],
+    "7.6 Write property test for director preemption": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305750943
+      }
+    ],
+    "7.7 Write property test for concurrency caps": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751031
+      }
+    ],
+    "7.8 Write property test for the P2 queue timeout": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751106
+      }
+    ],
+    "7.9 Write property test for P3 gating and cooldown": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751246
+      }
+    ],
+    "7.11 Write property test for Reduce Motion fallback coverage": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751365
+      }
+    ],
+    "8. Checkpoint - Director and Hero": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751445
+      }
+    ],
+    "9.1 Build the Lost Hour scene": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751534
+      }
+    ],
+    "9.2 Implement the Replay logic": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751757
+      }
+    ],
+    "9.3 Build the Replay_Lab interaction": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751840
+      }
+    ],
+    "9.4 Build the Proof section interaction": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305751916
+      }
+    ],
+    "9.5 Build the Investigation_Flow interaction": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752015
+      }
+    ],
+    "9.6 Build the Crew roll-call and Tier 2 reactions": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752107
+      }
+    ],
+    "9.7 Build the Final_CTA Raven stamp": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752199
+      }
+    ],
+    "9.8 Write property test for replay index clamping": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752292
+      }
+    ],
+    "9.9 Write property test for replay stepping and keyboard mapping": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752380
+      }
+    ],
+    "10. Checkpoint - Interactive page": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752461
+      }
+    ],
+    "11.1 Create the art catalogue and Python test setup": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752548
+      }
+    ],
+    "11.2 Implement the Cutout_Script": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752639
+      }
+    ],
+    "11.3 Implement the QA checker and the flap strip builder": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752732
+      }
+    ],
+    "11.4 Implement the Codex generator wrapper and fallback ladder": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752814
+      }
+    ],
+    "11.5 Build the Asset_QA_Page": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752892
+      }
+    ],
+    "11.6 Write property test for cutout alpha quality": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305752960
+      }
+    ],
+    "11.7 Write property test for defect rejection": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753041
+      }
+    ],
+    "12.1 Generate the Pilot_Pack": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753112
+      }
+    ],
+    "12.2 Wire the Pilot_Pack into the page": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753194
+      }
+    ],
+    "13. Checkpoint - Pilot_Pack approval (stop here)": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753327
+      }
+    ],
+    "14.1 Generate and rig the remaining Tier 1 mascots": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753449
+      }
+    ],
+    "14.2 Generate the Tier 2 poses": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753539
+      }
+    ],
+    "14.3 Generate scenery and brand art": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753629
+      }
+    ],
+    "14.4 Wire the real art into the page": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753710
+      }
+    ],
+    "14.5 Run asset QA over all assets and recheck manifest validity": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753796
+      }
+    ],
+    "15. Checkpoint - Full cast": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753875
+      }
+    ],
+    "16.1 Performance polish and tooling configuration": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305753979
+      }
+    ],
+    "16.2 Write Playwright end-to-end tests": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305754073
+      }
+    ],
+    "16.3 Run Lighthouse and fix findings": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305754144
+      }
+    ],
+    "16.4 Capture screenshots at 360, 768 and 1440 px": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305754232
+      }
+    ],
+    "17.1 Write the README with the Kiro-usage write-up": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305754312
+      }
+    ],
+    "17.2 Add the open-source LICENSE chosen by the user": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305754425
+      }
+    ],
+    "17.3 Swap the placeholder links once the repository and video exist": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305754534
+      }
+    ],
+    "18. Final checkpoint": [
+      {
+        "executionId": "204f9791-676b-46d4-8267-f225f8230e01",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794305754619
+      }
+    ],
+    "1. Tool check (first task, Requirement 14.1)": [
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794307993520
+      }
+    ],
+    "2. Create the Kiro workspace configuration": [
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794308280389
+      }
+    ],
+    "3. Phase 1: Scaffold and visible landing page skeleton with placeholder art": [
+      {
+        "executionId": "177ecd50-e5e2-4d31-9801-5b9d008f051e",
+        "chatSessionId": "sess_8d3d986d-6d82-48c4-9762-b20aa0ad02bc",
+        "timestamp": 1794311182968
+      }
+    ]
+  }
+}

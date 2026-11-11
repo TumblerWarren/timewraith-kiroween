@@ -1,0 +1,104 @@
+{
+  "$defs": {
+    "CapabilityItem": {
+      "properties": {
+        "files": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "unsupported",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "reason"
+      ],
+      "title": "CapabilityItem",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "items": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CapabilityItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "kind": {
+      "const": "Capability report",
+      "default": "Capability report",
+      "title": "Kind",
+      "type": "string"
+    },
+    "node_version": {
+      "default": "22",
+      "title": "Node Version",
+      "type": "string"
+    },
+    "package_manager": {
+      "anyOf": [
+        {
+          "enum": [
+            "npm",
+            "pnpm",
+            "yarn"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Package Manager"
+    },
+    "scripts": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {},
+      "title": "Scripts",
+      "type": "object"
+    },
+    "test_runner": {
+      "anyOf": [
+        {
+          "enum": [
+            "vitest",
+            "jest"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Test Runner"
+    }
+  },
+  "title": "CapabilityReport",
+  "type": "object"
+}

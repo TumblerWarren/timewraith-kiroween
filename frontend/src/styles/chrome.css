@@ -1,0 +1,330 @@
+/*
+ * Board chrome: the App_Header (wordmark, clock-stamp nav, Gateway_Status_Badge, Reduce_Motion_Toggle) and the
+ * page-level footer.
+ * Class names: site-header (app-header), site-header__inner, site-header__perch, app-header__wordmark, site-nav,
+ * site-nav__menu, site-nav__summary, site-nav__list, site-nav__link, site-nav__title, site-nav__stamp,
+ * gateway-badge, gateway-badge__shape, rm-toggle, rm-toggle__icon, rm-toggle__label, rm-toggle__state,
+ * site-footer__note, site-footer__credits.
+ * The header carries .theme-night (tower-950, paper-100 text); the footer theme and .site-footer__inner
+ * are in layout.css and sections/final.css.
+ */
+
+.site-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: var(--z-nav);
+  height: var(--nav-h);
+  border-block-end: 2px solid var(--rule);
+}
+
+.site-header__inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Perch (decorative): the Mini Bat hangs upside down from the header's bottom rule, under the wordmark. Its feet
+   touch the rule; it never takes pointer events, so nothing under it is blocked. */
+.site-header__perch {
+  position: absolute;
+  top: calc(100% + 1px);
+  left: calc(var(--gutter) + 92px);
+  width: 48px;
+  pointer-events: none;
+  rotate: 180deg;
+  translate: 0 -8px;
+}
+
+.site-header__perch > * {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: var(--figure-rim);
+}
+
+/* Wordmark: IM Fell English italic, the only display type in the header. */
+.app-header__wordmark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  font-style: italic;
+  line-height: 1;
+  text-decoration: none;
+}
+
+/* ---- Clock-stamp nav. Wide screens: the details is forced open and its summary hidden. ---- */
+.site-nav {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.site-nav__menu {
+  min-width: 0;
+}
+
+.site-nav__summary {
+  display: none;
+}
+
+.site-nav__list {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0;
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  list-style: none;
+}
+
+.site-nav__link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 var(--space-2);
+  color: var(--fg);
+  line-height: var(--leading-snug);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-nav__link:hover .site-nav__stamp {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+/* Wide screens show the stamps; the title stays in the accessible name. */
+.site-nav__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.site-nav__stamp {
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+/* ---- Gateway_Status_Badge: a flat paper-100 tag (ink-900 text 13.17:1), hourglass plus text, no outline. ---- */
+.gateway-badge {
+  --tilt: -1deg;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  color: var(--ink-900);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+}
+
+.gateway-badge__shape {
+  flex: none;
+}
+
+/* ---- Reduce_Motion_Toggle: an interactive control, so it keeps the outline and the hard offset (R1). ---- */
+.rm-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  max-width: 15rem;
+  padding: var(--space-1) var(--space-3);
+  border: 2px solid var(--edge);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  text-align: start;
+  box-shadow: var(--shadow-card);
+  transition: translate 120ms var(--ease-snap);
+}
+
+.rm-toggle:active {
+  translate: 2px 2px;
+}
+
+/* Pressed = Reduce Motion on: inverted paper-100 chip, so state is not conveyed by color alone (the text says it). */
+.rm-toggle[aria-pressed="true"] {
+  border-color: var(--paper-100);
+  background: var(--paper-100);
+  color: var(--ink-900);
+}
+
+.rm-toggle__icon {
+  flex: none;
+}
+
+.rm-toggle__state {
+  font-weight: 700;
+}
+
+/* Footer content (the footer's own theme and .site-footer__inner live in layout.css and final.css). */
+.site-footer__note {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.site-footer__credits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.site-footer__credits a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+}
+
+/* Tablet: titles stay hidden, stamps pack tighter, the badge drops its lean. */
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  .site-header__inner {
+    gap: var(--space-3);
+  }
+
+  .site-nav__link {
+    padding-inline: var(--space-1);
+  }
+
+  .app-header__wordmark {
+    font-size: 1.375rem;
+  }
+}
+
+/* ---- Compact (below 768px): two rows. Row 1: wordmark, Board disclosure, toggle. Row 2: the badge. ----
+ * The list opens as a dropdown sheet under the header; titles and stamps are both visible there. */
+@media (max-width: 767.98px) {
+  .site-header__inner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "word nav toggle"
+      "badge badge badge";
+    align-content: center;
+    gap: var(--space-1) var(--space-3);
+    padding-inline: var(--gutter);
+  }
+
+  .app-header__wordmark {
+    grid-area: word;
+    font-size: 1.3125rem;
+  }
+
+  .site-nav {
+    grid-area: nav;
+    justify-self: start;
+  }
+
+  .gateway-badge {
+    grid-area: badge;
+    justify-self: start;
+    padding-block: 0;
+  }
+
+  /* Narrow: the state text wraps ("Motion:" over "reduced") so the row fits 360px; it is never truncated. */
+  .rm-toggle {
+    grid-area: toggle;
+    max-width: 8.25rem;
+    padding-inline: var(--space-2);
+    font-size: 0.8125rem;
+    line-height: 1.2;
+  }
+
+  .site-header__perch {
+    left: auto;
+    right: calc(var(--gutter) + 24px);
+    width: 40px;
+  }
+
+  .site-nav__summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--target-min);
+    padding: 0 var(--space-3);
+    border: 2px solid var(--edge);
+    border-radius: var(--radius);
+    color: var(--fg);
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-card);
+  }
+
+  .site-nav__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* A hand-inked caret that turns when the menu is open. */
+  .site-nav__summary::after {
+    content: "";
+    width: 0.55em;
+    height: 0.55em;
+    border-inline-end: 2px solid currentColor;
+    border-block-end: 2px solid currentColor;
+    rotate: 45deg;
+    translate: 0 -0.15em;
+  }
+
+  .site-nav__menu[open] .site-nav__summary::after {
+    rotate: 225deg;
+    translate: 0 0.15em;
+  }
+
+  .site-nav__menu[open] .site-nav__list {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    right: 0;
+    display: grid;
+    gap: 0;
+    padding: var(--space-2) var(--gutter) var(--space-4);
+    overflow: visible;
+    background: var(--tower-950);
+    border-block-end: 2px solid var(--rule);
+  }
+
+  .site-nav__link {
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding-inline: 0;
+    border-block-end: 1px dashed var(--rule);
+  }
+
+  .site-nav__title {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    font-weight: 600;
+  }
+
+  .site-nav__stamp {
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+}

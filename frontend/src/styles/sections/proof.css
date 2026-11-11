@@ -1,0 +1,566 @@
+/*
+ * Proof (the first hint of dawn, walnut-700 since visual revision R2; only paper-100 text on the background). The
+ * ladder scroll, the Inconclusive slip, the Jack panel and the hash tag are paper objects with ink-900 and walnut-700
+ * text inside (layout.css gives them the paper theme). The Evidence Ladder is a vertical stamped
+ * scroll: a paper-100 sheet between two ink rollers. Its five rungs hang on one ink rail that runs from roller to
+ * roller and on up out of the top, where the Raven perches on its tip. Inconclusive sits below, outside the scroll.
+ * "Browser time 竕 server time" is a panel Two-Faced Jack carries: the statement in mono, a browser half and a
+ * server half, and Jack's split head on the seam between them. Jack is the section's one big figure.
+ * Class names: proof__intro, proof__layout, proof__ladder, proof__subhead, proof__note, proof__scroll, proof__rail-top,
+ * proof__raven, proof__side, proof__explain, proof__negative, proof__quote, proof__hash, proof__mummy, proof__tag-wrap,
+ * proof__tag (-label, -value), proof__bandage (-turn, -end, -edge, -cloth),
+ * evidence-ladder, ladder-scroll, ladder, ladder__rung, ladder__shape, ladder__rank, ladder__status, ladder__def,
+ * ladder__inconclusive, ladder__aside, jack-panel (__paper, __statement, __faces, __face, __face--browser,
+ * __face--server, __face-title, __jack).
+ */
+
+.proof__intro {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--measure);
+  margin-block-end: var(--space-6);
+}
+
+.proof__intro p {
+  font-size: var(--text-lg);
+}
+
+.proof__layout {
+  display: grid;
+  gap: var(--space-7);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.proof__ladder,
+.proof__side {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.proof__subhead {
+  font-size: var(--text-xl);
+}
+
+.proof__note {
+  max-width: 28rem;
+}
+
+/* The ladder's rail does not stop at the scroll: it runs through the top roller and stands --rail-rise above it,
+   and the Raven perches on its tip. --rail-x is the rail's center (scroll padding plus half the 48px shape column).
+   The scroll's top roller starts 8px above the scroll (.ladder-scroll::before). */
+.proof__scroll {
+  --ladder-pad: var(--space-4);
+  --rail-x: calc(var(--ladder-pad) + var(--space-7) / 2);
+  --rail-rise: var(--space-6);
+  --raven-w: 80px;
+  position: relative;
+  /* Room above the scroll: roller, rail tip, then the Raven (perch line at 1.03 of its width from its top). */
+  margin-block-start: calc(var(--space-2) + var(--rail-rise) + var(--raven-w) * 1.03 + var(--space-3));
+}
+
+.proof__rail-top {
+  position: absolute;
+  z-index: 1;
+  top: calc(-1 * var(--space-2) - var(--rail-rise));
+  left: calc(var(--rail-x) - 2px);
+  height: calc(var(--rail-rise) + var(--space-3));
+  /* Above the scroll the rail stands on walnut-700, where ink would vanish: a brass tip (gold-500 on walnut-700, 3.43, a boundary pair). */
+  border-inline-start: 4px solid var(--gold-500);
+}
+
+/* Feet (x 74 of its 160-unit art) over the rail; perch line (y 165 of 180) on the rail's tip. Beak points left,
+   out past the scroll's edge, so the Raven overhangs the paper rather than sitting inside it. */
+.proof__raven {
+  position: absolute;
+  z-index: 2;
+  top: calc(-1 * var(--space-2) - var(--rail-rise) - var(--raven-w) * 1.03 + 3px);
+  left: calc(var(--rail-x) - var(--raven-w) * 0.46);
+  width: var(--raven-w);
+  pointer-events: none;
+}
+
+.proof__raven svg,
+.proof__raven img {
+  width: 100%;
+  height: auto;
+  /* A dark bird on the walnut-700 ground: the moonlit rim from paper.css keeps its silhouette. */
+  filter: var(--figure-rim);
+}
+
+/* ---------------------------------------------------------------- Evidence Ladder */
+
+.evidence-ladder {
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* The scroll: paper-100 with grain between two ink rollers. Its long sides are deckled; the clip keeps the
+   rollers, which stick out 8px, inside (--deckle-ladder). No outline, no shadow, a small seeded lean. */
+.ladder-scroll {
+  position: relative;
+  padding: var(--space-6) var(--ladder-pad, var(--space-4));
+  background: var(--grain-layer), var(--paper-100);
+  color: var(--ink-900);
+  clip-path: var(--deckle-ladder);
+  rotate: var(--tilt, 0deg);
+}
+
+/* The two rollers: ink bars a little wider than the sheet. */
+.ladder-scroll::before,
+.ladder-scroll::after {
+  content: "";
+  position: absolute;
+  inset-inline: calc(-1 * var(--space-2));
+  height: var(--space-3);
+  background: var(--ink-900);
+}
+
+.ladder-scroll::before {
+  top: calc(-1 * var(--space-2));
+}
+
+.ladder-scroll::after {
+  bottom: calc(-1 * var(--space-2));
+}
+
+.ladder {
+  position: relative;
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The rail: one ink line through the centers of the shapes, from roller to roller (the scroll's 32px padding). */
+.ladder::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--space-6));
+  bottom: calc(-1 * var(--space-6));
+  left: calc(var(--space-7) / 2 - 2px);
+  border-inline-start: 4px solid var(--ink-900);
+}
+
+.ladder__rung,
+.ladder__inconclusive {
+  display: grid;
+  gap: 0 var(--space-4);
+  grid-template-columns: var(--space-7) minmax(0, 1fr);
+  align-items: start;
+}
+
+.ladder__rung {
+  position: relative;
+  padding-block: var(--space-3);
+}
+
+/* Each rung has its own shape, so state never relies on color. The paper plate hides the rail behind it. */
+.ladder__shape {
+  grid-row: span 2;
+  justify-self: center;
+  background: var(--paper-100);
+}
+
+.ladder__status {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: var(--leading-snug);
+}
+
+/* Rank: a small brick-700 rubber stamp (6.29:1 on paper-100), each at its own seeded angle, struck twice. */
+.ladder__rank {
+  --strike: var(--divider-300);
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--space-5);
+  height: var(--space-5);
+  border: 2px solid var(--brick-700);
+  color: var(--brick-700);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ladder__def {
+  line-height: var(--leading-snug);
+}
+
+/* Inconclusive is not a rung: it sits apart on its own deckled paper slip below the scroll, with a dashed inner
+   edge and no rail through it. A paper object, so its ink text and ink shape read on the walnut-700 section. */
+.ladder__inconclusive {
+  padding: var(--space-5) var(--space-4);
+  background: var(--grain-layer), var(--paper-100);
+  color: var(--fg);
+  clip-path: var(--deckle-b);
+  outline: 2px dashed var(--walnut-700);
+  outline-offset: calc(-1 * var(--space-2));
+}
+
+.ladder__inconclusive .ladder__shape {
+  background: transparent;
+}
+
+.ladder__aside {
+  grid-column: 2;
+  margin-block-start: var(--space-2);
+  color: var(--walnut-700);
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------- Browser time 竕 server time */
+
+/* Two-Faced Jack carries the panel. The panel is the group; its paper (.jack-panel__paper) is deckled and leans,
+   and Jack stands outside the clip, so his head can sit on the panel and his pole run on below it.
+   Jack's art is 150 x 210: his crossbar is at 0.72 of his width from the top, his head spans 0.36 of his width
+   either side of the split, and he is 1.4 widths tall. The panel keeps 0.68 widths free below for his pole. */
+.jack-panel {
+  --jack-w: 112px;
+  position: relative;
+  margin-block-end: calc(var(--jack-w) * 0.68);
+  color: var(--ink-900);
+}
+
+/* A deckled paper panel with a seeded lean. No outline and no shadow; the inner rules stay. */
+.jack-panel__paper {
+  background: var(--grain-layer), var(--paper-100);
+  clip-path: var(--deckle-a);
+  rotate: var(--tilt, 0deg);
+}
+
+/* The whole statement is mono, so "竕" is set in JetBrains Mono. */
+.jack-panel__statement {
+  padding: var(--space-4) var(--space-5);
+  border-block-end: 2px solid var(--ink-900);
+  font-family: var(--font-mono);
+  font-size: clamp(1.25rem, 1rem + 1.4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: var(--leading-tight);
+}
+
+.jack-panel__faces {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.jack-panel__face {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-5);
+}
+
+.jack-panel__face--browser {
+  background: var(--paper-100);
+  color: var(--ink-900);
+}
+
+/* Stacked (narrow): the server face is the panel's bottom, so it keeps room at the bottom for Jack's head. */
+.jack-panel__face--server {
+  padding-block-end: calc(var(--jack-w) * 0.72 + var(--space-5));
+  background: var(--tower-950);
+  color: var(--paper-100);
+}
+
+.jack-panel__face-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  line-height: var(--leading-snug);
+}
+
+/* Jack's split runs down the middle of his head (x 76 of 150), so centering him puts it on the seam. His crossbar
+   sits a few px above the panel's bottom edge: the panel rests on his arms. */
+.jack-panel__jack {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(var(--jack-w) * -0.68 + var(--space-2));
+  left: 50%;
+  width: var(--jack-w);
+  margin-inline-start: calc(var(--jack-w) / -2);
+  pointer-events: none;
+}
+
+.jack-panel__jack svg,
+.jack-panel__jack img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Jack's pole and the Mummy stand on the walnut-700 ground, where their ink outlines (about 1.6:1) sink: the same
+   zero-blur moonlit rim as the Raven (mist-300 on walnut-700 is 4.71). */
+.jack-panel__jack svg,
+.jack-panel__jack img {
+  filter: var(--figure-rim);
+}
+
+/* The Mummy is small: a 1px rim (the shared 1.5px rim would read as a halo at this size). */
+.proof__mummy svg,
+.proof__mummy img {
+  filter: drop-shadow(1px 0 0 var(--mist-300)) drop-shadow(-1px 0 0 var(--mist-300)) drop-shadow(0 1px 0 var(--mist-300))
+    drop-shadow(0 -1px 0 var(--mist-300));
+}
+
+.proof__explain {
+  max-width: 34rem;
+  font-size: var(--text-lg);
+}
+
+.proof__negative {
+  max-width: 34rem;
+  padding-inline-start: var(--space-4);
+  border-inline-start: 6px solid var(--edge);
+}
+
+.proof__quote {
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- the sample artifact hash tag */
+
+/* The Mummy holds the tag's left end (it stands in front of it); the bandage round the right end trails off past
+   the tag's edge, so the row keeps room on the right for the loose end. */
+.proof__hash {
+  display: flex;
+  align-items: flex-end;
+  padding-inline-end: var(--space-8);
+}
+
+.proof__mummy {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  align-self: flex-end;
+  width: 64px;
+  margin-inline-end: calc(-1 * var(--space-2));
+}
+
+.proof__tag-wrap {
+  position: relative;
+  min-width: 0;
+  margin-block-end: var(--space-5);
+}
+
+/* The bandage: two cloth turns wound round the tag's right end (inside its 48px end padding, a little past its top
+   and bottom edges), and a loose end that leaves the second turn's foot and runs off past the tag's right edge. */
+.proof__bandage {
+  position: absolute;
+  z-index: 1;
+  top: calc(-1 * var(--space-2));
+  bottom: calc(-1 * var(--space-2));
+  right: var(--space-1);
+  width: calc(var(--space-6) + var(--space-2));
+  pointer-events: none;
+}
+
+/* One cloth strip crosses the tag's right end (ink only along its top and bottom edges, so it reads as cloth, not a
+   slab), with two thinner turns over it. The strip and the turns are what `proof.hash` winds on. */
+.proof__bandage-wrap {
+  position: absolute;
+  inset-inline: 0;
+  top: var(--space-2);
+  height: var(--space-6);
+  background: var(--moon-200);
+  border-block: 2px solid var(--ink-900);
+  border-radius: 2px;
+  rotate: 3deg;
+  transform-origin: 0 50%;
+}
+
+.proof__bandage-turn {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--space-1);
+  width: var(--space-3);
+  background: var(--moon-200);
+  border-block: 2px solid var(--ink-900);
+  border-radius: 2px;
+  rotate: 8deg;
+}
+
+.proof__bandage-turn + .proof__bandage-turn {
+  left: var(--space-5);
+  rotate: -5deg;
+}
+.proof__bandage-end {
+  position: absolute;
+  top: calc(100% - var(--space-2));
+  left: var(--space-4);
+  width: var(--space-8);
+  height: var(--space-7);
+  transform-origin: 10% 0;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.proof__bandage-edge {
+  stroke: var(--ink-900);
+  stroke-width: 12;
+}
+
+.proof__bandage-cloth {
+  stroke: var(--moon-200);
+  stroke-width: 8;
+}
+
+.proof__mummy svg,
+.proof__mummy img {
+  width: 100%;
+  height: auto;
+}
+
+/* A deckled paper tag (.paper-piece: grain, seeded lean and nudge). No outline, no shadow. */
+.proof__tag {
+  position: relative;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) calc(var(--space-7) + var(--space-2)) var(--space-3) calc(var(--space-6) + var(--space-2));
+  color: var(--ink-900);
+}
+
+/* The tag's string hole. */
+.proof__tag::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  width: var(--space-3);
+  height: var(--space-3);
+  margin-block-start: calc(var(--space-3) / -2);
+  border: 2px solid var(--ink-900);
+  border-radius: 50%;
+}
+
+.proof__tag-label {
+  color: var(--walnut-700);
+  font-size: var(--text-sm);
+}
+
+.proof__tag-value {
+  font-weight: 700;
+}
+
+/* Side by side: the browser half and the server half meet on Jack's split. Each half keeps its text clear of his
+   head (0.36 of his width either side of the seam). */
+@media (min-width: 560px) {
+  .jack-panel {
+    --jack-w: 136px;
+  }
+
+  .jack-panel__faces {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .jack-panel__face--browser {
+    padding-inline-end: calc(var(--jack-w) * 0.36 + var(--space-3));
+  }
+
+  .jack-panel__face--server {
+    padding-block-end: var(--space-7);
+    padding-inline-start: calc(var(--jack-w) * 0.36 + var(--space-3));
+  }
+
+  .jack-panel__face--browser {
+    padding-block-end: var(--space-7);
+  }
+}
+
+/* Narrow: a smaller Mummy and a narrower bandage box, so the hash keeps as much of the row as it can. */
+@media (max-width: 559.98px) {
+  .proof__hash {
+    padding-inline-end: var(--space-7);
+  }
+
+  .proof__mummy {
+    width: 52px;
+  }
+}
+
+@media (min-width: 768px) {
+  .proof__scroll {
+    --ladder-pad: var(--space-6);
+    --raven-w: 96px;
+  }
+}
+
+/* Two columns only where each half of Jack's panel still has a readable measure. */
+@media (min-width: 1100px) {
+  .proof__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--space-8);
+    align-items: start;
+  }
+}
+
+/* ---------------------------------------------------------------- proof animations (task 14.6) */
+
+/* The unrolling rod (proof.ladder): invisible at rest, travels down the scroll while the rungs stamp in. */
+.proof__rail-bottom {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  inset-inline: calc(-1 * var(--space-2));
+  height: 6px;
+  background: var(--walnut-700);
+  border-block: 2px solid var(--ink-900);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Armed: the parts wait hidden until their effect starts, so the finished state never flashes first. */
+.proof__scroll[data-armed] .ladder__rung,
+.proof__hash[data-armed] .proof__bandage-wrap,
+.proof__hash[data-armed] .proof__bandage-turn,
+.proof__hash[data-armed] .proof__bandage-end {
+  opacity: 0;
+}
+
+/* Jack's caption pair cross-fades at the hinge; the lit half gets an ink underline. */
+.jack-panel__now {
+  position: relative;
+  height: var(--space-5);
+  padding-inline: var(--space-5);
+  color: var(--walnut-700);
+  font-size: var(--text-sm);
+  line-height: var(--space-5);
+}
+
+.jack-panel__now span {
+  position: absolute;
+  inset-inline: var(--space-5);
+}
+
+.jack-panel__now span + span {
+  opacity: 0;
+}
+
+.jack-panel__face {
+  position: relative;
+}
+
+.jack-panel__underline {
+  position: absolute;
+  inset-inline: var(--space-5);
+  bottom: var(--space-3);
+  height: 3px;
+  background: currentcolor;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+.jack-panel__jack img,
+.jack-panel__jack svg {
+  transform-origin: 50% 100%;
+}

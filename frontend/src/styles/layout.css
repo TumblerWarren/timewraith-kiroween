@@ -1,0 +1,275 @@
+/*
+ * Page layout: rail / content / aside grid, section themes, 64px seams (--seam-h), breakpoints.
+ *
+ * Markup convention for a page section:
+ *   <section id="crew" class="section section--crew">
+ *     <div class="section__inner [section__inner--aside]">
+ *       <div class="rail"></div>            thread column (empty; the thread is drawn by ThreadLayer)
+ *       <div class="content">...</div>
+ *       <aside class="aside">...</aside>    optional
+ *     </div>
+ *   </section>
+ * The section--{id} class selects the theme (colors and seam) below, so no separate theme class is needed.
+ * `.theme-*` classes apply the same themes to any other element (nav, footer, panels).
+ *
+ * Breakpoints: compact <= 767.98px, tablet 768 to 1099.98px, desktop >= 1100px.
+ */
+
+/* ---------------------------------------------------------------- themes
+ * Each theme sets --bg, --fg, --fg-muted, --rule, --edge, --focus-color, --shadow-card using only the allowed
+ * text/background pairs. Text never sits on a gradient: seams (below) hold no text.
+ */
+
+/* Visual revision R2 (decision D13): the board stays at night through region 6. Cream is the color of paper
+ * objects (the form sheet, the notice board, case cards, the case-file sheet, the ladder scroll, the Jack panel,
+ * the fix sheet, the Closing sheet), not of whole regions, until dawn at the Closing (moon-200). */
+
+/* night: open, lost-hour, case and flow (the dark stairwell), tower-950 */
+.theme-night,
+.section--open,
+.section--lost-hour,
+.section--case,
+.section--flow {
+  --bg: var(--tower-950);
+  --fg: var(--paper-100);
+  --fg-muted: var(--moon-200);
+  --rule: var(--walnut-700);
+  --edge: var(--mist-300);
+  --focus-color: var(--gold-500);
+  --shadow-card: 4px 4px 0 var(--walnut-700);
+}
+
+/* dusk: library (the lamplit archive) and crew (the lamplit tower interior), walnut-700. Only paper-100 is an
+ * allowed text color here. gold-500 on walnut-700 (3.43) is a boundary pair only (trim), not text, so the focus ring
+ * uses paper-100 (8.52). */
+.theme-dusk,
+.section--library,
+.section--crew {
+  --bg: var(--walnut-700);
+  --fg: var(--paper-100);
+  --fg-muted: var(--paper-100);
+  --rule: var(--divider-300);
+  --edge: var(--paper-100);
+  --focus-color: var(--paper-100);
+  --shadow-card: 4px 4px 0 var(--ink-900);
+}
+
+/* dawn: the Closing and the footer that follows it (moon-200). Only ink-900 is an allowed text color here. */
+.theme-dawn,
+.section--close,
+.site-footer {
+  --bg: var(--moon-200);
+  --fg: var(--ink-900);
+  --fg-muted: var(--ink-900);
+  --rule: var(--divider-300);
+  --edge: var(--ink-900);
+  --focus-color: var(--ink-900);
+  --shadow-card: var(--shadow-ink);
+}
+
+/* day: parchment paper objects (the footer slip; parchment-200). No section uses it as a background since R2. */
+.theme-day,
+.site-footer__slip {
+  --bg: var(--parchment-200);
+  --fg: var(--ink-900);
+  --fg-muted: var(--walnut-700);
+  --rule: var(--divider-300);
+  --edge: var(--walnut-700);
+  --focus-color: var(--ink-900);
+  --shadow-card: var(--shadow-ink);
+}
+
+/* flat paper surfaces (paper-100): form sheet, notice board, case cards, case-file sheet, ladder scroll, Jack panel
+ * paper, hash tag, fix sheet, Closing sheet, gateway badge. Text inside them is ink-900 and walnut-700 whatever the
+ * region behind them. */
+.theme-daybreak,
+.theme-paper,
+.gateway-badge,
+.open__sheet,
+.case-card,
+.fix-sheet,
+.hero__board,
+.case-file,
+.ladder-scroll,
+.ladder__inconclusive,
+.jack-panel__paper,
+.proof__tag,
+.cta-sheet {
+  --bg: var(--paper-100);
+  --fg: var(--ink-900);
+  --fg-muted: var(--walnut-700);
+  --rule: var(--divider-300);
+  --edge: var(--walnut-700);
+  --focus-color: var(--ink-900);
+  --shadow-card: var(--shadow-ink);
+}
+
+.theme-night,
+.theme-dusk,
+.theme-dawn,
+.theme-day,
+.theme-daybreak,
+.theme-paper {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Which flat color each region's seam starts from (the previous region's background). */
+.section--lost-hour {
+  --seam-from: var(--tower-950);
+}
+.section--library {
+  --seam-from: var(--tower-950);
+}
+.section--case {
+  --seam-from: var(--walnut-700);
+}
+.section--crew {
+  --seam-from: var(--tower-950);
+}
+.section--flow {
+  --seam-from: var(--walnut-700);
+}
+.section--close {
+  --seam-from: var(--tower-950);
+}
+
+/* ---------------------------------------------------------------- sections and seams */
+
+.section {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  /* The seam occupies the first --seam-h of every section after the hero; content starts below it. The bottom
+     padding is short so one section runs on into the next. */
+  padding-block: calc(var(--seam-h) + var(--space-5)) var(--space-7);
+}
+
+.section--open {
+  padding-block: calc(var(--nav-h) + var(--space-6)) var(--space-7);
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+}
+
+/*
+ * Seam: --seam-h (64px), no text, only palette tokens. A linear-gradient between the previous section's flat
+ * color and this section's flat color. Neighbouring sections with the same color give a flat band.
+ */
+.section:not(.section--open)::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--seam-h);
+  background: linear-gradient(to bottom, var(--seam-from, var(--bg)), var(--bg));
+  pointer-events: none;
+}
+
+/* Footer is attached to the Closing: a plain ruled edge, no seam. */
+.site-footer {
+  position: relative;
+  padding-block: var(--space-7);
+  background: var(--bg);
+  color: var(--fg);
+  border-block-start: 2px solid var(--rule);
+}
+
+/* <main> positions the thread layers (thread ink, ledges, Section_Nodes) in page coordinates. No z-index and no
+   transform: it must not create a stacking context, so the ledges (45) can pass over the fixed overlay (40). */
+#main {
+  position: relative;
+}
+
+/* ---------------------------------------------------------------- rail / content / aside grid */
+
+.section__inner {
+  display: grid;
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  column-gap: var(--gutter);
+  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-areas:
+    "rail content"
+    "rail aside";
+}
+
+.rail {
+  grid-area: rail;
+  position: relative;
+  z-index: var(--z-thread);
+  min-width: 0;
+}
+
+.content,
+.aside {
+  position: relative;
+  z-index: var(--z-content);
+  min-width: 0;
+}
+
+.content {
+  grid-area: content;
+}
+
+.aside {
+  grid-area: aside;
+  margin-block-start: var(--space-6);
+}
+
+/* Desktop with an aside: a third column. */
+@media (min-width: 1100px) {
+  .section__inner--aside {
+    grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--aside-w);
+    grid-template-areas: "rail content aside";
+  }
+
+  .section__inner--aside .aside {
+    margin-block-start: 0;
+  }
+}
+
+/* Tablet: 768 to 1099.98px. All desktop features stay; the rail narrows. */
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  :root {
+    --rail-w: 64px;
+    --gutter: var(--space-5);
+  }
+}
+
+/* Compact: below 768px. */
+@media (max-width: 767.98px) {
+  :root {
+    --rail-w: 32px;
+    --gutter: var(--space-4);
+    /* The compact header has two rows: wordmark, Board menu and toggle, then the gateway badge. */
+    --nav-h: 104px;
+  }
+
+  .section {
+    padding-block: calc(var(--seam-h) + var(--space-4)) var(--space-7);
+  }
+
+  .section--open {
+    padding-block: calc(var(--nav-h) + var(--space-5)) var(--space-7);
+  }
+}
+
+/* Touch targets: at least 44px for every control (Requirement 11), including the compact nav. */
+button,
+[role="button"],
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+summary,
+.btn {
+  min-height: var(--target-min);
+}
+
+/* Long words and long mono values (timestamps, hashes) never push the page wider than the viewport. */
+.content,
+.aside,
+.section__inner > * {
+  overflow-wrap: anywhere;
+}

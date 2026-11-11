@@ -1,0 +1,271 @@
+/*
+ * Open_Case_Form (task 7.4, visual revision R1/R2). The form sits on the paper-100 sheet in region 1, so its text is
+ * ink-900 and walnut-700 (13.17 and 8.52 on paper-100). Inputs and the radio choices are interactive controls, so
+ * they carry the 2px ink outline and the hard offset shadow (--shadow-ink, zero blur); the static sheet does not.
+ * Errors are brick-700 on paper-100 (6.29) with an ink "!" marker, never color alone.
+ *
+ * Class names: case-form, field, field--invalid, field__label, field__hint, field__control, field__control--area,
+ * field__error, field__error-mark, field-group, choice-row, choice-stack, choice, choice--described,
+ * choice__control, choice__text, choice__label, choice__desc, error-summary, error-summary__title,
+ * error-summary__list, error-summary__field, case-form__limit, case-form__submit, case-form__button,
+ * case-form__draft-note.
+ */
+
+.case-form {
+  display: grid;
+  gap: var(--space-5);
+  margin-block-start: var(--space-2);
+}
+
+/* ---------------------------------------------------------------- labelled fields */
+
+.field,
+.field-group {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field__label {
+  padding: 0;
+  color: var(--ink-900);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 650;
+  line-height: var(--leading-snug);
+}
+
+.field__hint {
+  margin-block-start: calc(-1 * var(--space-1));
+  color: var(--walnut-700);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.field__control {
+  width: 100%;
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-ink);
+  border-radius: var(--radius);
+  background: var(--paper-100);
+  color: var(--ink-900);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: var(--leading-snug);
+  box-shadow: var(--shadow-ink);
+  transition:
+    translate 120ms var(--ease-snap),
+    box-shadow 120ms var(--ease-snap);
+}
+
+.field__control--area {
+  min-height: calc(var(--target-min) * 1.6);
+  resize: vertical;
+}
+
+.field__control::placeholder {
+  color: var(--walnut-700);
+}
+
+/* Focus: the control presses into the paper (smaller offset) and the ink focus ring sits outside it. */
+.field__control:focus-visible {
+  outline: 3px solid var(--ink-900);
+  outline-offset: 3px;
+  translate: 2px 2px;
+  box-shadow: 2px 2px 0 var(--ink-900);
+}
+
+.field--invalid .field__control,
+.field__control[aria-invalid="true"] {
+  border-color: var(--brick-700);
+  box-shadow: 4px 4px 0 var(--brick-700);
+}
+
+.field--invalid .field__control:focus-visible {
+  box-shadow: 2px 2px 0 var(--brick-700);
+}
+
+.field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--brick-700);
+  font-size: var(--text-base);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+}
+
+.field__error-mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-block-start: 1px;
+  border: 2px solid var(--brick-700);
+  background: var(--brick-700);
+  color: var(--paper-100);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  line-height: 1;
+  rotate: -4deg;
+}
+
+/* ---------------------------------------------------------------- radio choices (native radios, arrow keys) */
+
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.choice-stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
+  border: var(--border-ink);
+  border-radius: var(--radius);
+  background: var(--paper-100);
+  color: var(--ink-900);
+  box-shadow: var(--shadow-ink);
+  cursor: pointer;
+  transition:
+    translate 120ms var(--ease-snap),
+    box-shadow 120ms var(--ease-snap);
+}
+
+.choice--described {
+  align-items: flex-start;
+  padding-block: var(--space-3);
+}
+
+.choice:hover {
+  translate: -1px -1px;
+  box-shadow: 5px 5px 0 var(--ink-900);
+}
+
+/* The chosen option is pressed into the paper and filled with ink; the marker change is the native radio's own. */
+.choice:has(.choice__control:checked) {
+  background: var(--parchment-200);
+  translate: 2px 2px;
+  box-shadow: 2px 2px 0 var(--ink-900);
+}
+
+.choice:has(.choice__control:focus-visible) {
+  outline: 3px solid var(--ink-900);
+  outline-offset: 3px;
+}
+
+.choice__control {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--ink-900);
+}
+
+.choice--described .choice__control {
+  margin-block-start: 0.2rem;
+}
+
+/* The radio carries the visible focus via the label's ring above. */
+.choice__control:focus-visible {
+  outline: none;
+}
+
+.choice__text {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.choice__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 650;
+  line-height: var(--leading-snug);
+}
+
+.choice__desc {
+  color: var(--ink-900);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+/* ---------------------------------------------------------------- error summary and limit message */
+
+.error-summary {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 3px solid var(--brick-700);
+  border-inline-start-width: 8px;
+  background: var(--paper-100);
+  color: var(--ink-900);
+}
+
+.error-summary:focus-visible,
+.error-summary:focus {
+  outline: 3px solid var(--ink-900);
+  outline-offset: 3px;
+}
+
+.error-summary__title {
+  color: var(--brick-700);
+  font-size: var(--text-xl);
+  font-style: italic;
+}
+
+.error-summary__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
+.error-summary__list a {
+  color: var(--brick-700);
+  font-weight: 600;
+}
+
+.error-summary__field {
+  color: var(--ink-900);
+}
+
+.case-form__limit {
+  padding: var(--space-3) var(--space-4);
+  border: 2px dashed var(--brick-700);
+  background: var(--paper-100);
+  color: var(--brick-700);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- submit */
+
+.case-form__submit {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  padding-block-start: var(--space-2);
+}
+
+.case-form__button {
+  box-shadow: var(--shadow-ink);
+}
+
+.case-form__draft-note {
+  color: var(--walnut-700);
+  font-size: var(--text-sm);
+}

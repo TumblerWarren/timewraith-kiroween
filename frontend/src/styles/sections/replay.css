@@ -1,0 +1,653 @@
+/*
+ * Replay Lab (night, tower-950 since visual revision R2) with one wide paper-100 case-file sheet as the one bright
+ * object: event card, clock inspector, scrubber thread and rung strip. Everything inside the sheet takes the paper
+ * theme (ink-900, walnut-700) from layout.css. The sheet is a square folder page with a tab, so nothing inside it is a rounded card:
+ * panels are separated by ruled lines, pegs are circles, buttons are squares.
+ * Mascots touch the paper: the Bat peeks over the top edge from behind (claws in front), the Spider hangs on her
+ * silk from the scrubber rule to the current peg, the Raven stands on the bottom edge. Only the scrubber's
+ * Previous and Next buttons carry the hard ink offset; the sheet itself has none.
+ * Class names: replay__intro, case-file, case-file__tab, case-file__bat, case-file__claws, case-file__head, case-file__sample,
+ * case-file__source (-note), case-file__body, case-file__verdict, case-file__raven,
+ * event-card (__seq, __actor, __thumb, __name, __kind, __live, __text, __facts, __fact, __value),
+ * clock-inspector (__title, __dial, __fields, __field, __state, __state-shape, __state-text, __range),
+ * scrubber (__track, __spider, __silk, __thread, __pegs, __peg, __peg-tag, __ticks, __controls, __btn, __arrow, __readout),
+ * ladder-strip (__rungs, __rung, __shape, __label, __now, __other).
+ * Task 9.3 turns .scrubber__track into the slider; the peg and thumb styles key on aria-current.
+ */
+
+.replay__intro {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--measure);
+  margin-block-end: var(--space-6);
+}
+
+.replay__intro p {
+  font-size: var(--text-lg);
+}
+
+/* The sheet is a .paper-sheet (paper.css): deckled paper with grain and a flat divider-300 underlay, painted
+   under the content. Only the paper leans (--tilt); the event text and the scrubber stay square. */
+.case-file {
+  /* Figure sizes. The Bat is the one big figure here; the Spider and the Raven stay small. */
+  --bat-w: 100px;
+  --spider-w: 56px;
+  --raven-w: 72px;
+  position: relative;
+  display: grid;
+  gap: var(--space-6);
+  margin-block-start: var(--space-8);
+  padding: var(--space-6) var(--space-5) var(--space-6);
+  color: var(--fg);
+  border-radius: 0;
+}
+
+/* The folder tab: a moon-200 paper tab with the "Recorded replay" label, tucked behind the sheet's top edge and
+   stamped at its own angle. ink-900 on moon-200 is 10.73:1. */
+.case-file__tab {
+  --strike: var(--divider-300);
+  position: absolute;
+  z-index: -3;
+  top: calc(-1 * var(--space-7) + var(--space-2));
+  left: var(--space-5);
+  display: flex;
+  align-items: flex-start;
+  height: var(--space-8);
+  padding: var(--space-2) var(--space-5) 0;
+  background: var(--grain-layer), var(--moon-200);
+  color: var(--ink-900);
+  clip-path: var(--deckle-c);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-style: italic;
+  font-weight: 400;
+  line-height: var(--leading-snug);
+}
+
+/* Bat Scout clings to the back of the folder and peeks over the top edge: it sits behind the paper (z -3, like the
+   tab), so the paper hides everything below its lower wing tips (y 88 of its 140-unit art, 0.49 of its width).
+   The two claws are drawn in front of the paper, hooked over the edge where the wing tips are. */
+.case-file__bat {
+  position: absolute;
+  z-index: -3;
+  top: calc(var(--bat-w) * -0.49);
+  right: var(--space-6);
+  width: var(--bat-w);
+  pointer-events: none;
+}
+
+.case-file__claws {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--bat-w) * -0.045);
+  right: var(--space-6);
+  width: var(--bat-w);
+  height: calc(var(--bat-w) * 24 / 180);
+  overflow: visible;
+  fill: none;
+  stroke: var(--ink-900);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.case-file__bat svg,
+.case-file__bat img,
+.case-file__raven svg,
+.case-file__raven img {
+  width: 100%;
+  height: auto;
+}
+
+/* The Bat above the sheet and the Raven half off its corner stand on the tower-950 night, where their ink
+   outlines vanish: the moonlit rim from paper.css keeps their silhouettes. */
+.case-file__bat svg,
+.case-file__bat img,
+.case-file__raven svg,
+.case-file__raven img {
+  filter: var(--figure-rim);
+}
+
+.case-file__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  padding-block-end: var(--space-3);
+  border-block-end: 2px solid var(--ink-900);
+}
+
+.case-file__head h3 {
+  max-width: 28ch;
+  font-size: var(--text-xl);
+}
+
+/* The sample label is a rubber stamp with a dashed edge (not color): seeded lean, double strike. */
+.case-file__sample {
+  --strike: var(--divider-300);
+  padding: var(--space-1) var(--space-3);
+  border: 2px dashed var(--walnut-700);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+}
+
+/* The #7998 note is read in full, so it is body text: ink-900 at the body size, with a normal measure. */
+.case-file__source {
+  max-width: var(--measure);
+  font-size: var(--text-base);
+}
+
+.case-file__source a {
+  font-weight: 600;
+}
+
+.case-file__body {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---------------------------------------------------------------- event card */
+
+.event-card,
+.clock-inspector {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+.event-card__seq {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.event-card__actor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+/* A small deckled moon-200 snapshot of the actor (.paper-piece with its own lean). */
+.event-card__thumb {
+  flex: none;
+  width: var(--space-8);
+  padding: var(--space-1);
+  background: var(--grain-layer), var(--moon-200);
+}
+
+.event-card__thumb svg,
+.event-card__thumb img {
+  width: 100%;
+  height: auto;
+}
+
+.event-card__name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: var(--leading-snug);
+}
+
+/* The event kind is a short italic note after the name, in sentence case. */
+.event-card__kind {
+  color: var(--fg-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-style: italic;
+}
+
+.event-card__text {
+  max-width: 34rem;
+  font-size: var(--text-lg);
+  line-height: var(--leading-body);
+}
+
+.event-card__facts,
+.clock-inspector__fields {
+  display: grid;
+  margin: 0;
+}
+
+.event-card__fact,
+.clock-inspector__field {
+  display: grid;
+  gap: var(--space-1) var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: var(--space-2);
+  border-block-start: 1px dashed var(--walnut-700);
+}
+
+.event-card dt,
+.clock-inspector dt {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.event-card dd,
+.clock-inspector dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: var(--text-base);
+}
+
+.event-card__value b {
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- clock inspector */
+
+.clock-inspector {
+  padding-block-start: var(--space-5);
+  border-block-start: 2px dashed var(--walnut-700);
+}
+
+.clock-inspector__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: var(--leading-snug);
+}
+
+.clock-inspector__dial {
+  width: min(100%, 144px);
+  rotate: -2deg;
+}
+
+.clock-inspector dd {
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Browser clock state: a filled square when the Crew controls it, a dashed circle when not. Words come first. */
+.clock-inspector__state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.clock-inspector__state[data-state="controlled"] {
+  color: var(--sage-700);
+}
+
+.clock-inspector__state[data-state="free"] {
+  color: var(--walnut-700);
+}
+
+.clock-inspector__state-shape {
+  flex: none;
+  width: var(--space-3);
+  height: var(--space-3);
+  border: 2px solid currentColor;
+}
+
+.clock-inspector__state[data-state="controlled"] .clock-inspector__state-shape {
+  background: currentColor;
+}
+
+.clock-inspector__state[data-state="free"] .clock-inspector__state-shape {
+  border-style: dashed;
+  border-radius: 50%;
+}
+
+.clock-inspector__range {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---------------------------------------------------------------- scrubber (static) */
+
+.scrubber {
+  display: grid;
+  gap: var(--space-2);
+  padding-block-start: var(--space-4);
+  border-block-start: 2px solid var(--ink-900);
+}
+
+/* The track is the Spider's workspace. She hangs from the scrubber's top rule straight above the current peg
+   (--at, 0 to 1, set by Scrubber), and her silk runs on down until it touches that peg on the thread. */
+.scrubber__track {
+  position: relative;
+  height: calc(var(--space-9) + var(--space-5));
+  margin-inline: var(--space-2);
+}
+
+/* From the rule (16px above the track, the scrubber's top padding) to the peg centers (24px above the bottom). */
+.scrubber__spider {
+  position: absolute;
+  z-index: 2;
+  top: calc(-1 * var(--space-4));
+  bottom: calc(var(--space-3) + var(--space-5) / 2);
+  left: calc(var(--space-5) / 2 + var(--at, 0) * (100% - var(--space-5)));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--spider-w);
+  margin-inline-start: calc(var(--spider-w) / -2);
+  pointer-events: none;
+}
+
+.scrubber__spider svg,
+.scrubber__spider img {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 100%;
+  height: auto;
+}
+
+/* Her drawn thread is pale; an ink-brown strand over it ties her to the rule. It stops under her head. */
+.scrubber__spider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(50% - 1px);
+  height: calc(var(--spider-w) * 0.42);
+  border-inline-start: 2px solid var(--walnut-700);
+}
+
+/* The silk leaves her spinneret (y 172 of 200, so 0.175 of her width above the art's bottom) and drops to the peg. */
+.scrubber__silk {
+  flex: 1 1 auto;
+  width: 0;
+  margin-block-start: calc(var(--spider-w) * -0.175);
+  border-inline-start: 2px solid var(--walnut-700);
+}
+
+/* The thread and the pegs share one line, 24px high, 12px above the bottom edge. */
+.scrubber__thread {
+  position: absolute;
+  inset: auto 0 var(--space-3) 0;
+  width: 100%;
+  height: var(--space-5);
+  fill: none;
+  stroke: var(--walnut-700);
+  stroke-width: 3;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.scrubber__thread path {
+  vector-effect: non-scaling-stroke;
+}
+
+.scrubber__pegs {
+  position: absolute;
+  inset: auto 0 var(--space-3) 0;
+  height: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* A peg is a circle, not a card. Interactive boundaries use ink-900, never divider-300. */
+.scrubber__peg {
+  position: relative;
+  flex: none;
+  width: var(--space-3);
+  height: var(--space-3);
+  background: var(--paper-100);
+  border: 2px solid var(--ink-900);
+  border-radius: 50%;
+}
+
+.scrubber__peg[aria-current="step"] {
+  width: var(--space-5);
+  height: var(--space-5);
+  background: var(--ink-900);
+  box-shadow: 0 0 0 3px var(--paper-100);
+}
+
+/* The first anomaly: a brick-700 rubber stamp (6.29:1 on paper-100) on a short ink stem, so it is marked in
+   words as well as position. Seeded lean and a double strike (.stamp). */
+.scrubber__peg-tag {
+  --strike: var(--divider-300);
+  position: absolute;
+  bottom: calc(100% + var(--space-3));
+  left: 50%;
+  translate: -50% 0;
+  padding: 0 var(--space-2);
+  background: var(--paper-100);
+  border: 4px double var(--brick-700);
+  color: var(--brick-700);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.scrubber__peg-tag::after {
+  content: "";
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  height: var(--space-2);
+  border-inline-start: 2px solid var(--ink-900);
+}
+
+.scrubber__ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-inline: var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+.scrubber__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.scrubber__readout {
+  order: -1;
+  width: 100%;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Squared buttons with a hard ink offset; the same step actions as the arrow keys arrive in task 9.3. */
+.scrubber__btn {
+  display: inline-flex;
+  flex: 1 1 9rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-4);
+  background: var(--paper-100);
+  color: var(--ink-900);
+  border: var(--border-ink);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 var(--ink-900);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  transition: translate 120ms var(--ease-snap);
+}
+
+.scrubber__btn:hover {
+  translate: -1px -1px;
+}
+
+.scrubber__btn:active {
+  translate: 2px 2px;
+}
+
+.scrubber__arrow {
+  flex: none;
+}
+
+/* ---------------------------------------------------------------- rung strip and the Raven */
+
+/* The strip keeps clear of the Raven's corner on narrow sheets (the Raven stands inside the corner there). */
+.case-file__verdict {
+  display: grid;
+  padding-block-start: var(--space-4);
+  padding-inline-end: calc(var(--raven-w) - var(--space-4));
+  border-block-start: 2px dashed var(--walnut-700);
+}
+
+/* Raven Archivist stands on the sheet's bottom edge beside the rung strip, beak toward the rungs. Its perch line
+   (y 165 of its 180-unit art, 0.094 of its width above the art's bottom) lies on the deckled edge. */
+.case-file__raven {
+  position: absolute;
+  z-index: 1;
+  right: calc(-1 * var(--space-2));
+  bottom: calc(var(--raven-w) * -0.094 - 5px);
+  width: var(--raven-w);
+  pointer-events: none;
+}
+
+.ladder-strip {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ladder-strip__rungs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.ladder-strip__rung,
+.ladder-strip__other {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.ladder-strip__shape {
+  flex: none;
+}
+
+.ladder-strip__rung[data-state="ahead"] .ladder-strip__label,
+.ladder-strip__other[data-state="ahead"] .ladder-strip__label {
+  color: var(--walnut-700);
+}
+
+/* The current rung: bold, a heavy underline, and the word "now". */
+.ladder-strip__rung[data-state="current"] .ladder-strip__label,
+.ladder-strip__other[data-state="current"] .ladder-strip__label {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.25em;
+}
+
+.ladder-strip__now {
+  padding: 0 var(--space-2);
+  background: var(--tower-950);
+  color: var(--paper-100);
+  /* Roman: only the Libre Franklin roman file is loaded and font-synthesis is off, so italic would not render. */
+  font-weight: 700;
+}
+
+/* Inconclusive is not on the ladder, so it is set apart with a dashed edge. */
+.ladder-strip__other {
+  justify-self: start;
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  border: 2px dashed var(--walnut-700);
+}
+
+@media (min-width: 768px) {
+  .case-file {
+    padding: var(--space-7) var(--space-6) var(--space-6);
+  }
+
+  .case-file {
+    --bat-w: 152px;
+    --spider-w: 64px;
+    --raven-w: 88px;
+  }
+
+  .scrubber__peg {
+    width: var(--space-4);
+    height: var(--space-4);
+  }
+
+  .scrubber__readout {
+    order: 0;
+    width: auto;
+  }
+
+  .scrubber__btn {
+    flex: 0 1 auto;
+  }
+}
+
+@media (min-width: 900px) {
+  .case-file {
+    padding: var(--space-7);
+  }
+
+  .case-file__body {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    column-gap: var(--space-7);
+  }
+
+  .clock-inspector {
+    padding-block-start: 0;
+    padding-inline-start: var(--space-7);
+    border-block-start: 0;
+    border-inline-start: 2px dashed var(--walnut-700);
+  }
+}
+
+/* Wide screens: the Raven steps half off the paper, past the right edge, and the strip gets its full width. */
+@media (min-width: 1100px) {
+  .case-file__verdict {
+    padding-inline-end: 0;
+  }
+
+  .case-file__raven {
+    right: calc(var(--raven-w) * -0.45);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .replay__intro {
+    margin-block-end: var(--space-6);
+  }
+
+  /* Fewer decorations on small screens: the clock dial stays straight. */
+  .clock-inspector__dial {
+    rotate: 0deg;
+  }
+
+  /* A smaller tab, so it stays clear of the Bat Scout on the same edge. */
+  .case-file__tab {
+    left: var(--space-3);
+    padding-inline: var(--space-3);
+    font-size: var(--text-base);
+  }
+
+  .case-file__bat,
+  .case-file__claws {
+    right: var(--space-4);
+  }
+}

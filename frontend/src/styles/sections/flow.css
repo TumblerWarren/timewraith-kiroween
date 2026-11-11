@@ -1,0 +1,364 @@
+/*
+ * Flow (the dark stairwell, tower-950 since visual revision R2; paper-100 and moon-200 text on the background).
+ * The five steps are landings on the tower stairs, one under the other, switching sides as the stair turns
+ * (data-side="start|end"). On each landing:
+ *   - a signboard (.flow__sign): a walnut plank with gold trim on two gold legs, hand-lettered in paper-100 (8.52)
+ *     with the step's number and title. The step's lead mascot (li[data-lead]) perches on top of the sign.
+ *   - the helpers (the other li.flow__mascot) stand on the landing beside the sign and overlap its edge.
+ *   - the landing itself (.flow__landing::after): a walnut plank with a gold tread edge and rough ends.
+ *   - name tags (.flow__mascot-name): small paper pieces nailed under the plank, one under each figure (the lead's
+ *     under its sign).
+ * The approve landing (data-burst="true") stands inside a crooked gateway (.flow__gate, data-burst-anchor) and
+ * carries the "Waits for you" stamp. The summary (.flow__text) sits beside the landing from 768px, under it below.
+ * No circled numerals, no spine, no plates; nothing here is a card.
+ */
+
+.section--flow {
+  --fig-scale: 0.8;
+  --sign-w: 164px;
+  /* How far the helpers step in front of the sign's edge. */
+  --tuck: var(--space-4);
+  --board-h: 88px;
+  --legs: 20px;
+  --perch: 8px;
+  --tread: 12px;
+  --tag-row: 60px;
+}
+
+.flow__intro {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--measure);
+  margin-block-end: var(--space-7);
+}
+
+.flow__intro p {
+  font-size: var(--text-lg);
+}
+
+.flow__steps {
+  display: grid;
+  gap: var(--space-8);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.flow__step {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- the landing */
+
+.flow__landing {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  width: max-content;
+  max-width: 100%;
+  padding-block: calc(var(--lead-h) * var(--fig-scale) - var(--perch)) calc(var(--tread) + var(--tag-row));
+}
+
+.flow__step[data-side="end"] .flow__landing {
+  flex-direction: row-reverse;
+  justify-self: end;
+}
+
+/* The plank: walnut with a gold top edge (the tread catches the lamplight), rough ends, its own small lean, a
+   little longer than what stands on it. On the tower-950 stairwell an ink plank would vanish (ink-900 on tower-950
+   is about 1.0:1); gold-500 on tower-950 is 5.48. */
+.flow__landing::after {
+  content: "";
+  position: absolute;
+  inset-inline: calc(-1 * var(--space-3));
+  bottom: var(--tag-row);
+  z-index: 3;
+  height: var(--tread);
+  background: var(--walnut-700);
+  border-block-start: 3px solid var(--gold-500);
+  clip-path: var(--deckle-c);
+  rotate: var(--tilt, 0deg);
+}
+
+/* ---------------------------------------------------------------- the signboard */
+
+.flow__sign {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-3);
+  width: var(--sign-w);
+  height: calc(var(--board-h) + var(--legs));
+  padding: var(--space-2) var(--space-3) calc(var(--legs) + var(--space-2));
+  color: var(--paper-100);
+  rotate: var(--tilt, 0deg);
+  translate: var(--nudge-x, 0) 0;
+}
+
+/* Keep the lettering clear of the helpers that step in front of the sign's inner edge. */
+.flow__step[data-side="start"] .flow__sign {
+  padding-inline-end: calc(var(--tuck) + var(--space-1));
+}
+
+.flow__step[data-side="end"] .flow__sign {
+  padding-inline-start: calc(var(--tuck) + var(--space-2));
+}
+
+/* The board: walnut plank with grain and a deckled edge, painted under the lettering. Gold trim along its top and
+   bottom edges separates it from the tower-950 stairwell (walnut-700 on tower-950 alone is only about 1.6:1). */
+.flow__sign::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 var(--legs);
+  z-index: -1;
+  background: var(--grain-layer), var(--walnut-700);
+  background-blend-mode: soft-light;
+  /* 6px, because the deckled clip-path eats up to 3.4px of each edge and a 3px trim vanished in places. */
+  border-block: 6px solid var(--gold-500);
+  clip-path: var(--deckle-a);
+}
+
+/* Two gold-trimmed legs down to the landing. */
+.flow__sign::after {
+  content: "";
+  position: absolute;
+  inset: auto 18% 0;
+  height: var(--legs);
+  z-index: -1;
+  border-inline: 5px solid var(--gold-500);
+}
+
+/* The numeral is a poster gothic figure in the UI face: IM Fell English sets old-style figures, and its 1 reads as
+   a capital I on a sign. */
+.flow__sign-no {
+  font-family: var(--font-ui);
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.flow__title {
+  color: var(--paper-100);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: var(--leading-tight);
+  overflow-wrap: normal;
+}
+
+/* ---------------------------------------------------------------- the mascots */
+
+.flow__mascots {
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  margin: 0 0 0 calc(-1 * var(--tuck));
+  list-style: none;
+}
+
+.flow__step[data-side="end"] .flow__mascots {
+  flex-direction: row-reverse;
+  margin: 0 calc(-1 * var(--tuck)) 0 0;
+}
+
+.flow__mascot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: calc(var(--fig-w) * var(--fig-scale));
+}
+
+
+.flow__mascot > svg,
+.flow__mascot > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* On the tower-950 stairwell the figures' ink outlines (ink-900 on tower-950 is 1.03:1) and the darker figures
+   (Spider, Raven, Bat) disappear, so each figure gets the thin moonlit rim (--figure-rim, paper.css). */
+.flow__mascot > svg,
+.flow__mascot > img,
+.flow__mascot[data-lead="true"] > svg,
+.flow__mascot[data-lead="true"] > img {
+  filter: var(--figure-rim);
+}
+
+/* The lead perches on top of the sign, its feet a few px into the board's top edge. */
+.flow__mascot[data-lead="true"] {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--tag-row) + var(--tread) + var(--board-h) + var(--legs) - var(--perch));
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  width: var(--sign-w);
+}
+
+.flow__step[data-side="end"] .flow__mascot[data-lead="true"] {
+  left: auto;
+  right: 0;
+}
+
+.flow__mascot[data-lead="true"] > svg,
+.flow__mascot[data-lead="true"] > img {
+  width: calc(var(--fig-w) * var(--fig-scale));
+  max-width: none;
+}
+
+/* Name tags hang under the plank: ink on a deckled paper-100 piece (13.17), each with its own lean. */
+.flow__mascot-name {
+  position: absolute;
+  top: calc(100% + var(--tread) + var(--space-2));
+  inset-inline: calc(-1 * var(--space-3));
+  width: fit-content;
+  max-width: calc(100% + 2 * var(--space-3));
+  margin-inline: auto;
+  padding: 2px 6px;
+  color: var(--ink-900);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  text-align: center;
+  overflow-wrap: normal;
+}
+
+/* Where two helpers stand side by side, the second one's tag hangs a line lower so the tags never collide. */
+.flow__mascot:not([data-lead]) ~ .flow__mascot:not([data-lead]) .flow__mascot-name {
+  top: calc(100% + var(--tread) + var(--space-2) + var(--stagger));
+}
+
+.section--flow {
+  /* Two lines of a 14px tag and a little air. */
+  --stagger: 2.75rem;
+}
+
+/* Landings with two helpers keep a deeper row of tags under the plank. */
+.flow__step:has(.flow__mascot:not([data-lead]) ~ .flow__mascot:not([data-lead])) {
+  --tag-row: calc(60px + var(--stagger));
+}
+
+/* The lead's tag hangs under its sign, toward the outer end, clear of the helpers' tags. */
+.flow__mascot[data-lead="true"] .flow__mascot-name {
+  top: calc(100% + var(--board-h) + var(--legs) - var(--perch) + var(--tread) + var(--space-2));
+  inset-inline: 0 auto;
+  max-width: calc(100% - var(--tuck) - var(--space-4));
+  margin-inline: 0;
+}
+
+.flow__step[data-side="end"] .flow__mascot[data-lead="true"] .flow__mascot-name {
+  inset-inline: auto 0;
+}
+
+/* ---------------------------------------------------------------- the approve gate */
+
+/* The gateway stands on the landing around the sign and the Warden; the Bat Burst plays from here later. */
+.flow__gate {
+  position: absolute;
+  left: calc(-1 * var(--space-4));
+  bottom: calc(var(--tag-row) + var(--tread) - 2px);
+  z-index: -1;
+  width: calc(var(--sign-w) + 2 * var(--space-4));
+  max-width: none;
+  height: calc(var(--board-h) + var(--legs) + var(--lead-h) * var(--fig-scale) + var(--space-4));
+}
+
+/* The human gate is named in words on a rubber stamp beside the sign (moon-200 on tower-950, 11.09), with a seeded
+   lean and a double strike in walnut. A double rule, not the 2px button outline, so it never reads as a control. */
+.flow__gate-tag {
+  --strike: var(--walnut-700);
+  align-self: center;
+  margin-inline: var(--space-4) 0;
+  padding: var(--space-1) var(--space-3);
+  border: 4px double var(--moon-200);
+  color: var(--moon-200);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-style: italic;
+  font-weight: 400;
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+}
+
+.flow__step[data-side="end"] .flow__gate-tag {
+  margin-inline: 0 var(--space-4);
+}
+
+/* ---------------------------------------------------------------- the summary */
+
+.flow__text {
+  max-width: 34rem;
+  font-size: var(--text-base);
+}
+
+.flow__step[data-side="end"] .flow__text {
+  justify-self: end;
+}
+
+@media (min-width: 768px) {
+  .section--flow {
+    --fig-scale: 1;
+    --sign-w: 220px;
+    --board-h: 104px;
+    --legs: 26px;
+    --tread: 14px;
+  }
+
+  /* There is room for one-line tags here, so the second helper's tag only needs to drop by one line. */
+  .section--flow {
+    --tuck: var(--space-5);
+    --stagger: 1.5rem;
+    --tag-row: 44px;
+  }
+
+  .flow__mascot:not([data-lead]) .flow__mascot-name {
+    max-width: none;
+    white-space: nowrap;
+  }
+
+  .flow__step:has(.flow__mascot:not([data-lead]) ~ .flow__mascot:not([data-lead])) {
+    --tag-row: calc(44px + var(--stagger));
+  }
+
+  .flow__steps {
+    gap: var(--space-7);
+  }
+
+  .flow__step {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    column-gap: var(--space-7);
+  }
+
+  .flow__step[data-side="end"] {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .flow__step[data-side="end"] .flow__landing {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .flow__step[data-side="end"] .flow__text {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* The summary stands on the same landing, just above the plank. */
+  .flow__text {
+    margin-block-end: calc(var(--tag-row) + var(--tread) + var(--space-3));
+  }
+
+  .flow__sign-no {
+    font-size: 3.25rem;
+  }
+
+  .flow__title {
+    font-size: clamp(1.5rem, 1.25rem + 0.5vw, 1.75rem);
+  }
+}

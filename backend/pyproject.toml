@@ -1,0 +1,46 @@
+[project]
+name = "timewraith"
+version = "0.1.0"
+description = "TimeWraith backend: repository-agnostic temporal bug investigator (MVP)"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.32",
+  "pydantic>=2.12",
+  "pydantic-settings>=2.6",
+  "tzdata>=2025.2",  # IANA zones on Windows, where the OS has no tz database
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "hypothesis>=6.120",
+  "httpx>=0.28",
+  "ruff>=0.8",
+  "mypy>=1.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/timewraith"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+ignore = ["S603", "S607", "S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+mypy_path = "src"

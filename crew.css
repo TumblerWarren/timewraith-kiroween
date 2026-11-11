@@ -1,0 +1,305 @@
+/*
+ * Flow (dawn, moon-200; only ink-900 text on the background). The five steps are landings on the tower stairs,
+ * one under the other, switching sides as the stair turns (data-side="start|end"). On each landing:
+ *   - a signboard (.flow__sign): a dark walnut plank on two ink legs, hand-lettered in paper-100 (8.52) with the
+ *     step's number and title. The step's lead mascot (li[data-lead]) perches on top of the sign.
+ *   - the helpers (the other li.flow__mascot) stand on the landing beside the sign and overlap its edge.
+ *   - the landing itself (.flow__landing::after): an ink plank with rough ends, jutting out from the wall.
+ *   - name tags (.flow__mascot-name): small paper pieces nailed under the plank, one under each figure (the lead's
+ *     under its sign).
+ * The approve landing (data-burst="true") stands inside a crooked gateway (.flow__gate, data-burst-anchor) and
+ * carries the "Waits for you" stamp. The summary (.flow__text) sits beside the landing from 768px, under it below.
+ * No circled numerals, no spine, no plates; nothing here is a card.
+ */
+
+.section--flow {
+  --fig-scale: 0.8;
+  --sign-w: 148px;
+  --board-h: 88px;
+  --legs: 20px;
+  --perch: 8px;
+  --tread: 12px;
+  --tag-row: 52px;
+}
+
+.flow__intro {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--measure);
+  margin-block-end: var(--space-7);
+}
+
+.flow__intro p {
+  font-size: var(--text-lg);
+}
+
+.flow__steps {
+  display: grid;
+  gap: var(--space-8);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.flow__step {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- the landing */
+
+.flow__landing {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  width: max-content;
+  max-width: 100%;
+  padding-block: calc(var(--lead-h) * var(--fig-scale) - var(--perch)) calc(var(--tread) + var(--tag-row));
+}
+
+.flow__step[data-side="end"] .flow__landing {
+  flex-direction: row-reverse;
+  justify-self: end;
+}
+
+/* The plank: ink, rough ends, its own small lean, a little longer than what stands on it. */
+.flow__landing::after {
+  content: "";
+  position: absolute;
+  inset-inline: calc(-1 * var(--space-3));
+  bottom: var(--tag-row);
+  z-index: 3;
+  height: var(--tread);
+  background: var(--ink-900);
+  clip-path: var(--deckle-c);
+  rotate: var(--tilt, 0deg);
+}
+
+/* ---------------------------------------------------------------- the signboard */
+
+.flow__sign {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-3);
+  width: var(--sign-w);
+  height: calc(var(--board-h) + var(--legs));
+  padding: var(--space-2) var(--space-4) calc(var(--legs) + var(--space-2));
+  color: var(--paper-100);
+  rotate: var(--tilt, 0deg);
+  translate: var(--nudge-x, 0) 0;
+}
+
+/* The board: walnut plank with grain and a deckled edge, painted under the lettering. */
+.flow__sign::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 var(--legs);
+  z-index: -1;
+  background: var(--grain-layer), var(--walnut-700);
+  background-blend-mode: soft-light;
+  clip-path: var(--deckle-a);
+}
+
+/* Two ink legs down to the landing. */
+.flow__sign::after {
+  content: "";
+  position: absolute;
+  inset: auto 18% 0;
+  height: var(--legs);
+  z-index: -1;
+  border-inline: 5px solid var(--ink-900);
+}
+
+.flow__sign-no {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+}
+
+.flow__title {
+  color: var(--paper-100);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  overflow-wrap: normal;
+}
+
+/* ---------------------------------------------------------------- the mascots */
+
+.flow__mascots {
+  display: flex;
+  align-items: flex-end;
+  padding: 0;
+  margin: 0 0 0 calc(-1 * var(--space-5));
+  list-style: none;
+}
+
+.flow__step[data-side="end"] .flow__mascots {
+  flex-direction: row-reverse;
+  margin: 0 calc(-1 * var(--space-5)) 0 0;
+}
+
+.flow__mascot {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: calc(var(--fig-w) * var(--fig-scale));
+}
+
+.flow__mascot + .flow__mascot {
+  margin-inline-start: calc(-1 * var(--space-3));
+}
+
+.flow__step[data-side="end"] .flow__mascot + .flow__mascot {
+  margin-inline: 0 calc(-1 * var(--space-3));
+}
+
+.flow__mascot > svg,
+.flow__mascot > img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* The lead perches on top of the sign, its feet a few px into the board's top edge. */
+.flow__mascot[data-lead="true"] {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--tag-row) + var(--tread) + var(--board-h) + var(--legs) - var(--perch));
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  width: var(--sign-w);
+}
+
+.flow__step[data-side="end"] .flow__mascot[data-lead="true"] {
+  left: auto;
+  right: 0;
+}
+
+.flow__mascot[data-lead="true"] > svg,
+.flow__mascot[data-lead="true"] > img {
+  width: calc(var(--fig-w) * var(--fig-scale));
+  max-width: none;
+}
+
+/* Name tags hang under the plank: ink on a deckled paper-100 piece (13.17), each with its own lean. */
+.flow__mascot-name {
+  position: absolute;
+  top: calc(100% + var(--tread) + var(--space-2));
+  inset-inline: calc(-1 * var(--space-5));
+  width: fit-content;
+  max-width: calc(100% + 2 * var(--space-5));
+  margin-inline: auto;
+  padding: 2px var(--space-2);
+  color: var(--ink-900);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  text-align: center;
+}
+
+.flow__mascot[data-lead="true"] .flow__mascot-name {
+  top: calc(100% + var(--board-h) + var(--legs) - var(--perch) + var(--tread) + var(--space-2));
+  inset-inline: 0;
+  max-width: 100%;
+}
+
+/* ---------------------------------------------------------------- the approve gate */
+
+/* The gateway stands on the landing around the sign and the Warden; the Bat Burst plays from here later. */
+.flow__gate {
+  position: absolute;
+  left: calc(-1 * var(--space-4));
+  bottom: calc(var(--tag-row) + var(--tread) - 2px);
+  z-index: -1;
+  width: calc(var(--sign-w) + 2 * var(--space-4));
+  max-width: none;
+  height: calc(var(--board-h) + var(--legs) + var(--lead-h) * var(--fig-scale) + var(--space-4));
+}
+
+/* The human gate is named in words on a rubber stamp beside the sign (ink-900 on moon-200), with a seeded lean
+   and a double strike. A double rule, not the 2px button outline, so it never reads as a control. */
+.flow__gate-tag {
+  --strike: var(--divider-300);
+  align-self: center;
+  margin-inline: var(--space-6) 0;
+  padding: var(--space-1) var(--space-3);
+  border: 4px double var(--ink-900);
+  color: var(--ink-900);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-style: italic;
+  font-weight: 400;
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+}
+
+.flow__step[data-side="end"] .flow__gate-tag {
+  margin-inline: 0 var(--space-6);
+}
+
+/* ---------------------------------------------------------------- the summary */
+
+.flow__text {
+  max-width: 34rem;
+  font-size: var(--text-base);
+}
+
+.flow__step[data-side="end"] .flow__text {
+  justify-self: end;
+}
+
+@media (min-width: 768px) {
+  .section--flow {
+    --fig-scale: 1;
+    --sign-w: 220px;
+    --board-h: 104px;
+    --legs: 26px;
+    --tread: 14px;
+  }
+
+  .flow__steps {
+    gap: var(--space-7);
+  }
+
+  .flow__step {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    column-gap: var(--space-7);
+  }
+
+  .flow__step[data-side="end"] {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .flow__step[data-side="end"] .flow__landing {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .flow__step[data-side="end"] .flow__text {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* The summary stands on the same landing, just above the plank. */
+  .flow__text {
+    margin-block-end: calc(var(--tag-row) + var(--tread) + var(--space-3));
+  }
+
+  .flow__sign-no {
+    font-size: 3.25rem;
+  }
+
+  .flow__title {
+    font-size: clamp(1.5rem, 1.2rem + 0.8vw, 2rem);
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Reduce Motion coverage check",
+      "description": "After editing animation code, run the registry/fallback tests and remind about fallbacks.",
+      "trigger": "PostFileSave",
+      "matcher": "frontend[\\\\/]src[\\\\/]animation[\\\\/].*\\.(ts|tsx)$",
+      "action": { "type": "command", "command": "node scripts/hooks/motion-coverage.mjs" },
+      "timeout": 90,
+      "enabled": true
+    }
+  ]
+}

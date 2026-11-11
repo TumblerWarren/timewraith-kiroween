@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "ClockConfig": {
+      "properties": {
+        "instant": {
+          "title": "Instant",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "scope": {
+          "const": "test_process",
+          "default": "test_process",
+          "title": "Scope",
+          "type": "string"
+        },
+        "time_zone": {
+          "title": "Time Zone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instant",
+        "time_zone",
+        "label"
+      ],
+      "title": "ClockConfig",
+      "type": "object"
+    },
+    "Experiment": {
+      "properties": {
+        "adapter": {
+          "const": "js_tests",
+          "default": "js_tests",
+          "title": "Adapter",
+          "type": "string"
+        },
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "enum": [
+                "timezone_conversion",
+                "midnight_rollover",
+                "dst_transition",
+                "expiry_boundary",
+                "other_temporal"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "baseline",
+              "type": "string"
+            }
+          ],
+          "title": "Category"
+        },
+        "clocks": {
+          "items": {
+            "$ref": "#/$defs/ClockConfig"
+          },
+          "title": "Clocks",
+          "type": "array"
+        },
+        "executability": {
+          "enum": [
+            "ready",
+            "needs_setup",
+            "not_controllable"
+          ],
+          "title": "Executability",
+          "type": "string"
+        },
+        "executability_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Executability Reason"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "candidate_id",
+        "category",
+        "clocks",
+        "executability"
+      ],
+      "title": "Experiment",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "capped": {
+      "default": false,
+      "title": "Capped",
+      "type": "boolean"
+    },
+    "experiments": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Experiment"
+      },
+      "title": "Experiments",
+      "type": "array"
+    },
+    "kind": {
+      "const": "Planned experiments, not run",
+      "default": "Planned experiments, not run",
+      "title": "Kind",
+      "type": "string"
+    }
+  },
+  "title": "TestPlan",
+  "type": "object"
+}
