@@ -14,20 +14,20 @@
         "webp": "cutouts/doctor-stitch/pose.webp"
       },
       "size": {
-        "w": 320,
-        "h": 378
+        "w": 799,
+        "h": 944
       },
       "display": {
-        "w": 160,
-        "h": 189
+        "w": 400,
+        "h": 472
       },
       "pivot": {
         "x": 0.5,
         "y": 1.0
       },
       "bytes": {
-        "png": 152452,
-        "webp": 34616
+        "png": 664945,
+        "webp": 113078
       },
       "qa": {
         "ok": true,
@@ -49,20 +49,20 @@
         "webp": "cutouts/mini-bat/pose-rest.webp"
       },
       "size": {
-        "w": 190,
-        "h": 160
+        "w": 494,
+        "h": 416
       },
       "display": {
-        "w": 95,
-        "h": 80
+        "w": 247,
+        "h": 208
       },
       "pivot": {
         "x": 0.5,
         "y": 0.5
       },
       "bytes": {
-        "png": 37892,
-        "webp": 9062
+        "png": 158221,
+        "webp": 27214
       },
       "qa": {
         "ok": true,
@@ -84,20 +84,20 @@
         "webp": "cutouts/mini-ghost/pose.webp"
       },
       "size": {
-        "w": 168,
-        "h": 178
+        "w": 504,
+        "h": 533
       },
       "display": {
-        "w": 84,
-        "h": 89
+        "w": 252,
+        "h": 266
       },
       "pivot": {
         "x": 0.5,
         "y": 0.7
       },
       "bytes": {
-        "png": 33882,
-        "webp": 7400
+        "png": 192209,
+        "webp": 26190
       },
       "qa": {
         "ok": true,
@@ -119,20 +119,20 @@
         "webp": "cutouts/mummy-wrapper/pose.webp"
       },
       "size": {
-        "w": 280,
-        "h": 345
+        "w": 559,
+        "h": 688
       },
       "display": {
-        "w": 140,
-        "h": 172
+        "w": 280,
+        "h": 344
       },
       "pivot": {
         "x": 0.5,
         "y": 1.0
       },
       "bytes": {
-        "png": 118891,
-        "webp": 27694
+        "png": 364133,
+        "webp": 65426
       },
       "qa": {
         "ok": true,
@@ -154,20 +154,20 @@
         "webp": "cutouts/wraith-director/pose.webp"
       },
       "size": {
-        "w": 244,
-        "h": 400
+        "w": 914,
+        "h": 1498
       },
       "display": {
-        "w": 122,
-        "h": 200
+        "w": 457,
+        "h": 749
       },
       "pivot": {
         "x": 0.5,
         "y": 1.0
       },
       "bytes": {
-        "png": 107892,
-        "webp": 27958
+        "png": 863193,
+        "webp": 140602
       },
       "qa": {
         "ok": true,
