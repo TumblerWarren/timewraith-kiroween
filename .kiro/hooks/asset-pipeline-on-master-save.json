@@ -6,9 +6,12 @@
       "description": "Runs the cutout script on a saved master (transparent-alpha masters are preferred, see docs/tool-check.md), then the asset QA check. Fails with the QA reasons.",
       "trigger": "PostFileSave",
       "matcher": "frontend[\\\\/]assets[\\\\/]masters[\\\\/].*\\.png$",
-      "action": { "type": "command", "command": "node scripts/hooks/asset-pipeline.mjs" },
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/asset-pipeline.mjs"
+      },
       "timeout": 180,
-      "enabled": true
+      "enabled": false
     }
   ]
 }

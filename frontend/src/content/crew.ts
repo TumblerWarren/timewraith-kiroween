@@ -33,7 +33,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "agent",
     sections: ["open", "crew", "flow"],
     roams: false,
-    job: "Plans the investigation and speaks for the Crew.",
+    job: "Clones the pinned commit and runs the investigation from start to end.",
   },
   {
     id: "watchtower-warden",
@@ -42,7 +42,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "agent",
     sections: ["open", "crew", "flow"],
     roams: false,
-    job: "Dispatches the experiments and keeps the queue and stop conditions.",
+    job: "Holds the queue, waits for your plan approval and enforces the limits.",
   },
   {
     id: "bat-scout",
@@ -51,7 +51,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "agent",
     sections: ["case", "crew", "flow"],
     roams: false,
-    job: "Explores the app and finds the route to the date boundary.",
+    job: "Kiro agent: reads the scan results and keeps the time-sensitive code worth testing.",
   },
   {
     id: "pumpkin-mechanic",
@@ -60,7 +60,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "agent",
     sections: ["case", "crew", "flow"],
     roams: false,
-    job: "Runs the experiments with the Playwright clock.",
+    job: "Kiro agent: writes a small adapter for each experiment and picks the rules it must keep.",
   },
   {
     id: "raven-archivist",
@@ -69,7 +69,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "agent",
     sections: ["case", "crew", "flow", "close"],
     roams: false,
-    job: "Verifies the result and stamps how strong the evidence is.",
+    job: "Kiro agent: judges each reproduced violation and blind-reviews every fix.",
   },
   {
     id: "doctor-stitch",
@@ -78,7 +78,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "agent",
     sections: ["case", "crew", "flow"],
     roams: false,
-    job: "Patch-maker: stitches a suggested fix and the regression test that proves it.",
+    job: "Kiro agent: writes a fix, which counts only after it passes eight gates.",
   },
   {
     id: "gargoyle-gatekeeper",
@@ -87,7 +87,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "system",
     sections: ["crew", "flow"],
     roams: false,
-    job: "Guards permissions, the allowlist and the sandbox limits.",
+    job: "Reads the manifests, lockfile and test setup and says what the repository supports.",
   },
   {
     id: "cauldron-cat",
@@ -96,7 +96,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "system",
     sections: ["crew", "flow"],
     roams: false,
-    job: "Runs the local sandbox where each experiment brews.",
+    job: "Runs the Docker sandbox: no network after install, 2 CPUs, 4 GB.",
   },
   {
     id: "spider-weaver",
@@ -105,16 +105,16 @@ export const CREW: readonly CrewMember[] = [
     kind: "system",
     sections: ["case", "crew", "flow"],
     roams: false,
-    job: "Records the trace and events, and spins the timeline thread.",
+    job: "Sweeps thousands of clock settings through each adapter in thirteen time zones.",
   },
   {
     id: "mummy-wrapper",
     name: "Mummy Wrapper",
     tier: 2,
     kind: "system",
-    sections: ["case", "crew", "flow"],
+    sections: ["crew", "flow"],
     roams: false,
-    job: "Hashes artifacts, redacts secrets and writes the manifest.",
+    job: "Keeps the record of every run, decision and piece of evidence.",
   },
   {
     id: "two-faced-jack",
@@ -123,7 +123,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "system",
     sections: ["case", "crew", "flow"],
     roams: false,
-    job: "Compares the affected version with the fixed version.",
+    job: "Searches the public issues to tell a known bug from a new one.",
   },
   {
     id: "skeleton-scribe",
@@ -132,7 +132,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "system",
     sections: ["library", "crew", "flow", "close"],
     roams: false,
-    job: "Exports the report and the regression test.",
+    job: "Bundles the accepted fix with its regression test as a patch.",
   },
   {
     id: "mini-bat",
@@ -141,7 +141,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "companion",
     sections: ["open", "lost-hour", "library", "case", "crew"],
     roams: true,
-    job: "Bursts from clicks and flies between section nodes.",
+    job: "Keeps watch on the board.",
   },
   {
     id: "mini-ghost",
@@ -150,7 +150,7 @@ export const CREW: readonly CrewMember[] = [
     kind: "companion",
     sections: ["lost-hour", "crew"],
     roams: true,
-    job: "Floats down the thread as your scroll companion and progress marker.",
+    job: "Haunts the lost hour.",
   },
 ];
 

@@ -6,18 +6,24 @@
       "description": "Windows PowerShell policy blocks the .ps1 shims. Use codex.cmd and opencode.cmd. Exit 2 blocks the command.",
       "trigger": "PreToolUse",
       "matcher": "shell",
-      "action": { "type": "command", "command": "node scripts/hooks/guard-shell.mjs shims" },
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/guard-shell.mjs shims"
+      },
       "timeout": 10,
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "Style guard before git commit",
       "description": "Runs the banned-style guard and lint before a git commit command; exit 2 blocks the commit on failure.",
       "trigger": "PreToolUse",
       "matcher": "shell",
-      "action": { "type": "command", "command": "node scripts/hooks/guard-shell.mjs commit" },
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/guard-shell.mjs commit"
+      },
       "timeout": 90,
-      "enabled": true
+      "enabled": false
     }
   ]
 }

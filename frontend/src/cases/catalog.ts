@@ -1,5 +1,4 @@
-import { SAMPLE_CASES } from "../data/cases";
-import type { Case, DraftCase } from "./model";
+import type { Case, DraftCase, LiveCase } from "./model";
 
 /** Drafts newest first (by `createdAt`, then by their current order), without changing the input. */
 export function newestFirst(drafts: readonly DraftCase[]): DraftCase[] {
@@ -9,7 +8,7 @@ export function newestFirst(drafts: readonly DraftCase[]): DraftCase[] {
     .map(({ d }) => d);
 }
 
-/** The Case_Library order (Requirement 21.1, 20.5): the two samples in their fixed order, then drafts newest first. */
-export function buildCatalog(drafts: readonly DraftCase[]): Case[] {
-  return [...SAMPLE_CASES, ...newestFirst(drafts)];
+/** The Case_Library order: real investigations (newest first, as the backend lists them), then drafts newest first. */
+export function buildCatalog(drafts: readonly DraftCase[], live: readonly LiveCase[] = []): Case[] {
+  return [...live, ...newestFirst(drafts)];
 }

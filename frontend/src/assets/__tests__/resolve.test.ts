@@ -57,9 +57,9 @@ describe("resolveMascotArt", () => {
     expect(resolveMascotArt("two-faced-jack", manifestOf({ [pose]: "pass" }))).toBe("pose");
   });
 
-  it("covers Doctor Stitch: the bundled manifest's doctor-stitch/pose entry resolves to pose", () => {
+  it("covers Doctor Stitch: the bundled manifest's doctor-stitch rig parts all pass, so it resolves to rig", () => {
     expect(resolveMascotArt("doctor-stitch", EMPTY_MANIFEST)).toBe("placeholder");
-    expect(resolveMascotArt("doctor-stitch", loadBundledManifest())).toBe("pose");
+    expect(resolveMascotArt("doctor-stitch", loadBundledManifest())).toBe("rig");
   });
 
   it("does not throw for an unknown id", () => {

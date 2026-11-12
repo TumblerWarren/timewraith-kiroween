@@ -1,0 +1,70 @@
+{
+  "properties": {
+    "decides": {
+      "title": "Decides",
+      "type": "string"
+    },
+    "does": {
+      "title": "Does",
+      "type": "string"
+    },
+    "follow_on": {
+      "default": false,
+      "title": "Follow On",
+      "type": "boolean"
+    },
+    "id": {
+      "enum": [
+        "repository",
+        "discovery",
+        "design",
+        "execution",
+        "verification",
+        "fix"
+      ],
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "kiro-agent",
+        "code"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "owner": {
+      "enum": [
+        "wraith-director",
+        "watchtower-warden",
+        "bat-scout",
+        "pumpkin-mechanic",
+        "spider-weaver",
+        "raven-archivist",
+        "two-faced-jack",
+        "doctor-stitch"
+      ],
+      "title": "Owner",
+      "type": "string"
+    },
+    "owner_name": {
+      "title": "Owner Name",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "owner",
+    "owner_name",
+    "kind",
+    "does",
+    "decides"
+  ],
+  "title": "FlowStep",
+  "type": "object"
+}

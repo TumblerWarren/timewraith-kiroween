@@ -11,11 +11,23 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from . import ENGINE_VERSION, sandbox
+from . import ENGINE_VERSION, crew, sandbox
 from .agents import make_runtime
 from .config import get_settings
+from .fixsession import TOOLS as FIX_TOOLS
+from .fixsession import FixSession, ToolError
 from .ingest import IngestError
-from .models import CapabilityReport, CreateInvestigation, FeatureMap, Investigation, InvestigationSummary, TestPlan
+from .models import (
+    FLOW,
+    CapabilityReport,
+    CreateInvestigation,
+    DecisionRecord,
+    FeatureMap,
+    FlowStep,
+    Investigation,
+    InvestigationSummary,
+    TestPlan,
+)
 from .pipeline import Engine, Stop
 from .store import Store
 
@@ -27,10 +39,14 @@ engine.recover()
 
 app = FastAPI(title="TimeWraith", version=ENGINE_VERSION)
 app.add_middleware(
-    CORSMiddleware, allow_origins=settings.cors_origins, allow_methods=["GET", "POST"], allow_headers=["Content-Type"]
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-TimeWraith"],
 )
 
 STATUS = {
+    "forbidden": 403,
     "not_found": 404,
     "not_awaiting_approval": 409,
     "fix_not_verified": 409,
@@ -67,10 +83,15 @@ def _summary(i: Investigation) -> InvestigationSummary:
         target=i.target,
         mode=i.request.mode,
         stage=i.stage,
+        phase=i.phase,
         status=i.status,
         bug_count=len(i.bugs),
+        fix_verified_count=sum(1 for b in i.bugs if b.fix.state == "verified"),
+        intended_count=len(i.intended),
         replay_label=i.replay_label,
         runtime_label=i.runtime_label,
+        error=i.error,
+        message=i.notes[-1] if i.stage == "failed" and i.notes else None,
     )
 
 
@@ -92,7 +113,103 @@ def health() -> dict[str, Any]:
         "agent_runtime": {"name": rt.name, "label": rt.label},
         "sandbox": {"available": docker_ok, "detail": docker_msg},
         "git": shutil.which("git") is not None,
+        "limits": {
+            "agent_calls": settings.max_agent_calls,
+            "minutes": settings.investigation_budget_s // 60,
+            "fix_attempts": settings.max_fix_attempts,
+            "bugs_to_fix": settings.max_bugs_to_fix,
+        },
     }
+
+
+def _local_action(request: Request) -> None:
+    """Actions that touch this machine need a custom header: a cross-site form cannot send one without passing CORS."""
+    if request.headers.get("x-timewraith") != "1":
+        raise Stop("forbidden", "Missing the X-TimeWraith header")
+
+
+@app.get("/api/v1/system/setup")
+def system_setup() -> dict[str, Any]:
+    """Docker Desktop, the Kiro Crew container and the Kiro sign-in, for the readiness board."""
+    return crew.manager.status()
+
+
+@app.post("/api/v1/system/docker/start")
+def system_docker_start(request: Request) -> dict[str, Any]:
+    _local_action(request)
+    try:
+        message = crew.manager.start_docker()
+    except RuntimeError as e:
+        raise Stop("docker_start_failed", str(e)) from e
+    return {"message": message, **crew.manager.status()}
+
+
+@app.post("/api/v1/system/crew/start")
+def system_crew_start(request: Request) -> dict[str, Any]:
+    _local_action(request)
+    if not crew.manager.docker_running():
+        raise Stop("docker_not_running", "Start Docker first")
+    return {"message": crew.manager.start_crew(), **crew.manager.status()}
+
+
+@app.post("/api/v1/system/crew/login")
+def system_crew_login(request: Request) -> dict[str, Any]:
+    _local_action(request)
+    try:
+        crew.manager.start_login()
+    except RuntimeError as e:
+        raise Stop("crew_not_running", str(e)) from e
+    return crew.manager.status()
+
+
+def _fix_session(request: Request) -> FixSession:
+    """Only a live fix session's token opens the fix tools; there is no other way in."""
+    s = engine.sessions.get(request.headers.get("x-tw-session"))
+    if not s:
+        raise Stop("forbidden", "No live fix session for this token")
+    return s
+
+
+@app.post("/api/v1/internal/fix-tools/list")
+def fix_tools_list(request: Request) -> dict[str, Any]:
+    _fix_session(request)
+    return {"tools": FIX_TOOLS}
+
+
+@app.post("/api/v1/internal/fix-tools/call")
+def fix_tools_call(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    """One tool call from Doctor Stitch, forwarded by the MCP proxy in the Kiro Crew container."""
+    s = _fix_session(request)
+    name, args = body.get("name"), body.get("arguments")
+    if not isinstance(name, str) or not isinstance(args, dict):
+        return {"error": "Give a tool name and an arguments object"}
+    try:
+        return {"result": s.call(name, args)}
+    except ToolError as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/v1/system/crew/logout")
+def system_crew_logout(request: Request) -> dict[str, Any]:
+    """Sign the Kiro Crew container out of Kiro. Running investigations keep the runtime they started with."""
+    _local_action(request)
+    try:
+        crew.manager.logout()
+    except RuntimeError as e:
+        raise Stop("logout_failed", str(e)) from e
+    return crew.manager.status()
+
+
+@app.get("/api/v1/flow")
+def flow() -> list[FlowStep]:
+    """The five-step flow for the top of the Case Board (plus the follow-on fix step), with owners."""
+    return FLOW
+
+
+@app.get("/api/v1/investigations/{inv_id}/decisions")
+def decisions(inv_id: str) -> list[DecisionRecord]:
+    """Why the Crew did what it did: each agent claim, its checked evidence, and the rule that decided."""
+    return _inv(inv_id).decisions
 
 
 @app.post("/api/v1/investigations", status_code=202)

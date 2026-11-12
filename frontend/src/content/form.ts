@@ -1,29 +1,29 @@
 /**
- * Open_Case_Form copy (design: Open-a-case panel and form; Requirements 19, 20). Field errors live with their rules
- * in `cases/form/validate.ts`; the draft note, "Not contacted in demo mode" and the announcement are in `copy.ts`.
+ * Open_Case_Form copy. Field errors live with their rules in `cases/form/validate.ts`; the draft labels and the
+ * announcements are in `copy.ts`.
  */
 export const FORM_LABELS = {
-  targetType: "Target type",
-  targetRepository: "Git repository",
-  targetLocal: "Local app",
-  repoUrl: "Repository URL",
+  repoUrl: "GitHub repository URL",
   version: "Version, tag or commit",
-  appUrl: "Local app URL",
   area: "Date-sensitive area (optional)",
   mode: "Case mode",
   issueUrl: "Public issue URL",
+  auto: "Run without stopping for plan approval",
 } as const;
 
 export const FORM_HINTS = {
-  repoUrl: "A public https address, for example https://github.com/owner/repo",
-  version: "Tag (v6.1.10), branch or commit hash",
-  appUrl: "For example http://localhost:3000",
+  repoUrl: "A public repository, for example https://github.com/owner/repo",
+  version: "Branch (main), tag (v1.2.3) or full commit hash. If a branch is not found, the case tells you the default one.",
   area: "For example: week view around midnight in Pacific/Honolulu. Up to 200 characters.",
-  issueUrl: "The address of the issue, ending in its number",
+  issueUrl: "A GitHub issue of the same repository, ending in its number",
   issueUrlBlind: "The Crew does not see this issue until the reveal",
+  auto: "Off: the Crew stops after designing the experiments and waits for you. Fixes always wait for you.",
 } as const;
 
 export const FORM_SUBMIT = "Open the case";
 export const FORM_SUMMARY_HEADING = "Check these fields";
 export const FORM_LIMIT_REACHED =
-  "This browser already holds 20 drafts, the most it keeps. Remove a draft in the Case library to open another.";
+  "This browser already holds 20 drafts, the most it keeps. Remove a draft on the Cases page to open another.";
+/** Shown under the button: what submitting does right now. */
+export const FORM_NOTE_ONLINE = "Starts a real investigation on the TimeWraith backend.";
+export const FORM_NOTE_OFFLINE = "Backend offline: the case is saved as a draft in this browser. Run it when the backend is back.";

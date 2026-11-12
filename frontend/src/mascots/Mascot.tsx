@@ -3,6 +3,7 @@ import { useDirectorHost } from "../animation/react/directorHost";
 import { Art, type ArtProps } from "../assets/Art";
 import { createMascotActor, scopedActorId } from "./actors";
 import type { MascotId } from "./ids";
+import { RigMascot } from "./RigMascot";
 import { heightForWidth, MASCOT_ART } from "./roster";
 
 export interface MascotProps extends Omit<ArtProps, "mascot" | "width" | "height"> {
@@ -35,7 +36,7 @@ export function Mascot({ id, width, actor, idle = true, className, ...rest }: Ma
     if (!el) return;
     return host.actors.register(actor ?? scopedActorId(el, id), createMascotActor(find, host.animator, id));
   }, [host, actor, actorClass, id]);
-  return <Art mascot={id} width={w} height={heightForWidth(id, w)} className={[className, actorClass, idle && actor !== false ? `mascot-idle mascot-idle--${idleVariant(actorClass + id)}` : ""].filter(Boolean).join(" ")} {...rest} />;
+  return <Art mascot={id} width={w} height={heightForWidth(id, w)} className={[className, actorClass, idle && actor !== false ? `mascot-idle mascot-idle--${idleVariant(actorClass + id)}` : ""].filter(Boolean).join(" ")} renderRig={(p) => <RigMascot {...p} />} {...rest} />;
 }
 
 /** One of four seeded idle timings, so figures never breathe in step. */

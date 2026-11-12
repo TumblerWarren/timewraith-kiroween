@@ -23,26 +23,26 @@
           "type": "string"
         },
         "category": {
-          "anyOf": [
-            {
-              "enum": [
-                "timezone_conversion",
-                "midnight_rollover",
-                "dst_transition",
-                "expiry_boundary",
-                "other_temporal"
-              ],
-              "type": "string"
-            },
-            {
-              "const": "baseline",
-              "type": "string"
-            }
+          "enum": [
+            "timezone_conversion",
+            "midnight_rollover",
+            "dst_transition",
+            "expiry_boundary",
+            "other_temporal"
           ],
-          "title": "Category"
+          "title": "Category",
+          "type": "string"
         },
         "clock": {
           "$ref": "#/$defs/ClockConfig"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
         },
         "experiment_id": {
           "title": "Experiment Id",
@@ -56,13 +56,25 @@
           "$ref": "#/$defs/Fix",
           "default": {
             "attempts": [],
-            "label": "Suggested fix \u00b7 not verified",
+            "label": "Fix not started",
             "state": "not-started",
             "user_decision": "pending"
           }
         },
         "id": {
           "title": "Id",
+          "type": "string"
+        },
+        "invariant": {
+          "enum": [
+            "well_formed",
+            "deterministic",
+            "local_date_matches",
+            "instant_zone_independent",
+            "flag_monotonic",
+            "next_after_now"
+          ],
+          "title": "Invariant",
           "type": "string"
         },
         "issue_match": {
@@ -108,6 +120,9 @@
         "title": {
           "title": "Title",
           "type": "string"
+        },
+        "violation": {
+          "$ref": "#/$defs/Violation"
         }
       },
       "required": [
@@ -116,8 +131,10 @@
         "experiment_id",
         "title",
         "category",
+        "invariant",
         "status",
         "clock",
+        "violation",
         "failure",
         "regression_test_path",
         "regression_test"
@@ -439,43 +456,214 @@
       "title": "CreateInvestigation",
       "type": "object"
     },
+    "DecisionRecord": {
+      "description": "Why the Crew did something: the agent's claim, its checked evidence, and the code rule that decided.",
+      "properties": {
+        "agent": {
+          "enum": [
+            "wraith-director",
+            "watchtower-warden",
+            "bat-scout",
+            "pumpkin-mechanic",
+            "spider-weaver",
+            "raven-archivist",
+            "two-faced-jack",
+            "doctor-stitch"
+          ],
+          "title": "Agent",
+          "type": "string"
+        },
+        "at": {
+          "title": "At",
+          "type": "string"
+        },
+        "checks": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "decision": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "not_run"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "dropped_evidence": {
+          "default": 0,
+          "title": "Dropped Evidence",
+          "type": "integer"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "repository",
+            "discovery",
+            "design",
+            "execution",
+            "verification",
+            "fix"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        },
+        "runtime": {
+          "title": "Runtime",
+          "type": "string"
+        },
+        "step": {
+          "title": "Step",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "at",
+        "phase",
+        "agent",
+        "step",
+        "runtime",
+        "subject",
+        "claim",
+        "decision",
+        "rule"
+      ],
+      "title": "DecisionRecord",
+      "type": "object"
+    },
+    "Evidence": {
+      "description": "One piece of evidence an agent cites. Code resolves every ref before the claim counts.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "signal",
+            "source",
+            "invariant",
+            "point",
+            "issue",
+            "test",
+            "doc"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "description": "signal id | path:line[-line] (source, test, doc) | invariant id | zone@ISO | issue no.",
+          "maxLength": 200,
+          "title": "Ref",
+          "type": "string"
+        },
+        "why": {
+          "maxLength": 300,
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "why"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
     "Experiment": {
       "properties": {
         "adapter": {
-          "const": "js_tests",
-          "default": "js_tests",
+          "const": "js_sweep",
+          "default": "js_sweep",
           "title": "Adapter",
           "type": "string"
+        },
+        "adapter_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter Code"
+        },
+        "adapter_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter Path"
+        },
+        "anchors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Anchors",
+          "type": "array"
         },
         "candidate_id": {
           "title": "Candidate Id",
           "type": "string"
         },
-        "category": {
+        "categories": {
+          "items": {
+            "enum": [
+              "timezone_conversion",
+              "midnight_rollover",
+              "dst_transition",
+              "expiry_boundary",
+              "other_temporal"
+            ],
+            "type": "string"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "claim": {
           "anyOf": [
             {
-              "enum": [
-                "timezone_conversion",
-                "midnight_rollover",
-                "dst_transition",
-                "expiry_boundary",
-                "other_temporal"
-              ],
               "type": "string"
             },
             {
-              "const": "baseline",
-              "type": "string"
+              "type": "null"
             }
           ],
-          "title": "Category"
-        },
-        "clocks": {
-          "items": {
-            "$ref": "#/$defs/ClockConfig"
-          },
-          "title": "Clocks",
-          "type": "array"
+          "default": null,
+          "title": "Claim"
         },
         "executability": {
           "enum": [
@@ -498,16 +686,75 @@
           "default": null,
           "title": "Executability Reason"
         },
+        "fields": {
+          "default": [],
+          "items": {
+            "enum": [
+              "instant",
+              "next",
+              "flag",
+              "date",
+              "value"
+            ],
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "harness_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Path"
+        },
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "invariants": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/InvariantUse"
+          },
+          "title": "Invariants",
+          "type": "array"
+        },
+        "point_count": {
+          "default": 0,
+          "title": "Point Count",
+          "type": "integer"
+        },
+        "status": {
+          "default": "planned",
+          "enum": [
+            "planned",
+            "designed",
+            "not_designed",
+            "adapter_invalid",
+            "swept"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "zones": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Zones",
+          "type": "array"
         }
       },
       "required": [
         "id",
         "candidate_id",
-        "category",
-        "clocks",
+        "categories",
         "executability"
       ],
       "title": "Experiment",
@@ -566,7 +813,7 @@
           "type": "array"
         },
         "label": {
-          "default": "Suggested fix \u00b7 not verified",
+          "default": "Fix not started",
           "title": "Label",
           "type": "string"
         },
@@ -619,9 +866,24 @@
           "title": "Gates",
           "type": "array"
         },
+        "root_cause": {
+          "default": "",
+          "title": "Root Cause",
+          "type": "string"
+        },
         "summary": {
           "title": "Summary",
           "type": "string"
+        },
+        "test_runs": {
+          "default": 0,
+          "title": "Test Runs",
+          "type": "integer"
+        },
+        "tool_calls": {
+          "default": 0,
+          "title": "Tool Calls",
+          "type": "integer"
         }
       },
       "required": [
@@ -665,44 +927,111 @@
       "title": "GateResult",
       "type": "object"
     },
-    "RunResult": {
+    "IntendedFinding": {
+      "description": "A repeated violation that the repository itself says is intended: its own passing test asserts the\nbehaviour, or its docs describe it. Reported as a finding about the design, never as a bug, never fixed.",
       "properties": {
-        "clock": {
-          "$ref": "#/$defs/ClockConfig"
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "confirmed_tests": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Confirmed Tests",
+          "type": "array"
+        },
+        "evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
         },
         "experiment_id": {
           "title": "Experiment Id",
           "type": "string"
         },
-        "failure": {
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "invariant": {
+          "enum": [
+            "well_formed",
+            "deterministic",
+            "local_date_matches",
+            "instant_zone_independent",
+            "flag_monotonic",
+            "next_after_now"
+          ],
+          "title": "Invariant",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "violation": {
+          "$ref": "#/$defs/Violation"
+        }
+      },
+      "required": [
+        "id",
+        "candidate_id",
+        "experiment_id",
+        "title",
+        "invariant",
+        "violation",
+        "explanation"
+      ],
+      "title": "IntendedFinding",
+      "type": "object"
+    },
+    "InvariantUse": {
+      "properties": {
+        "id": {
+          "enum": [
+            "well_formed",
+            "deterministic",
+            "local_date_matches",
+            "instant_zone_independent",
+            "flag_monotonic",
+            "next_after_now"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "max_gap_ms": {
           "anyOf": [
             {
-              "type": "string"
+              "minimum": 1,
+              "type": "integer"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "title": "Failure"
+          "title": "Max Gap Ms"
         },
-        "outcome": {
-          "enum": [
-            "passed",
-            "assertion_failed",
-            "error",
-            "timeout"
-          ],
-          "title": "Outcome",
+        "reason": {
+          "maxLength": 300,
+          "title": "Reason",
           "type": "string"
         }
       },
       "required": [
-        "experiment_id",
-        "clock",
-        "outcome"
+        "id",
+        "reason"
       ],
-      "title": "RunResult",
+      "title": "InvariantUse",
       "type": "object"
     },
     "Signal": {
@@ -751,6 +1080,48 @@
         "excerpt"
       ],
       "title": "Signal",
+      "type": "object"
+    },
+    "SweepResult": {
+      "properties": {
+        "errors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "experiment_id": {
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "points_run": {
+          "title": "Points Run",
+          "type": "integer"
+        },
+        "violations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Violation"
+          },
+          "title": "Violations",
+          "type": "array"
+        },
+        "zones": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Zones",
+          "type": "array"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "points_run",
+        "zones"
+      ],
+      "title": "SweepResult",
       "type": "object"
     },
     "Target": {
@@ -867,6 +1238,72 @@
       ],
       "title": "Version",
       "type": "object"
+    },
+    "Violation": {
+      "properties": {
+        "context_ms": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Context Ms",
+          "type": "array"
+        },
+        "count": {
+          "default": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected"
+        },
+        "instant": {
+          "title": "Instant",
+          "type": "string"
+        },
+        "invariant": {
+          "enum": [
+            "well_formed",
+            "deterministic",
+            "local_date_matches",
+            "instant_zone_independent",
+            "flag_monotonic",
+            "next_after_now"
+          ],
+          "title": "Invariant",
+          "type": "string"
+        },
+        "local": {
+          "title": "Local",
+          "type": "string"
+        },
+        "zone": {
+          "title": "Zone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "invariant",
+        "zone",
+        "instant",
+        "local",
+        "detail"
+      ],
+      "title": "Violation",
+      "type": "object"
     }
   },
   "properties": {
@@ -900,6 +1337,14 @@
       "title": "Created At",
       "type": "string"
     },
+    "decisions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DecisionRecord"
+      },
+      "title": "Decisions",
+      "type": "array"
+    },
     "error": {
       "anyOf": [
         {
@@ -927,6 +1372,14 @@
       "title": "Id",
       "type": "string"
     },
+    "intended": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/IntendedFinding"
+      },
+      "title": "Intended",
+      "type": "array"
+    },
     "notes": {
       "default": [],
       "items": {
@@ -934,6 +1387,19 @@
       },
       "title": "Notes",
       "type": "array"
+    },
+    "phase": {
+      "default": "repository",
+      "enum": [
+        "repository",
+        "discovery",
+        "design",
+        "execution",
+        "verification",
+        "fix"
+      ],
+      "title": "Phase",
+      "type": "string"
     },
     "replay_label": {
       "default": "Live",
@@ -952,14 +1418,6 @@
       "title": "Revealed",
       "type": "boolean"
     },
-    "runs": {
-      "default": [],
-      "items": {
-        "$ref": "#/$defs/RunResult"
-      },
-      "title": "Runs",
-      "type": "array"
-    },
     "runtime": {
       "default": "stub",
       "title": "Runtime",
@@ -977,7 +1435,7 @@
         "cloning",
         "analyzing",
         "discovering",
-        "planning",
+        "designing",
         "awaiting-plan-approval",
         "installing",
         "experimenting",
@@ -1002,6 +1460,14 @@
       ],
       "title": "Status",
       "type": "string"
+    },
+    "sweeps": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SweepResult"
+      },
+      "title": "Sweeps",
+      "type": "array"
     },
     "target": {
       "$ref": "#/$defs/Target"

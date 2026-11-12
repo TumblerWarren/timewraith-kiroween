@@ -1,0 +1,141 @@
+{
+  "$defs": {
+    "Evidence": {
+      "description": "One piece of evidence an agent cites. Code resolves every ref before the claim counts.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "signal",
+            "source",
+            "invariant",
+            "point",
+            "issue",
+            "test",
+            "doc"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "description": "signal id | path:line[-line] (source, test, doc) | invariant id | zone@ISO | issue no.",
+          "maxLength": 200,
+          "title": "Ref",
+          "type": "string"
+        },
+        "why": {
+          "maxLength": 300,
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "why"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    }
+  },
+  "description": "Why the Crew did something: the agent's claim, its checked evidence, and the code rule that decided.",
+  "properties": {
+    "agent": {
+      "enum": [
+        "wraith-director",
+        "watchtower-warden",
+        "bat-scout",
+        "pumpkin-mechanic",
+        "spider-weaver",
+        "raven-archivist",
+        "two-faced-jack",
+        "doctor-stitch"
+      ],
+      "title": "Agent",
+      "type": "string"
+    },
+    "at": {
+      "title": "At",
+      "type": "string"
+    },
+    "checks": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "claim": {
+      "title": "Claim",
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "not_run"
+      ],
+      "title": "Decision",
+      "type": "string"
+    },
+    "dropped_evidence": {
+      "default": 0,
+      "title": "Dropped Evidence",
+      "type": "integer"
+    },
+    "evidence": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "repository",
+        "discovery",
+        "design",
+        "execution",
+        "verification",
+        "fix"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "rule": {
+      "title": "Rule",
+      "type": "string"
+    },
+    "runtime": {
+      "title": "Runtime",
+      "type": "string"
+    },
+    "step": {
+      "title": "Step",
+      "type": "string"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "at",
+    "phase",
+    "agent",
+    "step",
+    "runtime",
+    "subject",
+    "claim",
+    "decision",
+    "rule"
+  ],
+  "title": "DecisionRecord",
+  "type": "object"
+}

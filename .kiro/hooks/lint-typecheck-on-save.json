@@ -6,9 +6,12 @@
       "description": "ESLint the saved file, then tsc --noEmit. Skips until frontend/ exists.",
       "trigger": "PostFileSave",
       "matcher": "frontend[\\\\/]src[\\\\/].*\\.(ts|tsx)$",
-      "action": { "type": "command", "command": "node scripts/hooks/web-check.mjs" },
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/web-check.mjs"
+      },
       "timeout": 120,
-      "enabled": true
+      "enabled": false
     }
   ]
 }

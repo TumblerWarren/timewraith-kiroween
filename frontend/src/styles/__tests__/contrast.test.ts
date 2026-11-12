@@ -252,10 +252,10 @@ describe("contrast of text pairs", () => {
       }
     });
 
-    it("uses gold-500 as a text color only in the night hero section", () => {
+    it("uses gold-500 as a text color only on the night shell (app.css, tower-950 ground)", () => {
       for (const { name, css } of files) {
         const uses = [...css.matchAll(/(?<![-\w])color\s*:\s*var\(--gold-500\)/g)];
-        if (name !== "sections/hero.css") expect(uses.length, name).toBe(0);
+        if (name !== "app.css") expect(uses.length, name).toBe(0);
       }
     });
 

@@ -1,8 +1,7 @@
 import { render } from "@testing-library/react";
 import { LiveAnnouncer } from "../../a11y/LiveAnnouncer";
-import { CaseLibrary } from "../library/CaseLibrary";
+import { CaseRows } from "../../pages/CaseRows";
 import { OpenCaseForm } from "../form/OpenCaseForm";
-import { visibleTitle } from "../model";
 import { CaseStoreProvider, useCaseStore } from "../store";
 import type { StorageLike } from "../drafts/storage";
 
@@ -19,34 +18,20 @@ export class FakeStorage implements StorageLike {
   }
 }
 
-/** Stand-in for the Case view heading until task 9 makes CaseView case-scoped: it shows the selected case. */
-export function CaseViewProbe() {
-  const { selected } = useCaseStore();
-  return (
-    <section id="case" aria-labelledby="case-title">
-      <h2 id="case-title" tabIndex={-1} data-selected={selected.id}>
-        {visibleTitle(selected)}
-      </h2>
-    </section>
-  );
+/** Every case in the store as rows, as on the Cases page. */
+export function CaseList() {
+  const { cases } = useCaseStore();
+  return <CaseRows cases={cases} />;
 }
 
-/** The form, the library and a Case view probe inside the providers, as on the board. */
+/** The form and the case list inside the providers. */
 export function renderBoard(storage: StorageLike | null = new FakeStorage(), now?: () => number) {
   return render(
     <LiveAnnouncer>
       <CaseStoreProvider storage={storage} now={now}>
-        <section id="open">
-          <h2 id="open-case-title">Open a new case</h2>
-          <OpenCaseForm />
-        </section>
-        <section id="library">
-          <h2 id="library-title" tabIndex={-1}>
-            Case library
-          </h2>
-          <CaseLibrary />
-        </section>
-        <CaseViewProbe />
+        <h1 id="open-case-title">Open a case</h1>
+        <OpenCaseForm />
+        <CaseList />
       </CaseStoreProvider>
     </LiveAnnouncer>,
   );

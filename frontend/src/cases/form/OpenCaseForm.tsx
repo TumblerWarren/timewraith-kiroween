@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent } from "react";
 import { flushSync } from "react-dom";
-import { DRAFT_NOT_RUN } from "../../content/copy";
-import { FORM_HINTS, FORM_LABELS, FORM_LIMIT_REACHED, FORM_SUBMIT } from "../../content/form";
+import { useApi } from "../../api/ApiProvider";
+import { ApiError } from "../../api/client";
+import { FORM_HINTS, FORM_LABELS, FORM_LIMIT_REACHED, FORM_NOTE_OFFLINE, FORM_NOTE_ONLINE, FORM_SUBMIT } from "../../content/form";
 import { CASE_MODE_BY_ID, type CaseModeId } from "../../content/modes";
 import { useCaseActions } from "../actions";
 import { onTextInputFocus } from "../motionHooks";
@@ -9,35 +10,37 @@ import { ErrorSummary } from "./ErrorSummary";
 import { ModeField } from "./ModeField";
 import { TargetFields } from "./TargetFields";
 import { TextField } from "./TextField";
-import {
-  DEFAULT_VALUES,
-  MAX_AREA_LENGTH,
-  validate,
-  validateField,
-  visibleFields,
-  type FieldErrors,
-  type FieldId,
-  type FormValues,
-} from "./validate";
+import { DEFAULT_VALUES, MAX_AREA_LENGTH, validate, validateField, visibleFields, type FieldErrors, type FieldId, type FormValues } from "./validate";
 
-const DRAFT_NOTE_ID = "case-form-draft-note";
+const NOTE_ID = "case-form-submit-note";
+const AUTO_ID = "case-form-auto";
 
 /**
- * Open_Case_Form (Requirements 19.1 to 19.17, 20.1, 20.8, 20.10).
+ * Open_Case_Form. Native fieldsets and radio groups, visible labels and hints. A field validates on blur when its
+ * value changed; submit validates every visible field, and a failed submit shows the error summary and moves focus
+ * to it, keeping every value.
  *
- * Native fieldsets and radio groups, visible labels and hints. A field validates on blur when its value changed;
- * submit validates every visible field. A failed submit shows the error summary and moves focus to it, keeping every
- * value. A valid submit creates a Draft_Case in this browser only (no fetch, no ping, no prefetch of the entered
- * addresses), announces "Draft case created, not run", resets the form and moves focus to the new card. At 20 drafts
- * it shows the limit message and creates nothing. `noValidate` keeps the browser's own bubbles out of the way, so
- * every error uses the same accessible pattern.
+ * A valid submit starts a real investigation when the backend is online (`POST /investigations`) and opens it in
+ * the Case view. When the backend is offline the case is saved as a draft in this browser instead, with a
+ * "Run this draft" button for later. A backend error keeps the values and shows the backend's message.
  */
-export function OpenCaseForm() {
-  const { submitDraft, store } = useCaseActions();
-  const [values, setValues] = useState<FormValues>(DEFAULT_VALUES);
+export interface OpenCaseFormProps {
+  /** Prefilled values, e.g. "Retry with main" after a ref was not found. */
+  readonly initial?: Partial<FormValues>;
+  /** Id of the heading that names the form. */
+  readonly labelledBy?: string;
+}
+
+export function OpenCaseForm({ initial, labelledBy = "open-case-title" }: OpenCaseFormProps = {}) {
+  const { submitDraft, startCase, store } = useCaseActions();
+  const { online } = useApi();
+  const [values, setValues] = useState<FormValues>(() => ({ ...DEFAULT_VALUES, ...initial }));
+  const [auto, setAuto] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [limitShown, setLimitShown] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const focusValue = useRef<Partial<Record<FieldId, string>>>({});
   const summaryRef = useRef<HTMLDivElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
@@ -52,7 +55,7 @@ export function OpenCaseForm() {
     onChange: setValue,
     onFocus: (id: FieldId, value: string) => {
       focusValue.current[id] = value;
-      // HOOK POINT (task 12.4): the director sets `suppressed.input` while a text input has focus.
+      // The director sets `suppressed.input` while a text input has focus.
       onTextInputFocus(true);
     },
     onBlur: (id: FieldId, value: string) => {
@@ -69,16 +72,39 @@ export function OpenCaseForm() {
     },
   };
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const reset = () => {
+    setValues(DEFAULT_VALUES);
+    setErrors({});
+    setSummaryOpen(false);
+    setLimitShown(false);
+    setServerError(null);
+    focusValue.current = {};
+  };
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (busy) return;
     const result = validate(values);
     if (!result.ok) {
       flushSync(() => {
         setErrors(result.errors);
         setSummaryOpen(true);
         setLimitShown(false);
+        setServerError(null);
       });
       summaryRef.current?.focus();
+      return;
+    }
+    if (online) {
+      setBusy(true);
+      try {
+        await startCase(result.draft, auto);
+        reset();
+      } catch (err) {
+        setServerError(err instanceof ApiError ? err.message : "The backend could not start the investigation.");
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (store.limitReached) {
@@ -87,30 +113,19 @@ export function OpenCaseForm() {
       setLimitShown(true);
       return;
     }
-    // HOOK POINTS (tasks 12.5, 14.2): `bats.burst` from the submit button and `case.draft-create` fire inside
-    // submitDraft through cases/motionHooks.ts.
-    const outcome = submitDraft(result.draft, submitRef.current);
+    const outcome = submitDraft(result.draft);
     if (!outcome.ok) {
       setLimitShown(true);
       return;
     }
-    setValues(DEFAULT_VALUES);
-    setErrors({});
-    setSummaryOpen(false);
-    setLimitShown(false);
-    focusValue.current = {};
+    reset();
   };
 
   return (
-    <form className="case-form" aria-labelledby="open-case-title" noValidate onSubmit={onSubmit} data-form="open-case">
+    <form className="case-form" aria-labelledby={labelledBy} noValidate onSubmit={onSubmit} data-form="open-case" aria-busy={busy}>
       {summaryOpen ? <ErrorSummary ref={summaryRef} errors={shownErrors} order={visible} /> : null}
 
-      <TargetFields
-        values={values}
-        errors={shownErrors}
-        onTargetType={(t) => setValues((v) => ({ ...v, targetType: t }))}
-        {...handlers}
-      />
+      <TargetFields values={values} errors={shownErrors} {...handlers} />
 
       <TextField
         id="area"
@@ -138,18 +153,40 @@ export function OpenCaseForm() {
         />
       ) : null}
 
+      <div className="field case-form__auto">
+        <label className="choice" htmlFor={AUTO_ID}>
+          <input
+            id={AUTO_ID}
+            type="checkbox"
+            className="choice__control"
+            checked={auto}
+            onChange={(ev) => setAuto(ev.currentTarget.checked)}
+            aria-describedby={`${AUTO_ID}-hint`}
+          />
+          <span className="choice__label">{FORM_LABELS.auto}</span>
+        </label>
+        <p id={`${AUTO_ID}-hint`} className="field__hint">
+          {FORM_HINTS.auto}
+        </p>
+      </div>
+
       {limitShown ? (
         <p className="case-form__limit" role="alert">
           {FORM_LIMIT_REACHED}
         </p>
       ) : null}
+      {serverError ? (
+        <p className="case-form__limit" role="alert">
+          {serverError}
+        </p>
+      ) : null}
 
       <div className="case-form__submit">
-        <button ref={submitRef} type="submit" className="btn btn--primary case-form__button" aria-describedby={DRAFT_NOTE_ID}>
+        <button ref={submitRef} type="submit" className="btn btn--primary case-form__button" aria-describedby={NOTE_ID} disabled={busy}>
           {FORM_SUBMIT}
         </button>
-        <p id={DRAFT_NOTE_ID} className="case-form__draft-note">
-          {DRAFT_NOT_RUN}
+        <p id={NOTE_ID} className="case-form__draft-note">
+          {online ? FORM_NOTE_ONLINE : FORM_NOTE_OFFLINE}
         </p>
       </div>
     </form>

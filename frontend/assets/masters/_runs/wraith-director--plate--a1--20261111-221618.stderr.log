@@ -1,0 +1,3 @@
+Reading prompt from stdin...
+2026-11-11T16:46:20.067492Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer error=\"invalid_token\", error_description=\"Invalid access token\", resource_metadata=\"https://mcp.supabase.com/.well-known/oauth-protected-resource/mcp\"" })
+2026-11-11T16:46:20.454416Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer error=\"invalid_token\", error_description=\"Invalid access token\", resource_metadata=\"https://mcp.supabase.com/.well-known/oauth-protected-resource/mcp\"" })

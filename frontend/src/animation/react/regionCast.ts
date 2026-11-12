@@ -32,7 +32,6 @@ export const REGION_REACTIONS: Readonly<Record<string, { readonly actors: readon
       a("case", "pumpkin-mechanic", "act"),
       a("case", "raven-archivist", "bow"),
       a("case", "two-faced-jack", "turn"),
-      a("case", "mummy-wrapper", "wobble"),
       a("case", "doctor-stitch", "bow"),
     ],
   },

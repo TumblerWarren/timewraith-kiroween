@@ -93,7 +93,6 @@
 .ladder-scroll,
 .ladder__inconclusive,
 .jack-panel__paper,
-.proof__tag,
 .cta-sheet {
   --bg: var(--paper-100);
   --fg: var(--ink-900);

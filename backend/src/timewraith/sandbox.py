@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import shlex
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -157,6 +158,39 @@ def run_test_file(
         parts.append(f"{env} {_runner_cmd(caps, test_path, out)} >/dev/null 2>&1 || true")
     ex = run(s, ws, caps.node_version, "; ".join(parts), network=False, timeout=s.test_timeout_s * max(1, len(clocks)))
     return [_parse(ws / f".tw/run-{i}.json", ex) for i in range(len(clocks))]
+
+
+def _files_cmd(caps: CapabilityReport, paths: list[str]) -> str:
+    files = " ".join(shlex.quote(p) for p in paths)
+    if caps.test_runner == "vitest":
+        return f"node_modules/.bin/vitest run {files}"
+    return f"node_modules/.bin/jest --ci --runTestsByPath {files}"
+
+
+def sweep(
+    s: Settings, ws: Path, caps: CapabilityReport, harness_paths: list[str], zones: list[str], set_name: str
+) -> dict[str, str]:
+    """Run all harness files once per zone in one fresh no-network container.
+
+    Each harness writes `.tw/out/<id>__<zone>.json`. Returns the runner log tail per zone for diagnostics.
+    """
+    out = ws / ".tw" / "out"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir(parents=True)
+    q = shlex.quote
+    parts = []
+    for z in zones:
+        safe = z.replace("/", "_")
+        env = f"TZ={q(z)} TW_TZ={q(z)} TW_DIR=/work/.tw TW_SET={q(set_name)}"
+        parts.append(f"{env} {_files_cmd(caps, harness_paths)} > .tw/out/log-{safe}.txt 2>&1 || true")
+    ex = run(s, ws, caps.node_version, "; ".join(parts), network=False, timeout=s.test_timeout_s * len(zones))
+    logs: dict[str, str] = {}
+    for z in zones:
+        p = out / f"log-{z.replace('/', '_')}.txt"
+        logs[z] = p.read_text(encoding="utf-8", errors="replace")[-1500:] if p.exists() else ""
+        if ex.timed_out and not logs[z]:
+            logs[z] = "timed out"
+    return logs
 
 
 def run_suite(s: Settings, ws: Path, caps: CapabilityReport) -> TestOutcome:

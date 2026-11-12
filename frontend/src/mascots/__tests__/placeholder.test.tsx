@@ -16,7 +16,7 @@ describe("mascot ids and roster", () => {
 
   it("points Doctor Stitch at the real pose asset id and the D15 rig parts", () => {
     expect(MASCOT_ART["doctor-stitch"].pose).toBe("doctor-stitch/pose");
-    expect(MASCOT_ART["doctor-stitch"].rig).toEqual(["doctor-stitch/body", "doctor-stitch/arm-needle", "doctor-stitch/eyes"]);
+    expect(MASCOT_ART["doctor-stitch"].rig).toEqual(["doctor-stitch/body", "doctor-stitch/arm-needle", "doctor-stitch/arm-spool", "doctor-stitch/eyes"]);
   });
 
   it("has an art spec and a roster entry for every mascot", () => {

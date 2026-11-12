@@ -125,6 +125,43 @@ def _run_git(args: list[str], cwd: Path | None, timeout: int, scratch: str) -> s
     return out.stdout
 
 
+def git(ws: Path, args: list[str], *, stdin: str | None = None, timeout: int = 120) -> str:
+    """Run git in a cloned workspace with the same hardened flags as the clone (no hooks, no global config).
+
+    Output keeps the repository's own line endings (no autocrlf: the global config is not read).
+    """
+    with tempfile.TemporaryDirectory() as scratch:
+        try:
+            out = subprocess.run(
+                ["git", *_git_flags(scratch), "-c", "core.quotePath=false", *args],
+                cwd=ws,
+                env=_git_env(scratch),
+                input=stdin.encode("utf-8", errors="surrogateescape") if stdin is not None else None,
+                capture_output=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as e:
+            raise IngestError("git_failed", f"git {args[0]} did not finish in time") from e
+    if out.returncode != 0:
+        lines = out.stderr.decode("utf-8", "replace").strip().splitlines()
+        raise IngestError("git_failed", lines[-1][:300] if lines else f"git {args[0]} failed")
+    return out.stdout.decode("utf-8", errors="surrogateescape")
+
+
+def default_branch(repository_url: str, timeout: int) -> str | None:
+    """The remote's default branch (HEAD), or None when it cannot be read."""
+    with tempfile.TemporaryDirectory() as scratch:
+        try:
+            out = _run_git(["ls-remote", "--symref", repository_url, "HEAD"], None, timeout, scratch)
+        except IngestError:
+            return None
+    for ln in out.splitlines():
+        if ln.startswith("ref: refs/heads/") and "\tHEAD" in ln:
+            return ln[len("ref: refs/heads/") :].split("\t", 1)[0]
+    return None
+
+
 def resolve_ref(target: Target, timeout: int) -> str:
     if _SHA.match(target.ref):
         return target.ref
@@ -147,7 +184,9 @@ def resolve_ref(target: Target, timeout: int) -> str:
             raise IngestError("ref_not_found", f"Could not resolve ref '{target.ref}'") from e
     lines = [ln.split("\t") for ln in out.strip().splitlines() if "\t" in ln]
     if not lines:
-        raise IngestError("ref_not_found", f"Ref '{target.ref}' not found")
+        default = default_branch(target.repository_url, timeout)
+        hint = f" The default branch is '{default}'." if default and default != target.ref else ""
+        raise IngestError("ref_not_found", f"Ref '{target.ref}' not found.{hint}")
     peeled = [sha for sha, name in lines if name.endswith("^{}")]
     heads = [sha for sha, name in lines if name == f"refs/heads/{target.ref}"]
     return (peeled or heads or [lines[0][0]])[0]

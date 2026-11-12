@@ -11,12 +11,12 @@ const ARMED_FAILSAFE_MS = 2500;
 const REPLAY_GAP_MS = 3000;
 
 const RAVEN = "case:ladder-raven";
-const MUMMY = "case:mummy-wrapper";
 const JACK = "case:two-faced-jack";
 
-type Part = "ladder" | "hash" | "jack";
-const EFFECT: Readonly<Record<Part, EffectId>> = { ladder: "proof.ladder", hash: "proof.hash", jack: "proof.jack" };
-const BLOCK: Readonly<Record<Part, string>> = { ladder: ".proof__scroll", hash: ".proof__hash", jack: ".jack-panel" };
+// The hash tag (`proof.hash`) was removed with its sample hash value; the effect stays registered but unused.
+type Part = "ladder" | "jack";
+const EFFECT: Readonly<Record<Part, EffectId>> = { ladder: "proof.ladder", jack: "proof.jack" };
+const BLOCK: Readonly<Record<Part, string>> = { ladder: ".proof__scroll", jack: ".jack-panel" };
 
 function all(root: ParentNode, sel: string): Element[] {
   return Array.from(root.querySelectorAll(sel));
@@ -36,19 +36,6 @@ export function requestProof(host: Pick<DirectorHost, "request">, root: Element,
       shapes: all(root, ".ladder__rung > .ladder__shape"),
       ranks: all(root, ".ladder__rung .ladder__rank"),
       actors: [{ actor: RAVEN, pose: "unroll" }],
-    });
-    return true;
-  }
-  if (part === "hash") {
-    host.request("proof.hash", {
-      caseId,
-      armed: q(".proof__hash"),
-      strip: q(".proof__bandage-wrap"),
-      turns: all(root, ".proof__bandage-turn"),
-      end: q(".proof__bandage-end"),
-      tag: q(".proof__tag"),
-      value: q(".proof__tag-value"),
-      actors: [{ actor: MUMMY, pose: "bandage" }],
     });
     return true;
   }

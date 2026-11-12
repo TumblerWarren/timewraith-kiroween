@@ -2,38 +2,27 @@ import { CASE_MODE_BY_ID, CASE_MODE_IDS, DEFAULT_CASE_MODE } from "../../content
 import type { CaseMode, Target } from "../model";
 
 /**
- * Open_Case_Form validation (design: Open-a-case panel and form; Requirements 19.2 to 19.11, 19.16).
+ * Open_Case_Form validation. The rules match the backend's (`backend/src/timewraith/ingest.py`): the target is a
+ * public GitHub repository `https://github.com/<owner>/<repo>` pinned to a tag, branch or commit, and an issue
+ * must be a GitHub issue of the same repository.
  *
  * `validate(values)` is pure and never throws: values of any length or content give a result. Values are trimmed
- * first. Only visible fields are validated and returned, so an Open hunt never carries an issue URL and a local app
- * never carries a repository URL. Error messages are plain sentences. The same function re-validates stored drafts
- * (`drafts/storage.ts`), so it also accepts non-string input and treats it as empty.
+ * first. Only visible fields are validated and returned, so an Open hunt never carries an issue URL. The same
+ * function re-validates stored drafts (`drafts/storage.ts`), so it also accepts non-string input as empty.
  */
 
-export const FIELD_IDS = ["targetType", "repoUrl", "version", "appUrl", "area", "mode", "issueUrl"] as const;
+export const FIELD_IDS = ["repoUrl", "version", "area", "mode", "issueUrl"] as const;
 export type FieldId = (typeof FIELD_IDS)[number];
 
-export type TargetType = "repository" | "local-app";
-
 export interface FormValues {
-  readonly targetType: string;
   readonly repoUrl: string;
   readonly version: string;
-  readonly appUrl: string;
   readonly area: string;
   readonly mode: string;
   readonly issueUrl: string;
 }
 
-export const DEFAULT_VALUES: FormValues = {
-  targetType: "repository",
-  repoUrl: "",
-  version: "",
-  appUrl: "",
-  area: "",
-  mode: DEFAULT_CASE_MODE,
-  issueUrl: "",
-};
+export const DEFAULT_VALUES: FormValues = { repoUrl: "", version: "", area: "", mode: DEFAULT_CASE_MODE, issueUrl: "" };
 
 /** What a valid form produces; the store adds the id and the date. */
 export interface DraftInput {
@@ -51,9 +40,8 @@ export const MAX_AREA_LENGTH = 200;
 export const MAX_REF_LENGTH = 100;
 
 export const ERRORS = {
-  targetType: "Choose whether the target is a Git repository or a local app.",
   repoUrlEmpty: "Enter the repository address, such as https://github.com/owner/repo.",
-  repoUrl: "Enter an https address of a repository, such as https://github.com/owner/repo.",
+  repoUrl: "Enter a GitHub repository address, such as https://github.com/owner/repo.",
   repoUrlPath: "Include the owner and the repository name, such as https://github.com/owner/repo.",
   repoUrlCredentials: "Remove the user name or password from the repository address.",
   repoUrlExtra: "Remove the part after ? or # from the repository address.",
@@ -61,17 +49,13 @@ export const ERRORS = {
   versionEmpty: "Enter a tag, branch or commit hash, such as v6.1.10.",
   version:
     "Enter a tag or branch name without spaces, two dots or a slash at either end, or a commit hash of 7 to 40 hexadecimal characters.",
-  appUrlEmpty: "Enter the local app address, such as http://localhost:3000.",
-  appUrl:
-    "Only local apps can be brought in. Use localhost, a .localhost name, 127.0.0.1 or [::1], such as http://localhost:3000.",
-  appUrlCredentials: "Remove the user name or password from the local app address.",
-  appUrlLong: "Keep the local app address to 300 characters or fewer.",
   area: "Keep the date-sensitive area to 200 characters or fewer.",
   mode: "Choose a case mode.",
   issueUrlEmpty: "Enter the public issue address, such as https://github.com/owner/repo/issues/123.",
-  issueUrl: "Enter an https address that ends in an issue number, such as https://github.com/owner/repo/issues/123.",
+  issueUrl: "Enter a GitHub issue address that ends in its number, such as https://github.com/owner/repo/issues/123.",
   issueUrlCredentials: "Remove the user name or password from the issue address.",
   issueUrlLong: "Keep the issue address to 300 characters or fewer.",
+  issueUrlRepo: "The issue must belong to the repository above.",
 } as const;
 
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
@@ -79,72 +63,43 @@ const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 /** Trimmed copies of every value; non-strings become "". */
 export function normalize(values: Partial<Record<FieldId, unknown>> | null | undefined): FormValues {
   const v = (values ?? {}) as Partial<Record<FieldId, unknown>>;
-  return {
-    targetType: str(v.targetType),
-    repoUrl: str(v.repoUrl),
-    version: str(v.version),
-    appUrl: str(v.appUrl),
-    area: str(v.area),
-    mode: str(v.mode),
-    issueUrl: str(v.issueUrl),
-  };
+  return { repoUrl: str(v.repoUrl), version: str(v.version), area: str(v.area), mode: str(v.mode), issueUrl: str(v.issueUrl) };
 }
 
-const isTargetType = (v: string): v is TargetType => v === "repository" || v === "local-app";
 const isMode = (v: string): v is CaseMode => (CASE_MODE_IDS as readonly string[]).includes(v);
 
-/** The fields shown for these values, in form order (Requirements 19.2, 19.3, 19.5, 19.6). */
-export function visibleFields(values: Pick<FormValues, "targetType" | "mode">): FieldId[] {
-  const targetType = str(values.targetType);
+/** The fields shown for these values, in form order. */
+export function visibleFields(values: Pick<FormValues, "mode">): FieldId[] {
   const mode = str(values.mode);
-  const fields: FieldId[] = ["targetType"];
-  if (targetType === "local-app") fields.push("appUrl");
-  else fields.push("repoUrl", "version");
-  fields.push("area", "mode");
+  const fields: FieldId[] = ["repoUrl", "version", "area", "mode"];
   if (!isMode(mode) || CASE_MODE_BY_ID[mode].needsIssue) fields.push("issueUrl");
   return fields;
 }
 
 // ---------------------------------------------------------------- field rules
 
-/** Raw authority (between "scheme://" and the first "/", "?" or "#"), or null when the shape is wrong. */
-function rawAuthority(value: string, schemes: readonly string[]): string | null {
-  const lower = value.toLowerCase();
-  const scheme = schemes.find((s) => lower.startsWith(`${s}://`));
-  if (!scheme) return null;
-  const rest = value.slice(scheme.length + 3);
-  const end = rest.search(/[/?#]/);
-  return end === -1 ? rest : rest.slice(0, end);
-}
-
-function parseUrl(value: string): URL | null {
-  try {
-    return new URL(value);
-  } catch {
-    return null;
-  }
-}
-
 /** Characters a pasted address never needs: whitespace, backslashes, control characters, angle brackets, quotes. */
 // eslint-disable-next-line no-control-regex -- control characters are exactly what this rejects
 const BAD_URL_CHARS = /[\s\\<>"`\u0000-\u001f\u007f]/;
+const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const REPO = /^[A-Za-z0-9._-]{1,100}$/;
 
-function checkRepoUrl(value: string): string | undefined {
-  if (value === "") return ERRORS.repoUrlEmpty;
-  if (value.length > MAX_URL_LENGTH) return ERRORS.repoUrlLong;
-  if (BAD_URL_CHARS.test(value)) return ERRORS.repoUrl;
-  const authority = rawAuthority(value, ["https"]);
-  if (authority === null) return ERRORS.repoUrl;
-  if (authority.includes("@")) return ERRORS.repoUrlCredentials;
-  if (value.includes("?") || value.includes("#")) return ERRORS.repoUrlExtra;
-  const url = parseUrl(value);
-  if (!url || url.protocol !== "https:" || url.hostname === "" || authority === "") return ERRORS.repoUrl;
-  if (url.username !== "" || url.password !== "") return ERRORS.repoUrlCredentials;
-  const segments = url.pathname.split("/").filter((s) => s !== "");
-  if (segments.length < 2) return ERRORS.repoUrlPath;
-  const last = segments[segments.length - 1] as string;
-  if (last === ".git" || segments.some((s) => s === "." || s === "..")) return ERRORS.repoUrlPath;
-  return undefined;
+/** [owner, repo] of a valid GitHub repository address, or the error. */
+function parseRepo(value: string): { ok: true; owner: string; repo: string } | { ok: false; error: string } {
+  if (value === "") return { ok: false, error: ERRORS.repoUrlEmpty };
+  if (value.length > MAX_URL_LENGTH) return { ok: false, error: ERRORS.repoUrlLong };
+  if (BAD_URL_CHARS.test(value)) return { ok: false, error: ERRORS.repoUrl };
+  if (!/^https:\/\//i.test(value)) return { ok: false, error: ERRORS.repoUrl };
+  const authority = value.slice(8).split(/[/?#]/)[0] ?? "";
+  if (authority.includes("@")) return { ok: false, error: ERRORS.repoUrlCredentials };
+  if (value.includes("?") || value.includes("#")) return { ok: false, error: ERRORS.repoUrlExtra };
+  if (authority.toLowerCase() !== "github.com") return { ok: false, error: ERRORS.repoUrl };
+  const segments = value.slice(8 + authority.length).split("/").filter((s) => s !== "");
+  if (segments.length !== 2) return { ok: false, error: ERRORS.repoUrlPath };
+  const owner = segments[0] as string;
+  const repo = (segments[1] as string).replace(/\.git$/, "");
+  if (!OWNER.test(owner) || !REPO.test(repo) || repo === "." || repo === "..") return { ok: false, error: ERRORS.repoUrlPath };
+  return { ok: true, owner, repo };
 }
 
 const COMMIT = /^[0-9a-f]{7,40}$/i;
@@ -164,59 +119,19 @@ function checkVersion(value: string): string | undefined {
   return undefined;
 }
 
-const LOCALHOST_NAME = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*localhost$/;
+const ISSUE = /^https:\/\/github\.com\/([^/?#]+)\/([^/?#]+)\/issues\/(\d{1,9})\/?$/i;
 
-/** Host part of a raw authority without the port; IPv6 keeps its brackets. */
-function hostOf(authority: string): { host: string; port: string } | null {
-  if (authority.startsWith("[")) {
-    const close = authority.indexOf("]");
-    if (close === -1) return null;
-    const host = authority.slice(0, close + 1);
-    const rest = authority.slice(close + 1);
-    if (rest !== "" && !rest.startsWith(":")) return null;
-    return { host, port: rest.slice(1) };
-  }
-  const colon = authority.indexOf(":");
-  return colon === -1 ? { host: authority, port: "" } : { host: authority.slice(0, colon), port: authority.slice(colon + 1) };
-}
-
-function isLoopbackHost(host: string): boolean {
-  const h = host.toLowerCase();
-  return LOCALHOST_NAME.test(h) || h === "127.0.0.1" || h === "[::1]";
-}
-
-function checkAppUrl(value: string): string | undefined {
-  if (value === "") return ERRORS.appUrlEmpty;
-  if (value.length > MAX_URL_LENGTH) return ERRORS.appUrlLong;
-  if (BAD_URL_CHARS.test(value)) return ERRORS.appUrl;
-  const authority = rawAuthority(value, ["http", "https"]);
-  if (authority === null) return ERRORS.appUrl;
-  if (authority.includes("@")) return ERRORS.appUrlCredentials;
-  const hp = hostOf(authority);
-  if (!hp || !isLoopbackHost(hp.host)) return ERRORS.appUrl;
-  if (hp.port !== "" && !/^\d{1,5}$/.test(hp.port)) return ERRORS.appUrl;
-  if (hp.port !== "" && Number(hp.port) > 65535) return ERRORS.appUrl;
-  const url = parseUrl(value);
-  if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) return ERRORS.appUrl;
-  if (url.username !== "" || url.password !== "") return ERRORS.appUrlCredentials;
-  if (!isLoopbackHost(url.hostname)) return ERRORS.appUrl;
-  return undefined;
-}
-
-const ISSUE_PATH = /\/(?:-\/)?issues\/\d+$/;
-
-function checkIssueUrl(value: string): string | undefined {
+function checkIssueUrl(value: string, repoUrl: string): string | undefined {
   if (value === "") return ERRORS.issueUrlEmpty;
   if (value.length > MAX_URL_LENGTH) return ERRORS.issueUrlLong;
   if (BAD_URL_CHARS.test(value)) return ERRORS.issueUrl;
-  const authority = rawAuthority(value, ["https"]);
-  if (authority === null || authority === "") return ERRORS.issueUrl;
-  if (authority.includes("@")) return ERRORS.issueUrlCredentials;
-  const url = parseUrl(value);
-  if (!url || url.protocol !== "https:" || url.hostname === "") return ERRORS.issueUrl;
-  if (url.username !== "" || url.password !== "") return ERRORS.issueUrlCredentials;
-  const rawPath = value.slice("https://".length + authority.length).split(/[?#]/)[0] ?? "";
-  if (!ISSUE_PATH.test(rawPath) || !ISSUE_PATH.test(url.pathname)) return ERRORS.issueUrl;
+  if (/^https:\/\/[^/]*@/i.test(value)) return ERRORS.issueUrlCredentials;
+  const m = ISSUE.exec(value);
+  if (!m) return ERRORS.issueUrl;
+  const repo = parseRepo(repoUrl);
+  if (repo.ok && (m[1]?.toLowerCase() !== repo.owner.toLowerCase() || m[2]?.replace(/\.git$/, "").toLowerCase() !== repo.repo.toLowerCase())) {
+    return ERRORS.issueUrlRepo;
+  }
   return undefined;
 }
 
@@ -232,35 +147,29 @@ export function cleanArea(value: string): string {
     .trim();
 }
 
-function checkArea(value: string): string | undefined {
-  return cleanArea(value).length > MAX_AREA_LENGTH ? ERRORS.area : undefined;
-}
-
 /** Error for one field (or undefined), given all values; used on blur. Hidden fields have no error. */
 export function validateField(id: FieldId, input: Partial<Record<FieldId, unknown>>): string | undefined {
   try {
     const values = normalize(input);
     if (!visibleFields(values).includes(id)) return undefined;
     switch (id) {
-      case "targetType":
-        return isTargetType(values.targetType) ? undefined : ERRORS.targetType;
-      case "repoUrl":
-        return checkRepoUrl(values.repoUrl);
+      case "repoUrl": {
+        const r = parseRepo(values.repoUrl);
+        return r.ok ? undefined : r.error;
+      }
       case "version":
         return checkVersion(values.version);
-      case "appUrl":
-        return checkAppUrl(values.appUrl);
       case "area":
-        return checkArea(values.area);
+        return cleanArea(values.area).length > MAX_AREA_LENGTH ? ERRORS.area : undefined;
       case "mode":
         return isMode(values.mode) ? undefined : ERRORS.mode;
       case "issueUrl":
-        return checkIssueUrl(values.issueUrl);
+        return checkIssueUrl(values.issueUrl, values.repoUrl);
       default:
         return undefined;
     }
   } catch {
-    return id === "targetType" ? ERRORS.targetType : undefined;
+    return id === "repoUrl" ? ERRORS.repoUrl : undefined;
   }
 }
 
@@ -272,13 +181,8 @@ export function validate(input: Partial<Record<FieldId, unknown>> | null | undef
     const error = validateField(id, values);
     if (error !== undefined) errors[id] = error;
   }
-  if (Object.keys(errors).length > 0 || !isTargetType(values.targetType) || !isMode(values.mode)) {
-    return { ok: false, errors };
-  }
-  const target: Target =
-    values.targetType === "local-app"
-      ? { kind: "local-app", appUrl: values.appUrl }
-      : { kind: "repository", repoUrl: values.repoUrl, version: { kind: versionKind(values.version), value: values.version } };
+  if (Object.keys(errors).length > 0 || !isMode(values.mode)) return { ok: false, errors };
+  const target: Target = { kind: "repository", repoUrl: values.repoUrl, version: { kind: versionKind(values.version), value: values.version } };
   const area = cleanArea(values.area);
   const draft: DraftInput = {
     mode: values.mode,
@@ -289,21 +193,32 @@ export function validate(input: Partial<Record<FieldId, unknown>> | null | undef
   return { ok: true, draft };
 }
 
-/** Form values that reproduce a stored draft (used by storage re-validation). */
+/** Form values that reproduce a stored draft (used by storage re-validation). Old local-app drafts fail it. */
 export function valuesFromDraft(d: {
   readonly mode?: unknown;
   readonly target?: unknown;
   readonly area?: unknown;
   readonly issueUrl?: unknown;
 }): Partial<Record<FieldId, unknown>> {
-  const t = (d.target ?? {}) as { kind?: unknown; repoUrl?: unknown; appUrl?: unknown; version?: { value?: unknown } };
+  const t = (d.target ?? {}) as { kind?: unknown; repoUrl?: unknown; version?: { value?: unknown } };
+  if (t.kind !== "repository") return { repoUrl: "", version: "", mode: d.mode };
   return {
-    targetType: t.kind,
-    repoUrl: t.kind === "repository" ? t.repoUrl : "",
-    version: t.kind === "repository" && t.version && typeof t.version === "object" ? t.version.value : "",
-    appUrl: t.kind === "local-app" ? t.appUrl : "",
+    repoUrl: t.repoUrl,
+    version: t.version && typeof t.version === "object" ? t.version.value : "",
     area: d.area ?? "",
     mode: d.mode,
     issueUrl: d.issueUrl ?? "",
+  };
+}
+
+/** The backend request for a valid draft input. */
+export function toCreateRequest(d: DraftInput, auto: boolean) {
+  return {
+    repository_url: d.target.repoUrl,
+    ref: d.target.version.value,
+    mode: d.mode,
+    issue_url: d.issueUrl ?? null,
+    area: d.area ?? null,
+    auto,
   };
 }

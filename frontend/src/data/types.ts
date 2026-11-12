@@ -85,13 +85,13 @@ export interface ReplayEvent {
   readonly check?: ReplayCheck;
 }
 
-/** A browser-side event (the FullCalendar sample): the browser clock is always read, the server clock never set. */
+/** A browser-side event: the browser clock is always read, the server clock never set. */
 export interface BrowserReplayEvent extends ReplayEvent {
   readonly browserClock: BrowserClockReading;
   readonly serverClock: "not controlled";
 }
 
-/** One simulated check in the Setup_Checklist (Requirements 6.2, 6.3). */
+/** One readiness check on the Open-a-case board, from GET /health. */
 export type SetupStateId = "ready" | "waiting" | "attention";
 
 export interface SetupState {
@@ -108,4 +108,6 @@ export interface SetupCheck {
   readonly id: string;
   readonly label: string;
   readonly state: SetupStateId;
+  /** The backend's own explanation, e.g. "Stub runtime, not a Kiro Crew run". */
+  readonly detail?: string;
 }

@@ -23,12 +23,12 @@ export const MASCOT_ART: Readonly<Record<MascotId, MascotArtSpec>> = {
     size: { w: 104, h: 87 },
   },
   "mini-ghost": {
-    rig: ["mini-ghost/body", "mini-ghost/eyes-curious", "mini-ghost/eyes-narrow", "mini-ghost/mouth-neutral", "mini-ghost/mouth-open"],
+    rig: ["mini-ghost/body", "mini-ghost/arm-l", "mini-ghost/arm-r", "mini-ghost/eyes", "mini-ghost/mouth"],
     pose: "mini-ghost/pose",
     size: { w: 84, h: 89 },
   },
   "wraith-director": {
-    rig: ["wraith-director/body", "wraith-director/arm-lantern", "wraith-director/eyes", "wraith-director/mouth-smile"],
+    rig: ["wraith-director/body", "wraith-director/arm-open", "wraith-director/arm-lantern", "wraith-director/eyes"],
     pose: "wraith-director/pose",
     size: { w: 160, h: 200 },
   },
@@ -55,14 +55,14 @@ export const MASCOT_ART: Readonly<Record<MascotId, MascotArtSpec>> = {
   "gargoyle-gatekeeper": { rig: [], pose: "gargoyle-gatekeeper/pose", size: { w: 170, h: 180 } },
   "cauldron-cat": { rig: [], pose: "cauldron-cat/pose", size: { w: 170, h: 170 } },
   "spider-weaver": { rig: [], pose: "spider-weaver/pose", size: { w: 160, h: 200 } },
-  "mummy-wrapper": { rig: [], pose: "mummy-wrapper/pose", size: { w: 140, h: 190 } },
+  "mummy-wrapper": { rig: ["mummy-wrapper/body", "mummy-wrapper/arm-l", "mummy-wrapper/arm-r"], pose: "mummy-wrapper/pose", size: { w: 140, h: 190 } },
   // Jack also has a second face pose (`two-faced-jack/pose-fixed`); the affected face is the base pose.
   "two-faced-jack": { rig: [], pose: "two-faced-jack/pose-affected", size: { w: 150, h: 210 } },
   "skeleton-scribe": { rig: [], pose: "skeleton-scribe/pose", size: { w: 160, h: 140 } },
   // Decision D15: body (with the spool hand), needle arm, eyes. The size matches the real pose cutout's display
   // box (160 x 189 in the manifest), so the image and the placeholder share one aspect.
   "doctor-stitch": {
-    rig: ["doctor-stitch/body", "doctor-stitch/arm-needle", "doctor-stitch/eyes"],
+    rig: ["doctor-stitch/body", "doctor-stitch/arm-needle", "doctor-stitch/arm-spool", "doctor-stitch/eyes"],
     pose: "doctor-stitch/pose",
     size: { w: 160, h: 189 },
   },

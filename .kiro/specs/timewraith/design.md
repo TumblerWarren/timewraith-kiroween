@@ -86,6 +86,8 @@ R3 is the pivot from the marketing landing page to the Case Board (D14 to D23). 
 
 **Superseded by R3, kept for history:** the primary CTA "Enter the Clocktower" and its note (D19); the standalone Replay_Lab and Proof sections (now case-scoped in region 4); the five-step Flow (now six); the 13-mascot roster (now 14). Requirement criteria that changed are marked "(Revised; was ...)" or "Superseded by ..." in `requirements.md`.
 
+**Superseded by redesign R4 (2026-11-11):** the one-screen Case Board with seven regions, the clock-stamp nav, the Timeline_Thread, the Mini Ghost companion, the overlay bats and the ambient beats. The app now has five hash-routed pages (home, new case, cases, case detail with tabs, Crew setup, how it works), one status model with seven states, and mascots at three fixed sizes that move only to show a running state. See "Redesign R4" in `docs/integration-contract.md`. Requirements and properties that describe the removed regions are kept for history and no longer tested.
+
 ## Research Findings and What They Changed
 
 Each row names the source used and the design consequence. Content was rephrased for compliance with licensing restrictions.

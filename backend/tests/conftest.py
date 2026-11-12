@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pytest
 
-# The API module reads settings at import time; point it at a throwaway data dir outside the repo.
-os.environ.setdefault("TW_DATA_DIR", tempfile.mkdtemp(prefix="tw-test-"))
+# The API module reads settings at import time; always point it at a throwaway data dir outside the repo. Never
+# reuse TW_DATA_DIR from the shell: importing the API recovers that store, which would stop its running cases.
+os.environ["TW_DATA_DIR"] = tempfile.mkdtemp(prefix="tw-test-")
 os.environ["TW_AGENT_RUNTIME"] = "stub"
 
 

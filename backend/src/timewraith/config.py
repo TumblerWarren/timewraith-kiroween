@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TW_", env_file=REPO_ROOT / "backend" / ".env", extra="ignore")
 
     data_dir: Path = Path.home() / ".timewraith"
-    agent_runtime: str = "stub"  # stub | command
+    agent_runtime: str = "auto"  # auto (Kiro Crew container when signed in, else stub) | stub | command
     # Command for the "command" runtime. {agent} is replaced by the agent profile name; the prompt goes to stdin.
     agent_command: str = ""
     agent_timeout_s: int = 300
@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     repeat_runs: int = 3
     max_patch_files: int = 3
     max_patch_lines: int = 60
+
+    # Fix sessions (Doctor Stitch with tools, fixsession.py)
+    fix_session_s: int = 12 * 60
+    max_tool_calls: int = 40
+    max_test_runs: int = 8
+    max_other_test_runs: int = 4
+    # How the Kiro Crew container reaches this backend's fix tools (Docker Desktop maps host.docker.internal).
+    crew_backend_url: str = "http://host.docker.internal:8787"
 
     # Sandbox (Docker)
     docker_cpus: str = "2"

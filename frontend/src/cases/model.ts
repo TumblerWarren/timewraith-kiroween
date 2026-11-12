@@ -1,28 +1,26 @@
+import type { InvestigationSummary } from "../api/types";
 import type { CaseModeId } from "../content/modes";
-import type { EvidenceStatus, ReplayEvent } from "../data/types";
+import type { EvidenceStatus } from "../data/types";
 
 /**
- * Case models (design: Case models; Requirements 19.1, 20.2, 22.3, 24.1, 25.1).
- * A Case is either one of the two bundled Sample_Cases or a Draft_Case the visitor created in this browser.
+ * Case models. A Case is a Draft_Case kept in this browser or a Live_Case: a real investigation on the TimeWraith
+ * backend. Targets are public GitHub repositories pinned to a ref. There is no bundled sample data.
  */
 export type CaseMode = CaseModeId;
 
 export type TargetVersion = { readonly kind: "commit" | "ref"; readonly value: string };
 
-export type Target =
-  | { readonly kind: "repository"; readonly repoUrl: string; readonly version: TargetVersion }
-  | { readonly kind: "local-app"; readonly appUrl: string };
+export type Target = { readonly kind: "repository"; readonly repoUrl: string; readonly version: TargetVersion };
 
 export type VersionRole = "affected" | "fixed" | "patched" | "under-test";
 export type VersionResult = "fails" | "passes" | "not-run" | "inconclusive";
 
 export interface VersionEntry {
-  /** "fc-6.1.10", "cal-affected", "draft". */
   readonly id: string;
-  /** Shown in mono: "@fullcalendar/core 6.1.10". */
+  /** Shown in mono: a ref or a short commit. */
   readonly label: string;
   readonly role: VersionRole;
-  readonly source: "public-report" | "published-release" | "illustrative-pin" | "user-input";
+  readonly source: "user-input";
   readonly result: VersionResult;
   readonly includesSuggestedFix: boolean;
 }
@@ -32,73 +30,11 @@ export interface DiffLine {
   readonly text: string;
 }
 
-export interface SuggestedFix {
-  readonly author: "doctor-stitch";
-  /** One sentence. */
-  readonly summary: string;
-  /** At most 12 lines. */
-  readonly change: { readonly file: string; readonly lines: readonly DiffLine[] };
-  /** At most 16 lines. */
-  readonly regressionTest: { readonly file: string; readonly lines: readonly DiffLine[] };
-  /** True => "Illustrative diff". */
-  readonly illustrative: boolean;
-  readonly upstream: {
-    readonly kind: "merged-change" | "described-in-report";
-    readonly label: string;
-    readonly href: string;
-    readonly reportedResult?: string;
-  } | null;
-}
-
 interface CaseBase {
   readonly id: string;
   readonly mode: CaseMode;
   readonly target: Target;
   readonly area?: string;
-}
-
-/** The five Version_Timeline milestones, in fixed order (design D21; Requirement 28.1). */
-export const MILESTONE_ORDER = ["released", "reported", "reproduced", "fix-suggested", "fixed-verified"] as const;
-export type MilestoneKind = (typeof MILESTONE_ORDER)[number];
-/** History milestones are facts about the project; replay milestones point at a replay event. */
-export const HISTORY_KINDS: readonly MilestoneKind[] = ["released", "reported"];
-export type MilestoneState = "reached" | "ahead" | "not-run" | "hidden";
-
-export interface VersionMilestone {
-  readonly kind: MilestoneKind;
-  /** "@fullcalendar/core 6.1.10 released". */
-  readonly label: string;
-  /** Entry in `versions`; null only for an unrun fixed-version milestone. */
-  readonly versionId: string | null;
-  /** History kinds only: a real date with the record it comes from. */
-  readonly date: { readonly value: string; readonly source: "published-release" | "issue-tracker"; readonly href: string } | null;
-  /** Replay kinds only: the event that reaches the milestone. */
-  readonly eventId: string | null;
-  /** True => shown as "illustrative pin", and `date` must be null. */
-  readonly illustrativePin: boolean;
-  readonly notRunText?: "Fixed-version check not run";
-}
-
-export interface SampleCase extends CaseBase {
-  readonly kind: "sample";
-  /** Shown after the reveal for a Blind hunt. */
-  readonly title: string;
-  /** Blind hunt title before the reveal (target-based). */
-  readonly hiddenTitle?: string;
-  readonly issue: { readonly href: string; readonly label: string; readonly source: "third-party-report" };
-  /** "Sample replay (illustrative data), not a real finding" | "Illustrative replay modelled on ...". */
-  readonly sampleLabel: string;
-  readonly replayModeLabel: "Recorded replay" | "Illustrative replay";
-  /** Check order; also feeds the Version_History_Strip. */
-  readonly versions: readonly VersionEntry[];
-  readonly stream: readonly ReplayEvent[];
-  /** Required when the mode is blind-hunt. */
-  readonly reveal?: { readonly eventId: string; readonly outcome: "match" | "no-match" };
-  /** TimeControlNote text. */
-  readonly timeControl: string;
-  readonly fix: SuggestedFix;
-  /** Exactly five milestones, in `MILESTONE_ORDER` (D21). */
-  readonly timeline: readonly VersionMilestone[];
 }
 
 export interface DraftCase extends CaseBase {
@@ -111,22 +47,23 @@ export interface DraftCase extends CaseBase {
   readonly saved: boolean;
 }
 
-export type Case = SampleCase | DraftCase;
+/** A real investigation on the backend; the full record is loaded by the Case view. */
+export interface LiveCase extends CaseBase {
+  readonly kind: "live";
+  readonly summary: InvestigationSummary;
+}
+
+export type Case = DraftCase | LiveCase;
 
 export type CaseStatus = EvidenceStatus | "draft-not-run";
 
-export const caseStatus = (c: Case): CaseStatus =>
-  c.kind === "draft" ? "draft-not-run" : (c.stream[c.stream.length - 1]?.status ?? "planned");
+export const caseStatus = (c: Case): CaseStatus => (c.kind === "draft" ? "draft-not-run" : c.summary.status);
 
-/** The title a visitor may see now: the target-based one for a Blind hunt sample (cards never reveal). */
-export const visibleTitle = (c: Case, revealed = false): string => {
-  if (c.kind === "draft") return draftTitle(c);
-  return c.mode === "blind-hunt" && !revealed && c.hiddenTitle ? c.hiddenTitle : c.title;
-};
+/** The title of a case: its repository and, when given, the area. */
+export const visibleTitle = (c: Case): string => (c.kind === "draft" ? draftTitle(c) : liveTitle(c));
 
-/** Target in one mono line: "owner/repo @ ref" or the local app URL. */
+/** Target in one mono line: "owner/repo @ ref". */
 export function targetLine(target: Target): string {
-  if (target.kind === "local-app") return target.appUrl;
   return `${repoSlug(target.repoUrl)} @ ${target.version.value}`;
 }
 
@@ -143,22 +80,44 @@ export function repoSlug(repoUrl: string): string {
 
 /** A draft's title: the target and, when given, the area. Rendered as text only. */
 export function draftTitle(d: DraftCase): string {
-  const where = d.target.kind === "local-app" ? d.target.appUrl : repoSlug(d.target.repoUrl);
+  const where = repoSlug(d.target.repoUrl);
   return d.area ? `${where}: ${d.area}` : where;
 }
 
-/** A draft's single version entry: what the visitor entered, never run (Requirement 25.3). */
+export function liveTitle(c: LiveCase): string {
+  const where = `${c.summary.target.owner}/${c.summary.target.repo}`;
+  return c.area ? `${where}: ${c.area}` : where;
+}
+
+/** A draft's single version entry: what the visitor entered, never run. */
 export function draftVersions(d: DraftCase): readonly VersionEntry[] {
   return [
-    {
-      id: "draft",
-      label: d.target.kind === "local-app" ? d.target.appUrl : d.target.version.value,
-      role: "under-test",
-      source: "user-input",
-      result: "not-run",
-      includesSuggestedFix: false,
-    },
+    { id: "draft", label: d.target.version.value, role: "under-test", source: "user-input", result: "not-run", includesSuggestedFix: false },
   ];
 }
 
-export const caseVersions = (c: Case): readonly VersionEntry[] => (c.kind === "draft" ? draftVersions(c) : c.versions);
+/** A live case's revision under test, with its result once a bug is reproduced. */
+export function liveVersions(c: LiveCase): readonly VersionEntry[] {
+  const s = c.summary;
+  const label = s.target.revision ? s.target.revision.slice(0, 12) : s.target.ref;
+  // No bug never becomes "passes": the honest negative is "No anomaly observed in tested cases", shown in the view.
+  const result: VersionResult = s.bug_count > 0 ? "fails" : "not-run";
+  return [{ id: "live", label, role: s.bug_count > 0 ? "affected" : "under-test", source: "user-input", result, includesSuggestedFix: false }];
+}
+
+export function caseVersions(c: Case): readonly VersionEntry[] {
+  return c.kind === "draft" ? draftVersions(c) : liveVersions(c);
+}
+
+/** A backend summary as a Live_Case. */
+export function liveFromSummary(s: InvestigationSummary, area?: string | null): LiveCase {
+  const commit = /^[0-9a-f]{40}$/.test(s.target.ref);
+  return {
+    kind: "live",
+    id: s.id,
+    mode: s.mode,
+    target: { kind: "repository", repoUrl: `https://github.com/${s.target.owner}/${s.target.repo}`, version: { kind: commit ? "commit" : "ref", value: s.target.ref } },
+    ...(area ? { area } : {}),
+    summary: s,
+  };
+}

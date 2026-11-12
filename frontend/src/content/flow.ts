@@ -1,85 +1,117 @@
+import type { Phase } from "../api/types";
 import type { MascotId } from "./crew";
 
 /**
- * Investigation flow (Requirements 3.6, 3.7, 3.8, decision D17): six steps, each with the mascots that act in it.
- * All six Crew_Agents and all six System_Component_Mascots appear exactly once, in sequence. The fix step is
- * separate from evidence because a suggested fix is a proposal, not a measurement.
+ * Investigation flow: the backend's five steps (`GET /api/v1/flow`, `FLOW` in backend/src/timewraith/models.py)
+ * plus the follow-on fix step. Each step names whether a Kiro agent or plain code owns it. All six Crew_Agents and
+ * all six System_Component_Mascots appear exactly once, in sequence.
  */
-export const FLOW_STEP_IDS = ["scope", "plan", "approve", "run", "evidence", "fix"] as const;
+export const FLOW_STEP_IDS = ["repository", "discovery", "design", "execution", "verification", "fix"] as const satisfies readonly Phase[];
 export type FlowStepId = (typeof FLOW_STEP_IDS)[number];
 
 export interface FlowStep {
   readonly id: FlowStepId;
   /** 1-based position. */
   readonly index: number;
+  /** The step's full name, as the backend's flow and the strip at the top of the board use it. */
   readonly title: string;
+  /** The short name lettered on the Flow region's signboard (the board is 164px wide). */
+  readonly sign: string;
+  /** Who owns the step: a Kiro agent that proposes, or code that produces facts. */
+  readonly kind: "kiro-agent" | "code";
   readonly summary: string;
   /** Mascots attached to this step, in the order they act. */
   readonly mascots: readonly MascotId[];
-  /** The mascot that perches on the step's signboard. One of `mascots`. */
+  /** The mascot that perches on the step's signboard and owns the step. One of `mascots`. */
   readonly lead: MascotId;
-  /** True when activating the step plays a Bat_Burst (approve, Requirement 3.7). */
+  /** True when activating the step plays a Bat_Burst (the plan approval stop after design). */
   readonly burst: boolean;
+  /** True for the step after the five-step flow (Fix). */
+  readonly followOn: boolean;
 }
 
 export const FLOW_STEPS: readonly FlowStep[] = [
   {
-    id: "scope",
+    id: "repository",
     index: 1,
-    title: "Scope",
+    title: "Repository",
+    sign: "Repository",
+    kind: "code",
     summary:
-      "You name the page and the date boundary that worries you. The Gatekeeper writes down what the Crew may touch, and the Crew keeps to that list.",
+      "The Wraith Director clones the one commit you pinned, with Git hooks, submodules and links switched off. The Gatekeeper reads the manifests, the lockfile and the test setup and writes down what the repository can support.",
     mascots: ["wraith-director", "gargoyle-gatekeeper"],
     lead: "wraith-director",
     burst: false,
+    followOn: false,
   },
   {
-    id: "plan",
+    id: "discovery",
     index: 2,
-    title: "Plan",
+    title: "Time-sensitive code discovery",
+    sign: "Discovery",
+    kind: "kiro-agent",
     summary:
-      "The Bat Scout finds a route to the date boundary, and the plan is written from what it saw. An experiment in the plan is one clock value in one time zone. Jack lines up the affected version and the fixed one so the two can be compared.",
-    mascots: ["bat-scout", "two-faced-jack"],
+      "A scan finds the code that reads the clock, compares dates or converts time zones. The Bat Scout looks over the strongest candidates and keeps the ones worth an experiment, citing the lines it saw.",
+    mascots: ["bat-scout"],
     lead: "bat-scout",
     burst: false,
+    followOn: false,
   },
   {
-    id: "approve",
+    id: "design",
     index: 3,
-    title: "Approve",
-    summary: "You approve the plan before anything runs. The Warden holds the queue until you do.",
-    mascots: ["watchtower-warden"],
-    lead: "watchtower-warden",
-    burst: true,
-  },
-  {
-    id: "run",
-    index: 4,
-    title: "Run",
+    title: "Autonomous experiment design",
+    sign: "Design",
+    kind: "kiro-agent",
     summary:
-      "The Pumpkin Mechanic runs the experiments in the Cat's local sandbox, with the browser clock controlled. The Spider keeps a trace of what happens while it happens.",
-    mascots: ["pumpkin-mechanic", "cauldron-cat", "spider-weaver"],
+      "The Pumpkin Mechanic writes a small adapter that calls the code, and picks the rules it must keep from a fixed list. The Warden then holds the queue until you approve the experiments.",
+    mascots: ["pumpkin-mechanic", "watchtower-warden"],
     lead: "pumpkin-mechanic",
-    burst: false,
+    burst: true,
+    followOn: false,
   },
   {
-    id: "evidence",
-    index: 5,
-    title: "Evidence",
+    id: "execution",
+    index: 4,
+    title: "Controlled execution",
+    sign: "Execution",
+    kind: "code",
     summary:
-      "The Mummy hashes the artifacts and wraps up anything secret before the Raven looks at them. The Raven puts the result on the rung its evidence supports, and nowhere higher.",
-    mascots: ["mummy-wrapper", "raven-archivist"],
+      "The Spider sweeps thousands of clock settings through each adapter in the Cat's Docker sandbox, with no network: daylight-saving changes, month ends and leap days in thirteen zones. Fixed rules mark each result, and the Mummy keeps the record.",
+    mascots: ["spider-weaver", "cauldron-cat", "mummy-wrapper"],
+    lead: "spider-weaver",
+    burst: false,
+    followOn: false,
+  },
+  {
+    id: "verification",
+    index: 5,
+    title: "Independent bug verification",
+    sign: "Verification",
+    kind: "kiro-agent",
+    summary:
+      "A broken rule is run again three times in clean containers. The Raven then reads what the repository's own tests and docs say about that moment: if they say it is deliberate, and the cited test passes, it is reported as intended behaviour, not a bug. Otherwise the Raven rules whether it is a real defect, and Jack checks the public issues for an earlier report.",
+    mascots: ["raven-archivist", "two-faced-jack"],
     lead: "raven-archivist",
     burst: false,
+    followOn: false,
   },
   {
     id: "fix",
     index: 6,
     title: "Fix",
+    sign: "Fix",
+    kind: "kiro-agent",
     summary:
-      "Doctor Stitch drafts a suggested fix and the regression test that proves it. A fix is called verified only after it passes on a fixed version. The Scribe bundles the test and the fix into the report export.",
+      "Doctor Stitch works like a developer through TimeWraith's tools: he reads and searches the code, makes exact edits and runs the failing test in the sandbox until he submits a patch. It is called verified only after it passes eight gates on a clean copy and the Raven's blind review, and you accept it before you can download it. The Scribe bundles the patch with its regression test.",
     mascots: ["doctor-stitch", "skeleton-scribe"],
     lead: "doctor-stitch",
     burst: false,
+    followOn: true,
   },
 ];
+
+export const FLOW_STEP_BY_ID: Readonly<Record<FlowStepId, FlowStep>> = Object.fromEntries(FLOW_STEPS.map((s) => [s.id, s])) as Record<
+  FlowStepId,
+  FlowStep
+>;

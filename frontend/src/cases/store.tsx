@@ -1,34 +1,34 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { DEFAULT_CASE_ID, SAMPLE_CASES } from "../data/cases";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useApi } from "../api/ApiProvider";
+import type { InvestigationSummary } from "../api/types";
 import { buildCatalog } from "./catalog";
 import { browserStorage, loadDrafts, MAX_DRAFTS, saveDrafts, type StorageLike } from "./drafts/storage";
 import { newDraftId } from "./drafts/ids";
 import type { DraftInput } from "./form/validate";
-import type { Case, DraftCase } from "./model";
+import { liveFromSummary, type Case, type DraftCase, type LiveCase } from "./model";
 
 /**
- * Case store (Requirements 20.4 to 20.9, 21.1, 21.5, 21.6). Holds the visitor's drafts and the selected case.
+ * Case store. Holds the visitor's drafts, the live investigations from the backend, and the selected case.
  *
- * - Drafts load once from `localStorage["tw.cases.v1"]` (reads never write) and persist after each change.
- * - When storage fails, the new draft is kept for this visit with `saved: false` ("Not saved" on its card).
- * - At most 20 drafts: `createDraft` at the limit creates nothing and returns `{ ok: false, reason: "limit" }`.
- * - Exactly one case is selected; FullCalendar #7998 on load and again when the selected draft is removed.
- * - No network of any kind, and the URL never changes.
- *
- * DOM side effects (announcements, focus, scrolling, animation requests) live in `cases/actions.ts`, because the
- * live region is mounted inside App, below this provider.
+ * - Drafts load once from `localStorage["tw.cases.v1"]` and persist after each change; at most 20.
+ * - Live cases come from `GET /investigations` when the backend is online (refreshed every 15 s) and from
+ *   `upsertLive` after the visitor starts or advances one.
+ * - At most one case is selected. Nothing is selected on load or after the selected draft is removed.
+ * - The URL never changes.
  */
 export type CreateResult = { readonly ok: true; readonly draft: DraftCase } | { readonly ok: false; readonly reason: "limit" };
 
 export interface CaseStoreValue {
-  /** Samples first, then drafts newest first. */
+  /** Live cases newest first, then drafts newest first. */
   readonly cases: readonly Case[];
   readonly drafts: readonly DraftCase[];
-  readonly selectedId: string;
-  readonly selected: Case;
+  readonly live: readonly LiveCase[];
+  readonly selectedId: string | null;
+  readonly selected: Case | null;
   readonly limitReached: boolean;
   readonly createDraft: (input: DraftInput) => CreateResult;
   readonly removeDraft: (id: string) => void;
+  readonly upsertLive: (summary: InvestigationSummary, area?: string | null) => void;
   /** Returns false (and changes nothing) for an unknown id. */
   readonly select: (id: string) => boolean;
 }
@@ -43,28 +43,66 @@ export interface CaseStoreProviderProps {
   readonly now?: () => number;
 }
 
-const DEFAULT_SAMPLE = SAMPLE_CASES[0] as Case;
+const LIST_REFRESH_MS = 15_000;
 
 export function CaseStoreProvider({ children, storage, now = Date.now }: CaseStoreProviderProps) {
-  // Chosen once per provider: the injected storage, else window.localStorage (null when access is refused).
+  const { api } = useApi();
   const [store] = useState<StorageLike | null>(() => (storage === undefined ? browserStorage() : storage));
   const [drafts, setDrafts] = useState<readonly DraftCase[]>(() => loadDrafts(store).drafts);
-  const [selectedId, setSelectedId] = useState<string>(DEFAULT_CASE_ID);
-  // The latest drafts, so actions compute the next list (and write storage) once, outside a state updater.
-  // Only `commit` changes the drafts, and it updates this ref first.
+  const [live, setLive] = useState<readonly LiveCase[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The latest drafts and live cases, so actions see the next list at once (outside a state updater).
   const draftsRef = useRef(drafts);
+  const liveRef = useRef(live);
+  // Areas typed by the visitor; the summary does not carry them.
+  const areas = useRef(new Map<string, string>());
 
-  const commit = useCallback((next: readonly DraftCase[], createdId?: string) => {
-    const { ok } = saveDrafts(store, next);
-    const marked = next.map((d) => {
-      if (ok && !d.saved) return { ...d, saved: true };
-      if (!ok && d.id === createdId) return { ...d, saved: false };
-      return d;
-    });
-    draftsRef.current = marked;
-    setDrafts(marked);
-    return marked;
-  }, [store]);
+  const commit = useCallback(
+    (next: readonly DraftCase[], createdId?: string) => {
+      const { ok } = saveDrafts(store, next);
+      const marked = next.map((d) => {
+        if (ok && !d.saved) return { ...d, saved: true };
+        if (!ok && d.id === createdId) return { ...d, saved: false };
+        return d;
+      });
+      draftsRef.current = marked;
+      setDrafts(marked);
+      return marked;
+    },
+    [store],
+  );
+
+  const setLiveList = useCallback((next: readonly LiveCase[]) => {
+    liveRef.current = next;
+    setLive(next);
+  }, []);
+
+  const upsertLive = useCallback(
+    (summary: InvestigationSummary, area?: string | null) => {
+      if (area) areas.current.set(summary.id, area);
+      const c = liveFromSummary(summary, areas.current.get(summary.id));
+      const rest = liveRef.current.filter((x) => x.id !== c.id);
+      setLiveList([c, ...rest].sort((a, b) => (a.summary.created_at < b.summary.created_at ? 1 : -1)));
+    },
+    [setLiveList],
+  );
+
+  // The list is asked for at once, without waiting for the slower health check; a failure leaves it as it was.
+  useEffect(() => {
+    if (!api) return;
+    let alive = true;
+    const load = () =>
+      api
+        .list()
+        .then((list) => alive && setLiveList(list.map((s) => liveFromSummary(s, areas.current.get(s.id)))))
+        .catch(() => undefined);
+    void load();
+    const timer = window.setInterval(load, LIST_REFRESH_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [api, setLiveList]);
 
   const createDraft = useCallback(
     (input: DraftInput): CreateResult => {
@@ -85,48 +123,52 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
       const current = draftsRef.current;
       if (!current.some((d) => d.id === id)) return;
       commit(current.filter((d) => d.id !== id));
-      setSelectedId((sel) => (sel === id ? DEFAULT_CASE_ID : sel));
+      setSelectedId((sel) => (sel === id ? null : sel));
     },
     [commit],
   );
 
-  const cases = useMemo(() => buildCatalog(drafts), [drafts]);
+  const cases = useMemo(() => buildCatalog(drafts, live), [drafts, live]);
 
   const select = useCallback((id: string) => {
-    const known = SAMPLE_CASES.some((c) => c.id === id) || draftsRef.current.some((d) => d.id === id);
+    const known = draftsRef.current.some((d) => d.id === id) || liveRef.current.some((c) => c.id === id);
     if (known) setSelectedId(id);
     return known;
   }, []);
 
   const value = useMemo<CaseStoreValue>(() => {
-    const selected = cases.find((c) => c.id === selectedId) ?? DEFAULT_SAMPLE;
+    const selected = cases.find((c) => c.id === selectedId) ?? null;
     return {
       cases,
       drafts,
-      selectedId: selected.id,
+      live,
+      selectedId: selected?.id ?? null,
       selected,
       limitReached: drafts.length >= MAX_DRAFTS,
       createDraft,
       removeDraft,
+      upsertLive,
       select,
     };
-  }, [cases, drafts, selectedId, createDraft, removeDraft, select]);
+  }, [cases, drafts, live, selectedId, createDraft, removeDraft, upsertLive, select]);
 
   return <CaseStoreContext.Provider value={value}>{children}</CaseStoreContext.Provider>;
 }
 
 /**
- * Read-only stand-in for components rendered without the provider (isolated region tests): the samples, the
- * default selection, and actions that do nothing. The app always mounts the provider in main.tsx.
+ * Read-only stand-in for components rendered without the provider (isolated region tests): no cases, no
+ * selection, and actions that do nothing. The app always mounts the provider in main.tsx.
  */
 const STANDALONE: CaseStoreValue = {
-  cases: buildCatalog([]),
+  cases: [],
   drafts: [],
-  selectedId: DEFAULT_CASE_ID,
-  selected: DEFAULT_SAMPLE,
+  live: [],
+  selectedId: null,
+  selected: null,
   limitReached: false,
   createDraft: () => ({ ok: false, reason: "limit" }),
   removeDraft: () => undefined,
+  upsertLive: () => undefined,
   select: () => false,
 };
 

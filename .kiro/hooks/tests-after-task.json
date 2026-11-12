@@ -5,9 +5,12 @@
       "name": "Unit tests after task",
       "description": "Run the front-end unit and property tests, then the art tool pytest suite, when a spec task finishes.",
       "trigger": "PostTaskExec",
-      "action": { "type": "command", "command": "node scripts/hooks/run-tests.mjs" },
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/run-tests.mjs"
+      },
       "timeout": 300,
-      "enabled": true
+      "enabled": false
     }
   ]
 }

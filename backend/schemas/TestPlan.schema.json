@@ -1,71 +1,74 @@
 {
   "$defs": {
-    "ClockConfig": {
-      "properties": {
-        "instant": {
-          "title": "Instant",
-          "type": "string"
-        },
-        "label": {
-          "title": "Label",
-          "type": "string"
-        },
-        "scope": {
-          "const": "test_process",
-          "default": "test_process",
-          "title": "Scope",
-          "type": "string"
-        },
-        "time_zone": {
-          "title": "Time Zone",
-          "type": "string"
-        }
-      },
-      "required": [
-        "instant",
-        "time_zone",
-        "label"
-      ],
-      "title": "ClockConfig",
-      "type": "object"
-    },
     "Experiment": {
       "properties": {
         "adapter": {
-          "const": "js_tests",
-          "default": "js_tests",
+          "const": "js_sweep",
+          "default": "js_sweep",
           "title": "Adapter",
           "type": "string"
+        },
+        "adapter_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter Code"
+        },
+        "adapter_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter Path"
+        },
+        "anchors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Anchors",
+          "type": "array"
         },
         "candidate_id": {
           "title": "Candidate Id",
           "type": "string"
         },
-        "category": {
+        "categories": {
+          "items": {
+            "enum": [
+              "timezone_conversion",
+              "midnight_rollover",
+              "dst_transition",
+              "expiry_boundary",
+              "other_temporal"
+            ],
+            "type": "string"
+          },
+          "title": "Categories",
+          "type": "array"
+        },
+        "claim": {
           "anyOf": [
             {
-              "enum": [
-                "timezone_conversion",
-                "midnight_rollover",
-                "dst_transition",
-                "expiry_boundary",
-                "other_temporal"
-              ],
               "type": "string"
             },
             {
-              "const": "baseline",
-              "type": "string"
+              "type": "null"
             }
           ],
-          "title": "Category"
-        },
-        "clocks": {
-          "items": {
-            "$ref": "#/$defs/ClockConfig"
-          },
-          "title": "Clocks",
-          "type": "array"
+          "default": null,
+          "title": "Claim"
         },
         "executability": {
           "enum": [
@@ -88,19 +91,118 @@
           "default": null,
           "title": "Executability Reason"
         },
+        "fields": {
+          "default": [],
+          "items": {
+            "enum": [
+              "instant",
+              "next",
+              "flag",
+              "date",
+              "value"
+            ],
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "harness_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Harness Path"
+        },
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "invariants": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/InvariantUse"
+          },
+          "title": "Invariants",
+          "type": "array"
+        },
+        "point_count": {
+          "default": 0,
+          "title": "Point Count",
+          "type": "integer"
+        },
+        "status": {
+          "default": "planned",
+          "enum": [
+            "planned",
+            "designed",
+            "not_designed",
+            "adapter_invalid",
+            "swept"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "zones": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Zones",
+          "type": "array"
         }
       },
       "required": [
         "id",
         "candidate_id",
-        "category",
-        "clocks",
+        "categories",
         "executability"
       ],
       "title": "Experiment",
+      "type": "object"
+    },
+    "InvariantUse": {
+      "properties": {
+        "id": {
+          "enum": [
+            "well_formed",
+            "deterministic",
+            "local_date_matches",
+            "instant_zone_independent",
+            "flag_monotonic",
+            "next_after_now"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "max_gap_ms": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Gap Ms"
+        },
+        "reason": {
+          "maxLength": 300,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "title": "InvariantUse",
       "type": "object"
     }
   },

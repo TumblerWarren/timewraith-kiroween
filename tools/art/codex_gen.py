@@ -108,15 +108,24 @@ def rollout_facts(thread_id: str) -> dict:
     return facts
 
 
-def run(asset_id: str, subject: str, retry_reason: str | None, attempt: int, timeout: int) -> dict:
+def run(asset_id: str, subject: str, retry_reason: str | None, attempt: int, timeout: int,
+        reference: Path | None = None) -> dict:
     mascot, name = asset_id.split("/", 1)
     prompt = build_prompt(subject, retry_reason)
+    if reference is not None:
+        # Parts must match the approved full pose: same character, line weight, palette and scale.
+        prompt = ("The attached image is the approved full pose of this character. Draw the requested part of "
+                  "THIS exact character: same design, line weight, colours and scale as in the attached image.\n"
+                  + prompt)
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     base = RUNS_DIR / f"{mascot}--{name}--a{attempt}--{stamp}"
     out_path, err_path = base.with_suffix(".jsonl"), base.with_suffix(".stderr.log")
     cmd = ["cmd", "/c", "codex.cmd", "exec", "--skip-git-repo-check", "-s", "workspace-write",
-           "-C", str(REPO), "--json", "-"]
+           "-C", str(REPO), "--json"]
+    if reference is not None:
+        cmd += ["-i", str(reference)]
+    cmd += ["-"]
     t0 = time.monotonic()
     with open(out_path, "wb") as out, open(err_path, "wb") as err:
         try:
@@ -159,10 +168,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--retry-reason")
     p.add_argument("--attempt", type=int, default=1)
     p.add_argument("--timeout", type=int, default=600)
+    p.add_argument("--reference", type=Path, help="approved full pose to attach with -i (for parts)")
     args = p.parse_args(argv)
     if not re.fullmatch(r"[a-z0-9-]+/[a-z0-9-]+", args.id):
         p.error("bad asset id")
-    rec = run(args.id, args.subject, args.retry_reason, args.attempt, args.timeout)
+    rec = run(args.id, args.subject, args.retry_reason, args.attempt, args.timeout, args.reference)
     summary = {k: rec.get(k) for k in ("id", "attempt", "thread_id", "exit_code", "latency_s", "master", "width",
                                        "height", "mode", "bytes", "quota_primary_first", "quota_primary_last",
                                        "quota_weekly_first", "quota_weekly_last")}

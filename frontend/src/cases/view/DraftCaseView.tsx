@@ -1,6 +1,11 @@
+import { useState } from "react";
+import { useApi } from "../../api/ApiProvider";
+import { ApiError } from "../../api/client";
 import { stampTilt } from "../../components/tilt";
 import { CASE_AREA_TERM, CASE_ISSUE_TERM, CASE_MODE_TERM, CASE_TARGET_TERM, DRAFT_NO_EVENTS, DRAFT_RESULT, DRAFT_VERSION_TERM } from "../../content/caseView";
-import { DRAFT_NOT_RUN, ISSUE_HIDDEN } from "../../content/copy";
+import { DRAFT_NOT_RUN, ISSUE_HIDDEN, RUN_DRAFT } from "../../content/copy";
+import { FORM_NOTE_OFFLINE, FORM_NOTE_ONLINE } from "../../content/form";
+import { useCaseActions } from "../actions";
 import { CASE_MODE_BY_ID } from "../../content/modes";
 import { ModeShape } from "../library/ModeShape";
 import { DraftShape, ResultShape } from "../library/ResultShape";
@@ -14,12 +19,26 @@ const EMPTY_PEGS = 8;
 /**
  * A draft in the Case view (Requirements 22.8, 20.2, 20.3, 16.7; Property 33). It has never run, so there are no
  * replay tracks: the target, the mode, the area, the issue link (Known issue only; a Blind hunt says "Issue hidden
- * until the reveal"), the label "Draft, not run: cases run in the next milestone", an empty dashed peg row and the
- * one version entry with "not run". No suggested fix, no lit rung.
+ * until the reveal"), the label "Draft, not run", an empty dashed peg row, the one version entry with "not run",
+ * and "Run this draft", which sends the draft to the backend when it is online. No suggested fix, no lit rung.
  */
 export function DraftCaseView({ d }: { readonly d: DraftCase }) {
   const mode = CASE_MODE_BY_ID[d.mode];
   const version = draftVersions(d)[0];
+  const { online } = useApi();
+  const { runDraft } = useCaseActions();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await runDraft(d, false);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+      setBusy(false);
+    }
+  };
   return (
     <div className="draft-view" data-draft={d.id}>
       <div className="case-head">
@@ -89,6 +108,20 @@ export function DraftCaseView({ d }: { readonly d: DraftCase }) {
             </dd>
           </div>
         </dl>
+      ) : null}
+
+      <div className="inv__actions">
+        <button type="button" className="btn btn--primary" disabled={!online || busy} onClick={() => void run()} aria-describedby={`run-note-${d.id}`}>
+          {RUN_DRAFT}
+        </button>
+        <p id={`run-note-${d.id}`} className="draft-view__empty">
+          {online ? FORM_NOTE_ONLINE : FORM_NOTE_OFFLINE}
+        </p>
+      </div>
+      {error ? (
+        <p className="case-form__limit" role="alert">
+          {error}
+        </p>
       ) : null}
     </div>
   );

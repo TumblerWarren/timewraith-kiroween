@@ -13,7 +13,9 @@ from pydantic import BaseModel
 from .models import (
     CapabilityReport,
     CreateInvestigation,
+    DecisionRecord,
     FeatureMap,
+    FlowStep,
     Investigation,
     InvestigationSummary,
     ReplayEvent,
@@ -28,6 +30,8 @@ MODELS: dict[str, type[BaseModel]] = {
     "TestPlan": TestPlan,
     "CapabilityReport": CapabilityReport,
     "ReplayEvent": ReplayEvent,
+    "DecisionRecord": DecisionRecord,
+    "FlowStep": FlowStep,
 }
 OUT = Path(__file__).resolve().parents[2] / "schemas"
 

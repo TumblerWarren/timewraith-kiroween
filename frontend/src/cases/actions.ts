@@ -1,80 +1,40 @@
 import { useCallback } from "react";
 import { flushSync } from "react-dom";
 import { useOptionalLiveAnnouncer, type LiveAnnouncerValue } from "../a11y/LiveAnnouncer";
-import { DRAFT_CREATED } from "../content/copy";
-import type { DraftInput } from "./form/validate";
-import { visibleTitle } from "./model";
-import { onCaseOpened, onDraftCreated, onSubmitBurst } from "./motionHooks";
+import { useApi } from "../api/ApiProvider";
+import { ApiError } from "../api/client";
+import { caseHref, navigate } from "../app/router";
+import { DRAFT_CREATED, LIVE_CASE_STARTED } from "../content/copy";
+import { toCreateRequest, type DraftInput } from "./form/validate";
+import { type DraftCase } from "./model";
 import { useCaseStore } from "./store";
 
 /**
- * Case actions with their page side effects (Requirements 20.1, 20.8, 20.10, 21.4, 5.5, 10.8):
- * announcements through the polite live region, focus, scrolling (`behavior: "auto"` in Reduce Motion) and the
- * animation hook points. None of them changes the URL or touches the network.
+ * Case actions. Starting a case or saving a draft announces it through the polite live region and opens the case
+ * page (`#/cases/:id`). Only `startCase` and `runDraft` call the backend.
  */
-export const CASE_VIEW_ID = "case";
-export const CASE_VIEW_HEADING_ID = "case-title";
-
-export const caseOpenedText = (title: string) => `Case opened: ${title}`;
-
-/** Selector of a case's library card (the `data-case-id` hook on its `<li>`). */
-export const cardSelector = (id: string) => `[data-case-id="${id.replace(/[^a-z0-9-]/gi, "")}"] .case-card`;
-
 const NO_ANNOUNCER: LiveAnnouncerValue = { announce: () => undefined };
-
-/** The page's announcer, or a silent one when rendered outside `<LiveAnnouncer>` (isolated tests). */
-function useOptionalAnnouncer(): LiveAnnouncerValue {
-  return useOptionalLiveAnnouncer() ?? NO_ANNOUNCER;
-}
-
-function reduceMotion(doc: Document): boolean {
-  return doc.documentElement.getAttribute("data-reduce-motion") === "true";
-}
 
 export type SubmitOutcome = { readonly ok: true; readonly id: string } | { readonly ok: false; readonly reason: "limit" };
 
 export function useCaseActions() {
   const store = useCaseStore();
-  const { announce } = useOptionalAnnouncer();
-  const { createDraft, select, removeDraft } = store;
+  const { announce } = useOptionalLiveAnnouncer() ?? NO_ANNOUNCER;
+  const { createDraft, removeDraft, upsertLive } = store;
+  const { api } = useApi();
 
-  /** Select a case, swap the Case view at once, focus its heading, scroll to it and announce it. */
-  const openCase = useCallback(
-    (id: string, card: HTMLElement | null = null) => {
-      const ok = flushSync(() => select(id));
-      if (!ok) return false;
-      const doc = card?.ownerDocument ?? document;
-      const view = doc.getElementById(CASE_VIEW_ID);
-      view?.scrollIntoView?.({ behavior: reduceMotion(doc) ? "auto" : "smooth", block: "start" });
-      doc.getElementById(CASE_VIEW_HEADING_ID)?.focus({ preventScroll: true });
-      const opened = store.cases.find((c) => c.id === id);
-      if (opened) announce(caseOpenedText(visibleTitle(opened)));
-      onCaseOpened(card);
-      return true;
-    },
-    [announce, select, store.cases],
-  );
-
-  /** Create a draft from a valid form, announce it, then scroll its new card into view and focus it. */
+  /** Save a draft from a valid form and open it. */
   const submitDraft = useCallback(
-    (input: DraftInput, button: HTMLElement | null): SubmitOutcome => {
+    (input: DraftInput): SubmitOutcome => {
       const result = flushSync(() => createDraft(input));
       if (!result.ok) return result;
-      onSubmitBurst(button);
       announce(DRAFT_CREATED);
-      const doc = button?.ownerDocument ?? document;
-      const card = doc.querySelector<HTMLElement>(cardSelector(result.draft.id));
-      if (card) {
-        card.scrollIntoView?.({ behavior: reduceMotion(doc) ? "auto" : "smooth", block: "center" });
-        card.focus({ preventScroll: true });
-      }
-      onDraftCreated(card);
+      navigate(caseHref(result.draft.id));
       return { ok: true, id: result.draft.id };
     },
     [announce, createDraft],
   );
 
-  /** Remove a draft; when it was the open case, FullCalendar #7998 is selected again (by the store). */
   const removeDraftCase = useCallback(
     (id: string) => {
       flushSync(() => removeDraft(id));
@@ -82,5 +42,28 @@ export function useCaseActions() {
     [removeDraft],
   );
 
-  return { openCase, submitDraft, removeDraft: removeDraftCase, store };
+  /** Start a real investigation on the backend and open it. Throws ApiError on failure. */
+  const startCase = useCallback(
+    async (input: DraftInput, auto: boolean): Promise<string> => {
+      if (!api) throw new ApiError("offline", "The TimeWraith backend is not reachable.");
+      const summary = await api.create(toCreateRequest(input, auto));
+      flushSync(() => upsertLive(summary, input.area));
+      announce(LIVE_CASE_STARTED);
+      navigate(caseHref(summary.id));
+      return summary.id;
+    },
+    [announce, api, upsertLive],
+  );
+
+  /** Send a stored draft to the backend; on success the draft is removed and the live case opens. */
+  const runDraft = useCallback(
+    async (draft: DraftCase, auto: boolean): Promise<string> => {
+      const id = await startCase(draft, auto);
+      flushSync(() => removeDraft(draft.id));
+      return id;
+    },
+    [removeDraft, startCase],
+  );
+
+  return { submitDraft, removeDraft: removeDraftCase, startCase, runDraft, store };
 }

@@ -36,15 +36,11 @@ const repoTarget = fc.record({
     fc.stringMatching(/^v[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}$/).map((value) => ({ kind: "ref" as const, value })),
   ),
 });
-const localTarget = fc.record({
-  kind: fc.constant("local-app" as const),
-  appUrl: fc.integer({ min: 1, max: 65535 }).map((p) => `http://localhost:${p}`),
-});
 
 const draftArb: fc.Arbitrary<DraftCase> = fc
   .record({
     mode: fc.constantFrom(...CASE_MODE_IDS),
-    target: fc.oneof(repoTarget, localTarget),
+    target: repoTarget,
     area: fc.option(fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ,.:]{0,60}[A-Za-z0-9]$/), { nil: undefined }),
     time: fc.integer({ min: 1_600_000_000_000, max: 1_900_000_000_000 }),
     n: fc.integer({ min: 1, max: 99999 }),
@@ -58,7 +54,7 @@ const draftArb: fc.Arbitrary<DraftCase> = fc
     target,
     saved: true,
     ...(area !== undefined ? { area } : {}),
-    ...(mode !== "open-hunt" ? { issueUrl: `https://github.com/acme/app/issues/${n}` } : {}),
+    ...(mode !== "open-hunt" ? { issueUrl: `${target.repoUrl}/issues/${n}` } : {}),
   }));
 
 const uniqueDrafts = fc.uniqueArray(draftArb, { maxLength: MAX_DRAFTS, selector: (d) => d.id });

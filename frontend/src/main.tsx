@@ -2,10 +2,15 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ReduceMotionProvider } from "./a11y/ReduceMotionProvider";
 import { App } from "./App";
+import { ApiProvider } from "./api/ApiProvider";
+import { createApi } from "./api/client";
 import { DirectorProvider } from "./animation/react/DirectorProvider";
 import { AssetProvider } from "./assets/AssetProvider";
 import { CaseStoreProvider } from "./cases/store";
 import "./styles/index.css";
+
+/** The TimeWraith backend, through the Vite proxy at /api/v1 (see vite.config.ts). */
+const API = createApi();
 
 const container = document.getElementById("root");
 if (!container) throw new Error("Missing #root element in index.html");
@@ -18,9 +23,11 @@ createRoot(container).render(
     <ReduceMotionProvider>
       <AssetProvider>
         <DirectorProvider>
-          <CaseStoreProvider>
-            <App />
-          </CaseStoreProvider>
+          <ApiProvider api={API}>
+            <CaseStoreProvider>
+              <App />
+            </CaseStoreProvider>
+          </ApiProvider>
         </DirectorProvider>
       </AssetProvider>
     </ReduceMotionProvider>

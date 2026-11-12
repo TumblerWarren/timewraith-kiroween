@@ -2,6 +2,190 @@
   "schemaVersion": 1,
   "keyColor": "#FF00FF",
   "assets": {
+    "doctor-stitch/arm-needle": {
+      "id": "doctor-stitch/arm-needle",
+      "mascot": "doctor-stitch",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/doctor-stitch/arm-needle.png",
+        "webp": "cutouts/doctor-stitch/arm-needle.webp"
+      },
+      "size": {
+        "w": 792,
+        "h": 944
+      },
+      "display": {
+        "w": 396,
+        "h": 472
+      },
+      "canvas": {
+        "w": 792,
+        "h": 944
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.2844,
+        "y": 0.4977
+      },
+      "group": "doctor-stitch",
+      "bytes": {
+        "png": 87092,
+        "webp": 19040
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.04,
+        "rest_bad_share": 0.0005
+      },
+      "alt": null,
+      "fallback": "doctor-stitch/pose"
+    },
+    "doctor-stitch/arm-spool": {
+      "id": "doctor-stitch/arm-spool",
+      "mascot": "doctor-stitch",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/doctor-stitch/arm-spool.png",
+        "webp": "cutouts/doctor-stitch/arm-spool.webp"
+      },
+      "size": {
+        "w": 792,
+        "h": 944
+      },
+      "display": {
+        "w": 396,
+        "h": 472
+      },
+      "canvas": {
+        "w": 792,
+        "h": 944
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.636,
+        "y": 0.5425
+      },
+      "group": "doctor-stitch",
+      "bytes": {
+        "png": 91724,
+        "webp": 16888
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.04,
+        "rest_bad_share": 0.0005
+      },
+      "alt": null,
+      "fallback": "doctor-stitch/pose"
+    },
+    "doctor-stitch/body": {
+      "id": "doctor-stitch/body",
+      "mascot": "doctor-stitch",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/doctor-stitch/body.png",
+        "webp": "cutouts/doctor-stitch/body.webp"
+      },
+      "size": {
+        "w": 792,
+        "h": 944
+      },
+      "display": {
+        "w": 396,
+        "h": 472
+      },
+      "canvas": {
+        "w": 792,
+        "h": 944
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "group": "doctor-stitch",
+      "bytes": {
+        "png": 561678,
+        "webp": 86744
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.04,
+        "rest_bad_share": 0.0005
+      },
+      "alt": null,
+      "fallback": "doctor-stitch/pose"
+    },
+    "doctor-stitch/eyes": {
+      "id": "doctor-stitch/eyes",
+      "mascot": "doctor-stitch",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/doctor-stitch/eyes.png",
+        "webp": "cutouts/doctor-stitch/eyes.webp"
+      },
+      "size": {
+        "w": 792,
+        "h": 944
+      },
+      "display": {
+        "w": 396,
+        "h": 472
+      },
+      "canvas": {
+        "w": 792,
+        "h": 944
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.4994,
+        "y": 0.2413
+      },
+      "group": "doctor-stitch",
+      "bytes": {
+        "png": 33221,
+        "webp": 8124
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.04,
+        "rest_bad_share": 0.0005
+      },
+      "alt": null,
+      "fallback": "doctor-stitch/pose"
+    },
     "doctor-stitch/pose": {
       "id": "doctor-stitch/pose",
       "mascot": "doctor-stitch",
@@ -36,6 +220,52 @@
       },
       "alt": "Doctor Stitch, a patchwork ghoul doctor holding a curved sewing needle and a spool of thread",
       "fallback": null
+    },
+    "mini-bat/body": {
+      "id": "mini-bat/body",
+      "mascot": "mini-bat",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-bat/body.png",
+        "webp": "cutouts/mini-bat/body.webp"
+      },
+      "size": {
+        "w": 494,
+        "h": 412
+      },
+      "display": {
+        "w": 247,
+        "h": 206
+      },
+      "canvas": {
+        "w": 494,
+        "h": 412
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "group": "mini-bat",
+      "bytes": {
+        "png": 121851,
+        "webp": 20498
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.24,
+        "rest_bad_share": 0.0022
+      },
+      "alt": null,
+      "fallback": "mini-bat/pose"
     },
     "mini-bat/pose-rest": {
       "id": "mini-bat/pose-rest",
@@ -72,6 +302,328 @@
       "alt": "Mini Bat, a tiny round bat with crooked half-open wings and one fang, at rest",
       "fallback": null
     },
+    "mini-bat/wing-l": {
+      "id": "mini-bat/wing-l",
+      "mascot": "mini-bat",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-bat/wing-l.png",
+        "webp": "cutouts/mini-bat/wing-l.webp"
+      },
+      "size": {
+        "w": 494,
+        "h": 412
+      },
+      "display": {
+        "w": 247,
+        "h": 206
+      },
+      "canvas": {
+        "w": 494,
+        "h": 412
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.3621,
+        "y": 0.6668
+      },
+      "group": "mini-bat",
+      "bytes": {
+        "png": 35927,
+        "webp": 6358
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.24,
+        "rest_bad_share": 0.0022
+      },
+      "alt": null,
+      "fallback": "mini-bat/pose"
+    },
+    "mini-bat/wing-r": {
+      "id": "mini-bat/wing-r",
+      "mascot": "mini-bat",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-bat/wing-r.png",
+        "webp": "cutouts/mini-bat/wing-r.webp"
+      },
+      "size": {
+        "w": 494,
+        "h": 412
+      },
+      "display": {
+        "w": 247,
+        "h": 206
+      },
+      "canvas": {
+        "w": 494,
+        "h": 412
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.6989,
+        "y": 0.7187
+      },
+      "group": "mini-bat",
+      "bytes": {
+        "png": 25880,
+        "webp": 4932
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.24,
+        "rest_bad_share": 0.0022
+      },
+      "alt": null,
+      "fallback": "mini-bat/pose"
+    },
+    "mini-ghost/arm-l": {
+      "id": "mini-ghost/arm-l",
+      "mascot": "mini-ghost",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-ghost/arm-l.png",
+        "webp": "cutouts/mini-ghost/arm-l.webp"
+      },
+      "size": {
+        "w": 502,
+        "h": 532
+      },
+      "display": {
+        "w": 251,
+        "h": 266
+      },
+      "canvas": {
+        "w": 502,
+        "h": 532
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.3002,
+        "y": 0.5476
+      },
+      "group": "mini-ghost",
+      "bytes": {
+        "png": 28946,
+        "webp": 5406
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.1,
+        "rest_bad_share": 0.0008
+      },
+      "alt": null,
+      "fallback": "mini-ghost/pose"
+    },
+    "mini-ghost/arm-r": {
+      "id": "mini-ghost/arm-r",
+      "mascot": "mini-ghost",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-ghost/arm-r.png",
+        "webp": "cutouts/mini-ghost/arm-r.webp"
+      },
+      "size": {
+        "w": 502,
+        "h": 532
+      },
+      "display": {
+        "w": 251,
+        "h": 266
+      },
+      "canvas": {
+        "w": 502,
+        "h": 532
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.7737,
+        "y": 0.5076
+      },
+      "group": "mini-ghost",
+      "bytes": {
+        "png": 26393,
+        "webp": 5378
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.1,
+        "rest_bad_share": 0.0008
+      },
+      "alt": null,
+      "fallback": "mini-ghost/pose"
+    },
+    "mini-ghost/body": {
+      "id": "mini-ghost/body",
+      "mascot": "mini-ghost",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-ghost/body.png",
+        "webp": "cutouts/mini-ghost/body.webp"
+      },
+      "size": {
+        "w": 502,
+        "h": 532
+      },
+      "display": {
+        "w": 251,
+        "h": 266
+      },
+      "canvas": {
+        "w": 502,
+        "h": 532
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "group": "mini-ghost",
+      "bytes": {
+        "png": 162042,
+        "webp": 19136
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.1,
+        "rest_bad_share": 0.0008
+      },
+      "alt": null,
+      "fallback": "mini-ghost/pose"
+    },
+    "mini-ghost/eyes": {
+      "id": "mini-ghost/eyes",
+      "mascot": "mini-ghost",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-ghost/eyes.png",
+        "webp": "cutouts/mini-ghost/eyes.webp"
+      },
+      "size": {
+        "w": 502,
+        "h": 532
+      },
+      "display": {
+        "w": 251,
+        "h": 266
+      },
+      "canvas": {
+        "w": 502,
+        "h": 532
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.5945,
+        "y": 0.2513
+      },
+      "group": "mini-ghost",
+      "bytes": {
+        "png": 47320,
+        "webp": 14388
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.1,
+        "rest_bad_share": 0.0008
+      },
+      "alt": null,
+      "fallback": "mini-ghost/pose"
+    },
+    "mini-ghost/mouth": {
+      "id": "mini-ghost/mouth",
+      "mascot": "mini-ghost",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mini-ghost/mouth.png",
+        "webp": "cutouts/mini-ghost/mouth.webp"
+      },
+      "size": {
+        "w": 502,
+        "h": 532
+      },
+      "display": {
+        "w": 251,
+        "h": 266
+      },
+      "canvas": {
+        "w": 502,
+        "h": 532
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.6626,
+        "y": 0.4222
+      },
+      "group": "mini-ghost",
+      "bytes": {
+        "png": 8464,
+        "webp": 3112
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.1,
+        "rest_bad_share": 0.0008
+      },
+      "alt": null,
+      "fallback": "mini-ghost/pose"
+    },
     "mini-ghost/pose": {
       "id": "mini-ghost/pose",
       "mascot": "mini-ghost",
@@ -107,6 +659,144 @@
       "alt": "Mini Ghost, a small friendly floating ghost with big eyes glancing sideways and a wavy hem",
       "fallback": null
     },
+    "mummy-wrapper/arm-l": {
+      "id": "mummy-wrapper/arm-l",
+      "mascot": "mummy-wrapper",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mummy-wrapper/arm-l.png",
+        "webp": "cutouts/mummy-wrapper/arm-l.webp"
+      },
+      "size": {
+        "w": 553,
+        "h": 688
+      },
+      "display": {
+        "w": 276,
+        "h": 344
+      },
+      "canvas": {
+        "w": 553,
+        "h": 688
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.2735,
+        "y": 0.3795
+      },
+      "group": "mummy-wrapper",
+      "bytes": {
+        "png": 57876,
+        "webp": 12548
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.17,
+        "rest_bad_share": 0.0026
+      },
+      "alt": null,
+      "fallback": "mummy-wrapper/pose"
+    },
+    "mummy-wrapper/arm-r": {
+      "id": "mummy-wrapper/arm-r",
+      "mascot": "mummy-wrapper",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mummy-wrapper/arm-r.png",
+        "webp": "cutouts/mummy-wrapper/arm-r.webp"
+      },
+      "size": {
+        "w": 553,
+        "h": 688
+      },
+      "display": {
+        "w": 276,
+        "h": 344
+      },
+      "canvas": {
+        "w": 553,
+        "h": 688
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.4779,
+        "y": 0.3765
+      },
+      "group": "mummy-wrapper",
+      "bytes": {
+        "png": 96234,
+        "webp": 20078
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.17,
+        "rest_bad_share": 0.0026
+      },
+      "alt": null,
+      "fallback": "mummy-wrapper/pose"
+    },
+    "mummy-wrapper/body": {
+      "id": "mummy-wrapper/body",
+      "mascot": "mummy-wrapper",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/mummy-wrapper/body.png",
+        "webp": "cutouts/mummy-wrapper/body.webp"
+      },
+      "size": {
+        "w": 553,
+        "h": 688
+      },
+      "display": {
+        "w": 276,
+        "h": 344
+      },
+      "canvas": {
+        "w": 553,
+        "h": 688
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "group": "mummy-wrapper",
+      "bytes": {
+        "png": 302029,
+        "webp": 50138
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.17,
+        "rest_bad_share": 0.0026
+      },
+      "alt": null,
+      "fallback": "mummy-wrapper/pose"
+    },
     "mummy-wrapper/pose": {
       "id": "mummy-wrapper/pose",
       "mascot": "mummy-wrapper",
@@ -141,6 +831,190 @@
       },
       "alt": "Mummy Wrapper, a short mummy in loose cream bandages with one eye showing and a bandage end trailing",
       "fallback": null
+    },
+    "wraith-director/arm-lantern": {
+      "id": "wraith-director/arm-lantern",
+      "mascot": "wraith-director",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/wraith-director/arm-lantern.png",
+        "webp": "cutouts/wraith-director/arm-lantern.webp"
+      },
+      "size": {
+        "w": 885,
+        "h": 1498
+      },
+      "display": {
+        "w": 442,
+        "h": 749
+      },
+      "canvas": {
+        "w": 885,
+        "h": 1498
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.6375,
+        "y": 0.3533
+      },
+      "group": "wraith-director",
+      "bytes": {
+        "png": 162710,
+        "webp": 31570
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.77,
+        "rest_bad_share": 0.0083
+      },
+      "alt": null,
+      "fallback": "wraith-director/pose"
+    },
+    "wraith-director/arm-open": {
+      "id": "wraith-director/arm-open",
+      "mascot": "wraith-director",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/wraith-director/arm-open.png",
+        "webp": "cutouts/wraith-director/arm-open.webp"
+      },
+      "size": {
+        "w": 885,
+        "h": 1498
+      },
+      "display": {
+        "w": 442,
+        "h": 749
+      },
+      "canvas": {
+        "w": 885,
+        "h": 1498
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.3735,
+        "y": 0.3865
+      },
+      "group": "wraith-director",
+      "bytes": {
+        "png": 117799,
+        "webp": 22430
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.77,
+        "rest_bad_share": 0.0083
+      },
+      "alt": null,
+      "fallback": "wraith-director/pose"
+    },
+    "wraith-director/body": {
+      "id": "wraith-director/body",
+      "mascot": "wraith-director",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/wraith-director/body.png",
+        "webp": "cutouts/wraith-director/body.webp"
+      },
+      "size": {
+        "w": 885,
+        "h": 1498
+      },
+      "display": {
+        "w": 442,
+        "h": 749
+      },
+      "canvas": {
+        "w": 885,
+        "h": 1498
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 1.0
+      },
+      "group": "wraith-director",
+      "bytes": {
+        "png": 753148,
+        "webp": 117072
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.77,
+        "rest_bad_share": 0.0083
+      },
+      "alt": null,
+      "fallback": "wraith-director/pose"
+    },
+    "wraith-director/eyes": {
+      "id": "wraith-director/eyes",
+      "mascot": "wraith-director",
+      "kind": "part",
+      "status": "pass",
+      "source": "codex",
+      "master": null,
+      "files": {
+        "png": "cutouts/wraith-director/eyes.png",
+        "webp": "cutouts/wraith-director/eyes.webp"
+      },
+      "size": {
+        "w": 885,
+        "h": 1498
+      },
+      "display": {
+        "w": 442,
+        "h": 749
+      },
+      "canvas": {
+        "w": 885,
+        "h": 1498
+      },
+      "origin": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "pivot": {
+        "x": 0.5397,
+        "y": 0.1694
+      },
+      "group": "wraith-director",
+      "bytes": {
+        "png": 19510,
+        "webp": 5952
+      },
+      "qa": {
+        "ok": true,
+        "reasons": [],
+        "attempts": 1,
+        "rest_mean_diff": 0.77,
+        "rest_bad_share": 0.0083
+      },
+      "alt": null,
+      "fallback": "wraith-director/pose"
     },
     "wraith-director/pose": {
       "id": "wraith-director/pose",

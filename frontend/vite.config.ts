@@ -33,11 +33,17 @@ function fontPreload(): Plugin {
 
 // `assets/` (masters, cutouts ...) sits next to `src/` and is not part of the Vite graph:
 // only `public/` is copied verbatim and only imports from `src/` are bundled.
+/** The TimeWraith backend (`uv --directory backend run uvicorn timewraith.api:app --port 8787`). */
+const BACKEND = process.env.TW_BACKEND_URL ?? "http://127.0.0.1:8787";
+const proxy = { "/api": { target: BACKEND, changeOrigin: false } };
+
 export default defineConfig({
   plugins: [react(), fontPreload()],
   server: {
     watch: { ignored: ["**/assets/**"] },
+    proxy,
   },
+  preview: { proxy },
   build: {
     target: "es2022",
   },

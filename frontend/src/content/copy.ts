@@ -1,107 +1,93 @@
 /**
- * Fixed copy strings (Requirements 3.1, 5.6, 6.1, 7.2, 7.9, 7.10, 8.4, 8.5, 16.1 to 16.9, 19 to 26).
- * Components and tests import these constants; no component retypes them.
+ * Fixed copy strings. Components and tests import these constants; no component retypes them.
  *
- * Honesty rules enforced here and by the copy-honesty property test:
- * - Pre-recorded data is "Recorded replay", modelled data "Illustrative replay", never "Live".
- * - Clock control is "Browser clock controlled"; server-side time is "Server time zone set".
+ * Honesty rules enforced here and by the copy-honesty test:
+ * - The board shows only real investigations from the backend and drafts kept in this browser; there is no sample
+ *   or illustrative data. Status of real runs comes from the backend's own labels (`replay_label`,
+ *   `runtime_label`, `fix.label`), never from copy here.
  * - A negative result is "No anomaly observed in tested cases".
- * - Every mock-data region is labelled sample, illustrative or simulated; a draft is "not run".
- * - FullCalendar #7998 and Cal.com #30021 are third-party public reports, never a new finding.
- * - A suggested fix is never called merged, and is called verified only after a passing fixed-version check.
- *
- * The first spec version's "Enter the Clocktower" CTA and its note are retired (decision D19).
+ * - A draft is "not run".
  */
 
-// Open-a-case panel (Requirement 3.1)
+// Open-a-case panel
 export const HEADLINE = "Bugs are hiding in time.";
 export const SUBHEAD = "Send your Crew to investigate date-boundary failures.";
 export const POSITIONING = "An autonomous regression investigator for date-sensitive apps.";
 
-// Secondary links (Requirements 5.6, 5.7); they live in the Closing and the footer since D19.
-export const CTA_DEMO = "Watch the 3-minute demo";
-export const CTA_GITHUB = "View source on GitHub";
-
-// The Closing's one action (decision D19, Requirement 3.10)
+// The Closing's one action
 export const OPEN_A_CASE = "Open a case";
 
-// Setup checklist and the header's Gateway_Status_Badge (Requirements 6.1, 6.4, 6.5). Also the checklist's <h2>.
-export const CHECKLIST_LABEL = "Demo mode, simulated status";
-export const GATEWAY_LABEL = CHECKLIST_LABEL;
+// Readiness board and the header's gateway badge: real status from GET /health.
+export const CHECKLIST_LABEL = "Crew readiness";
+export const GATEWAY_ONLINE = "Gateway connected";
+export const GATEWAY_OFFLINE = "Backend offline: drafts only";
+export const GATEWAY_CHECKING = "Checking the backend";
 
-// Open-a-case form and drafts (Requirements 19, 20, 21)
-export const NOT_CONTACTED = "Not contacted in demo mode";
-export const DRAFT_NOT_RUN = "Draft, not run: cases run in the next milestone";
+// Open-a-case form, drafts and real investigations
+export const DRAFT_NOT_RUN = "Draft, not run";
 export const DRAFT_CREATED = "Draft case created, not run";
+export const RUN_DRAFT = "Run this draft";
+
+/** Setup steps on the readiness board (components/CrewSetup.tsx). */
+export const SETUP = {
+  title: "Set up the Crew on this machine",
+  docker: "Docker Desktop",
+  crew: "Kiro Crew container",
+  login: "Kiro sign-in",
+  startDocker: "Start Docker",
+  startCrew: "Start Kiro Crew",
+  startLogin: "Sign in to Kiro",
+  logout: "Sign out of Kiro",
+  logoutConfirm: "Sign out",
+  logoutCancel: "Keep signed in",
+  logoutWarn:
+    "Signing out stops real Kiro agent calls. Investigations that are running lose their agents, and new ones use the stub runtime until you sign in again.",
+  signedInAs: "Signed in as",
+  openSignIn: "Open the sign-in page",
+  pulling: "downloading the image (a few minutes the first time)",
+  codeLabel: "Sign-in code",
+  deviceLead: "Approve this code on the sign-in page. Builder ID, Google and GitHub accounts all work.",
+  deviceWait: "Waiting for you to approve. This board updates on its own.",
+  dockerManual: "Start Docker Desktop yourself, then this step turns green.",
+  dockerMissing: "Install Docker Desktop to run experiments.",
+  state: {
+    docker: { done: "running", busy: "starting", todo: "not running", blocked: "" },
+    crew: { done: "running", busy: "starting", todo: "not started", blocked: "needs Docker" },
+    login: { done: "signed in", busy: "waiting for your approval", todo: "not signed in", blocked: "needs the container" },
+  },
+} as const;
+export const LIVE_CASE_STARTED = "Investigation started. The Crew is at work.";
 export const NOT_SAVED = "Not saved: browser storage unavailable";
 export const REMOVE_DRAFT = "Remove draft";
 export const ISSUE_HIDDEN = "Issue hidden until the reveal";
 
-// Blind hunt reveal outcomes (Requirement 23)
-export const REVEAL_MATCH = "Same behaviour as the public report";
-export const REVEAL_NO_MATCH = "Did not match";
-
-// Suggested fix (Requirement 24)
-export const SUGGESTED_FIX = "Suggested fix";
-export const ILLUSTRATIVE_DIFF = "Illustrative diff";
-export const NO_UPSTREAM_FIX = "No upstream fix found";
-export const FIXED_CHECK_NOT_RUN = "Fixed-version check not run";
-export const ILLUSTRATIVE_PIN = "illustrative pin";
-
-// Replay Lab (Requirements 7.2, 7.9, 7.10, 26)
-export const REPLAY_LABEL = "Sample replay (illustrative data), not a real finding";
-export const CALCOM_REPLAY_LABEL = "Illustrative replay modelled on the public report, not a real recorded run";
-export const RECORDED_REPLAY = "Recorded replay";
-export const ILLUSTRATIVE_REPLAY = "Illustrative replay";
-export const BROWSER_CLOCK_CONTROLLED = "Browser clock controlled";
-export const SERVER_TZ_SET = "Server time zone set";
-export const SERVER_CLOCK_NOT_CONTROLLED = "Server clock not controlled";
-export const REPLAY_SOURCE_NOTE =
-  "Sample scenario modelled on FullCalendar issue #7998, a time-zone date-boundary case. TimeWraith claims no new finding.";
-export const REPLAY_SOURCE_LINK_LABEL = "FullCalendar issue #7998";
-
-// Case-scoped proof (Requirements 8.4, 8.5)
+// Case-scoped proof
 export const BROWSER_NOT_SERVER = "Browser time ≠ server time";
 export const BROWSER_NOT_SERVER_EXPLANATION =
   "The Playwright clock controls browser-side time only. The browser clock and the server clock are controlled separately, so a result in one says nothing about the other.";
 export const NO_ANOMALY = "No anomaly observed in tested cases";
 
-// Lost Hour (Requirement 3.3, decisions D1 and D18): a generic illustration, not the #7998 case, and it does not
-// name Cal.com #30021, whose report stays hidden until the Blind hunt reveal.
+// Lost Hour: a generic illustration of the failure class, on a real calendar date.
 export const PROBLEM_ILLUSTRATION_LABEL =
   "Illustration: the US spring-forward night, 8 March 2026. Clocks in New York jump from 01:59 to 03:00.";
 
-/** Every fixed string, for the copy-honesty property test and for scans. */
+/** Every fixed string, for the copy-honesty test and for scans. */
 export const COPY_STRINGS = {
   HEADLINE,
   SUBHEAD,
   POSITIONING,
-  CTA_DEMO,
-  CTA_GITHUB,
   OPEN_A_CASE,
   CHECKLIST_LABEL,
-  NOT_CONTACTED,
+  GATEWAY_ONLINE,
+  GATEWAY_OFFLINE,
+  GATEWAY_CHECKING,
   DRAFT_NOT_RUN,
   DRAFT_CREATED,
+  RUN_DRAFT,
+  LIVE_CASE_STARTED,
   NOT_SAVED,
   REMOVE_DRAFT,
   ISSUE_HIDDEN,
-  REVEAL_MATCH,
-  REVEAL_NO_MATCH,
-  SUGGESTED_FIX,
-  ILLUSTRATIVE_DIFF,
-  NO_UPSTREAM_FIX,
-  FIXED_CHECK_NOT_RUN,
-  ILLUSTRATIVE_PIN,
-  REPLAY_LABEL,
-  CALCOM_REPLAY_LABEL,
-  RECORDED_REPLAY,
-  ILLUSTRATIVE_REPLAY,
-  BROWSER_CLOCK_CONTROLLED,
-  SERVER_TZ_SET,
-  SERVER_CLOCK_NOT_CONTROLLED,
-  REPLAY_SOURCE_NOTE,
-  REPLAY_SOURCE_LINK_LABEL,
   BROWSER_NOT_SERVER,
   BROWSER_NOT_SERVER_EXPLANATION,
   NO_ANOMALY,

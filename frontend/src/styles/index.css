@@ -1,23 +1,12 @@
-/* Style entry point. Order matters: tokens, fonts, base, layout, then per-section styles. */
+/* Style entry point. Order matters: tokens, fonts, base, layout, paper, then components and the app pages. */
 @import "./tokens.css";
 @import "./fonts.css";
 @import "./base.css";
 @import "./layout.css";
 @import "./paper.css";
-@import "./chrome.css";
-@import "./sections/hero.css";
-@import "./sections/problem.css";
-@import "./sections/crew.css";
-@import "./sections/flow.css";
-@import "./sections/replay.css";
-@import "./sections/proof.css";
-@import "./sections/final.css";
-@import "./sections/board.css";
 @import "./components.css";
 @import "./clock.css";
-@import "./cta.css";
 @import "./sprites.css";
+@import "./rig.css";
 @import "./form.css";
-@import "./motion.css";
-@import "./sections/region-motion.css";
-@import "./sections/case.css";
+@import "./app.css";

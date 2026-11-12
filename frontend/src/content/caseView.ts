@@ -1,16 +1,16 @@
 /**
- * Case view prose and short labels (task 9). Honesty-critical fixed strings (mode labels, "Browser clock
- * controlled", "Server time zone set", reveal outcomes, "Suggested fix", "Illustrative diff", "No upstream fix
- * found", "Fixed-version check not run", "Draft, not run ...") stay in `copy.ts`; this file holds the rest.
- * None of these strings names the hidden Blind hunt report.
+ * Case view prose and short labels. Honesty-critical fixed strings ("Browser time ≠ server time", "No anomaly
+ * observed in tested cases", "Draft, not run") stay in `copy.ts`; this file holds the rest. Labels of real runs
+ * come from the backend.
  */
 
-/** Region intro for an Illustrative replay (the Cal.com Blind hunt). The Recorded replay keeps `replayIntro`. */
-export function illustrativeIntro(eventCount: number): string {
-  return `This folder holds an illustrative replay. Nobody ran it: the ${eventCount} events below were written from a public report so you can see how a Blind hunt would go. The Crew is told the target and the area, and nothing else, until the reveal.`;
-}
+// Empty Case view (no case open yet)
+export const CASE_EMPTY_TITLE = "No case is open";
+export const CASE_EMPTY_TEXT =
+  "Open a case with a GitHub repository above, or pick one from the Case library. Its investigation, findings and fixes appear here.";
+export const CASE_EMPTY_ACTION = "Open a case";
 export const DRAFT_INTRO =
-  "This folder belongs to a draft you opened in this browser. Nothing has run it yet, so there are no events to scrub and no rung on the ladder.";
+  "This folder belongs to a draft you opened in this browser. Nothing has run it yet, so there are no events and no rung on the ladder.";
 
 // Case header
 export const CASE_MODE_TERM = "Mode";
@@ -18,56 +18,12 @@ export const CASE_TARGET_TERM = "Target";
 export const CASE_AREA_TERM = "Area";
 export const CASE_ISSUE_TERM = "Issue";
 
-// Replay controls
-export const REPLAY_PLAY_LABEL = "Play";
-export const REPLAY_PAUSE_LABEL = "Pause";
-export const REPLAY_PLAY_NOTE = "Steps through the events, one every 1.4 seconds.";
-export const EVENT_TRACK_LABEL = "Events";
-export const VERSION_TRACK_LABEL = "Version and clock";
-export const CURRENT_MARK = "current";
-export const VERSION_ROLE_TEXT = {
-  affected: "affected",
-  fixed: "fixed",
-  patched: "patched",
-  "under-test": "under test",
-} as const;
-export const CHECK_STAMP = { fails: "fails", passes: "passes", inconclusive: "inconclusive" } as const;
-export const CHECK_STAMP_ON = "on";
-
-// Clock inspector
-export const INSPECTOR_TITLE = "Clock inspector";
-export const INSPECTOR_VERSION = "Target version";
-export const INSPECTOR_BROWSER = "Browser clock";
-export const INSPECTOR_ZONE_CALENDAR = "Calendar time zone";
-export const INSPECTOR_ZONE_SERVER = "Server time zone";
-export const INSPECTOR_SYSTEM_ZONE = "System time zone";
-export const INSPECTOR_SERVER = "Server clock";
-export const INSPECTOR_DATE = "Date under test";
-export const BROWSER_CLOCK_NOT_USED = "Browser clock not used";
-export const NO_ZONE_SET = "none set";
-
-// Blind hunt reveal
-export const REVEAL_HIDDEN_TITLE = "Hidden public report: shown at the reveal";
-export const REVEAL_HIDDEN_NOTE =
-  "The Crew works from the target and the area alone. The report this case was modelled on stays face down until the Raven checks the reproduced behaviour against it.";
-export const REVEAL_SHOWN_LEAD = "Public report by a third party:";
-export const REVEAL_SHOWN_NOTE = "TimeWraith claims no new finding. The Crew re-investigated a bug somebody else reported.";
-export const REVEAL_OUTCOME_TERM = "Outcome";
-
 // Time control note
 export const TIME_CONTROL_TITLE = "How this case controlled time";
 export const DRAFT_TIME_CONTROL = "Not run, so no clock has been set for this draft.";
 
-// Suggested fix
+// Diffs
 export const FIX_CHANGE_CAPTION = "Proposed change";
-export const FIX_TEST_CAPTION = "Regression test";
-export const FIX_OURS_TITLE = "Doctor Stitch's suggestion";
-export const FIX_UPSTREAM_TITLE = "Upstream";
-export const FIX_STATUS_TERM = "Status";
-export const FIX_SAME_APPROACH = "same approach as the fix in the public report";
-export const FIX_UPSTREAM_HIDDEN = "The upstream fix is shown at the reveal.";
-export const FIX_UPSTREAM_PASSES = "Passes on the patched pin (illustrative replay)";
-export const FIX_REPORTED_RESULT = "Reported result:";
 export const ADDED_LINE = "added line";
 export const REMOVED_LINE = "removed line";
 export const UNCHANGED_LINE = "unchanged line";
@@ -77,36 +33,70 @@ export const DRAFT_NO_EVENTS = "No events yet";
 export const DRAFT_VERSION_TERM = "Version";
 export const DRAFT_RESULT = "not run";
 
-// Jack's two faces for a server-side case (the browser-side case keeps PROOF_BROWSER_FACE and PROOF_SERVER_FACE)
-export const JACK_BROWSER_FACE_SERVER_CASE = {
-  title: "Browser clock",
-  text: "Not used. The bug lives in code that runs on the server, so moving the browser clock would change nothing.",
-} as const;
-export const JACK_SERVER_FACE_SERVER_CASE = {
-  title: "Server clock",
-  text: "Server time zone set to UTC for the test process, with fixed dates passed to a unit-level test.",
-} as const;
 export const JACK_DRAFT_FACES = {
   browser: { title: "Browser clock", text: "Not set. This draft has not run." },
   server: { title: "Server clock", text: "Not set. This draft has not run." },
 } as const;
 
-/** Source note for a Known issue sample other than FullCalendar #7998 (which keeps REPLAY_SOURCE_NOTE). */
-export const SOURCE_NOTE_GENERIC = "Sample scenario modelled on a public third-party report. TimeWraith claims no new finding.";
-// Version_Timeline (D21, Requirement 28)
+// Version timeline of a draft
 export const TIMELINE_TITLE = "Version timeline";
-export const TIMELINE_NOTE = "Release and report dates come from the linked records. Replay milestones carry no calendar date.";
-export const TIMELINE_STATE_TEXT = {
-  reached: "reached",
-  ahead: "not reached yet",
-  "not-run": "not run",
-  hidden: "hidden",
-} as const;
-export const TIMELINE_HIDDEN_LABEL = "Public report";
-export const TIMELINE_HIDDEN_TEXT = "Public report hidden until the reveal";
-export const TIMELINE_NO_DATE = "date not stated";
-export const TIMELINE_PIN_TEXT = "illustrative pin";
-export const TIMELINE_DATE_LINK = { "published-release": "npm release", "issue-tracker": "issue tracker" } as const;
-export const timelineEventText = (modeLabel: string, eventId: string) => `${modeLabel}, event ${eventId}`;
 export const TIMELINE_DRAFT_LABEL = "Version entered";
-export const TIMELINE_FIXED_PASS_TEXT = "the report's fix passes on the patched pin";
+
+// Real investigations (Live_Case). The status labels themselves come from the backend.
+export const INVESTIGATION_INTRO =
+  "This folder is a real investigation on the TimeWraith backend. It fills in as the Crew works: each step below shows what was found, and the Crew's reasons sit beside each decision.";
+export const INV_STAGE_TERM = "Stage";
+export const INV_REVISION_TERM = "Revision";
+export const INV_LOADING = "Loading the investigation";
+export const INV_UNREACHABLE = "The backend is offline, so this investigation cannot be shown right now.";
+export const INV_STOPPED = "The investigation stopped";
+export const INV_NOTES_TITLE = "Notes from the Crew";
+export const INV_APPROVAL_TITLE = "The Crew is waiting for your approval";
+export const INV_APPROVAL_NOTE =
+  "Nothing from the repository has run yet. Approving lets the Crew install the dependencies and sweep these experiments inside the Docker sandbox, with no network.";
+export const INV_APPROVE = "Approve the experiments";
+export const INV_CANCEL = "Cancel the investigation";
+export const INV_CAPABILITIES_TITLE = "What the repository supports";
+export const INV_CANDIDATES_TITLE = "Time-sensitive code the Crew found";
+export const INV_KEPT = "kept for an experiment";
+export const INV_EXPERIMENTS_TITLE = "Experiments";
+export const INV_POINTS = (n: number, zones: number) => `${n} clock points in ${zones} time zones`;
+export const INV_SWEEPS_TITLE = "Controlled execution";
+export const INV_SWEEP_LINE = (points: number, zones: number, violations: number) =>
+  `${points} clock points in ${zones} zones, ${violations} broken ${violations === 1 ? "rule" : "rules"}`;
+export const INV_BUGS_TITLE = "Reproduced bugs";
+export const INV_NO_BUGS = "No anomaly observed in tested cases";
+export const INV_RULE_TERM = "Broken rule";
+export const INV_WHERE_TERM = "Where and when";
+export const INV_ISSUE_TERM = "Public issues";
+export const INV_TEST_TERM = "Regression test";
+export const INV_GATES_TITLE = "Fix gates";
+export const INV_ATTEMPT = (n: number) => `Attempt ${n}`;
+export const INV_ROOT_CAUSE = "Root cause";
+export const INV_ACCEPT_FIX = "Accept the fix";
+export const INV_REJECT_FIX = "Reject the fix";
+export const INV_DOWNLOAD_PATCH = "Download the patch";
+export const INV_FIX_ACCEPTED = "Fix accepted";
+export const INV_FIX_REJECTED = "Fix rejected";
+export const INV_DECISIONS_TITLE = "Why the Crew decided";
+export const INV_DECISION_WORDS = { accepted: "accepted", rejected: "rejected", not_run: "not run" } as const;
+export const INV_DROPPED = (n: number) => `${n} cited ${n === 1 ? "item" : "items"} did not check out and ${n === 1 ? "was" : "were"} removed`;
+export const INV_EVENTS_TITLE = "Event log";
+export const GATE_LABELS: Readonly<Record<string, string>> = {
+  test_first: "Fails first",
+  diff_limits: "Small, safe diff",
+  fixed: "Fixed in every zone",
+  mutation_check: "Fails again without the fix",
+  no_regressions: "No new test failures",
+  no_new_anomalies: "No new broken rules",
+  static_checks: "Typecheck and lint",
+  independent_review: "Raven's blind review",
+};
+export const INVARIANT_LABELS: Readonly<Record<string, string>> = {
+  well_formed: "Returns a valid value",
+  deterministic: "Same input, same answer",
+  local_date_matches: "Today is the local calendar date",
+  instant_zone_independent: "Stored instant does not depend on the zone",
+  flag_monotonic: "Once expired, stays expired",
+  next_after_now: "Next run is after now and never goes back",
+};

@@ -30,7 +30,7 @@
       "type": "object"
     }
   },
-  "description": "The frontend's ReplayEvent shape (frontend/src/data/types.ts) plus `data` for backend-only kinds.",
+  "description": "The frontend's ReplayEvent shape (frontend/src/data/types.ts) plus `phase` and `data`.",
   "properties": {
     "actor": {
       "enum": [
@@ -115,9 +115,23 @@
         "stage",
         "capability",
         "approval",
-        "gate"
+        "gate",
+        "decision",
+        "tool"
       ],
       "title": "Kind",
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "repository",
+        "discovery",
+        "design",
+        "execution",
+        "verification",
+        "fix"
+      ],
+      "title": "Phase",
       "type": "string"
     },
     "seq": {
@@ -168,6 +182,7 @@
     "tOffsetMs",
     "actor",
     "kind",
+    "phase",
     "text",
     "status",
     "versionId"

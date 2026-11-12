@@ -26,9 +26,9 @@ function sampleParams(): { [K in EffectId]: ParamsOf<K> } {
     "clock.crack": reveal(),
     "raven.stamp": reveal(),
     "ladder.rung": { ...reveal(), rung: 2 },
-    "replay.fixed-pass": { ...reveal(), caseId: "fullcalendar-7998", eventId: "e9" },
-    "replay.reveal": { ...reveal(), caseId: "calcom-30021", eventId: "e7" },
-    "timeline.milestone": { ...reveal(), caseId: "calcom-30021", kind: "reproduced", ring: el(), stamp: el(), segment: el() },
+    "replay.fixed-pass": { ...reveal(), caseId: "case-a", eventId: "e9" },
+    "replay.reveal": { ...reveal(), caseId: "case-b", eventId: "e7" },
+    "timeline.milestone": { ...reveal(), caseId: "case-b", kind: "reproduced", ring: el(), stamp: el(), segment: el() },
     "bats.burst": { origin: rect, bounds, seed: 7 },
     "problem.scatter": reveal(),
     "bat.travel": { from: { x: 10, y: 10 }, to: { x: 400, y: 300 }, onScreen: true },
@@ -38,10 +38,10 @@ function sampleParams(): { [K in EffectId]: ParamsOf<K> } {
     "cases.enter": reveal(),
     "case.draft-create": { ...reveal(), draftId: "d1" },
     "case.open": reveal(),
-    "stitch.sew": { ...reveal(), caseId: "fullcalendar-7998" },
-    "proof.ladder": { caseId: "fullcalendar-7998", armed: el(), rod: el(), travel: 240, rungs: [el(), el(), el(), el(), el()], shapes: [el(), el(), el(), el(), el()], ranks: [el(), el(), el(), el(), el()], actors: [{ actor: "raven-archivist", pose: "unroll" }] },
-    "proof.hash": { caseId: "fullcalendar-7998", armed: el(), strip: el(), turns: [el(), el()], end: el(), tag: el(), value: el(), actors: [{ actor: "raven-archivist", pose: "bandage" }] },
-    "proof.jack": { caseId: "fullcalendar-7998", armed: el(), browserFace: el(), serverFace: el(), browserUnderline: el(), serverUnderline: el(), browserCaption: el(), serverCaption: el(), actors: [{ actor: "raven-archivist", pose: "flip" }] },
+    "stitch.sew": { ...reveal(), caseId: "case-a" },
+    "proof.ladder": { caseId: "case-a", armed: el(), rod: el(), travel: 240, rungs: [el(), el(), el(), el(), el()], shapes: [el(), el(), el(), el(), el()], ranks: [el(), el(), el(), el(), el()], actors: [{ actor: "raven-archivist", pose: "unroll" }] },
+    "proof.hash": { caseId: "case-a", armed: el(), strip: el(), turns: [el(), el()], end: el(), tag: el(), value: el(), actors: [{ actor: "raven-archivist", pose: "bandage" }] },
+    "proof.jack": { caseId: "case-a", armed: el(), browserFace: el(), serverFace: el(), browserUnderline: el(), serverUnderline: el(), browserCaption: el(), serverCaption: el(), actors: [{ actor: "raven-archivist", pose: "flip" }] },
     "ghost.arrive": { region: "library", actor: "mini-ghost", at: { x: 200, y: 300 } },
     "flow.step": { ...reveal(), step: "approve" },
     "mascot.hover": { actor: "cauldron-cat", pose: "hiss" },
@@ -166,9 +166,9 @@ describe("effect registry", () => {
     const p = sampleParams();
     expect(EFFECTS["case.open"].key).toBeUndefined();
     expect(EFFECTS["case.draft-create"].key?.(p["case.draft-create"])).toContain("d1");
-    expect(EFFECTS["stitch.sew"].key?.(p["stitch.sew"])).toContain("fullcalendar-7998");
+    expect(EFFECTS["stitch.sew"].key?.(p["stitch.sew"])).toContain("case-a");
     expect(EFFECTS["replay.fixed-pass"].key?.(p["replay.fixed-pass"])).toContain("e9");
-    expect(EFFECTS["replay.reveal"].key?.(p["replay.reveal"])).toContain("calcom-30021:e7");
+    expect(EFFECTS["replay.reveal"].key?.(p["replay.reveal"])).toContain("case-b:e7");
   });
 });
 

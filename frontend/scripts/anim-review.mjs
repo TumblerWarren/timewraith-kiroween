@@ -156,13 +156,14 @@ async function fresh(browser, vp, base, extra = {}) {
   return { context, page };
 }
 
+/** Opens the first case on the shelf, if any. The board ships no bundled cases, so an empty shelf leaves the empty sheet. */
 async function openCal(page) {
-  await scrollToEl(page, "ol.library__cards", 0.1);
+  await scrollToEl(page, "#library", 0.1);
   await sleep(500);
-  const btn = page.locator('li[data-case-id="calcom-30021"]').getByRole("button", { name: /^Open case/ });
+  const btn = page.locator("ol.library__cards li").first().getByRole("button", { name: /^Open case/ });
+  if ((await btn.count()) === 0) return;
   await btn.scrollIntoViewIfNeeded();
   await btn.click();
-  await page.waitForSelector('[data-case="calcom-30021"] .vtl', { timeout: 6000 });
   await sleep(1400);
 }
 
@@ -420,31 +421,8 @@ async function momentsFor(browser, vp, base) {
     if (want("case")) {
       await scrollToEl(page, ".case-file", 0.05);
       await sleep(600);
-      await page.locator('[data-case="calcom-30021"] .scrubber__slider').focus();
-      const dir = join(tmpDir, `scrub-${tag}`);
-      rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
-      const files = [];
-      const t0 = Date.now();
-      for (let i = 0; i < 16; i++) {
-        await page.keyboard.press("ArrowRight");
-        await sleep(i >= 9 && i <= 13 ? 110 : 160);
-        const f = join(dir, `${pad(i)}-${Date.now() - t0}ms.jpg`);
-        await page.screenshot({ path: f, type: "jpeg", quality: 82, clip: clipVp });
-        files.push(f);
-      }
-      sheet(`g1-case-scrub-${tag}`, files, { cols: 4, max: 16, cellW: vp.width === 1440 ? 360 : 190 });
-      // end of replay: fixed-version pass
-      const f2 = await frames(page, `fixedpass-${tag}`, { n: 12, every: 90, clip: clipVp, trigger: async () => { await page.keyboard.press("End"); } });
-      sheet(`g2-case-fixed-pass-${tag}`, f2, { cols: 4, max: 12, cellW: vp.width === 1440 ? 360 : 190 });
-      // fix sheet sew
-      await scrollTop(page, 0);
-      const fx = await rectOf(page, "[data-fix-sheet]");
-      if (fx) {
-        await scrollToEl(page, "[data-fix-sheet]", 1.05);
-        await sleep(600);
-        const f3 = await frames(page, `sew-${tag}`, { n: 16, every: 100, clip: clipVp, trigger: () => scrollToEl(page, "[data-fix-sheet]", 0.1) });
-        sheet(`g3-fix-sheet-sew-${tag}`, f3, { cols: 4, max: 16, cellW: vp.width === 1440 ? 360 : 190 });
-      }
+      const f1 = await frames(page, `case-${tag}`, { n: 8, every: 120, clip: clipVp, trigger: async () => {} });
+      sheet(`g1-case-sheet-${tag}`, f1, { cols: 4, max: 8, cellW: vp.width === 1440 ? 360 : 190 });
     }
     if (want("proof") || want("mummy")) {
       await page.keyboard.press("Home").catch(() => {});
@@ -524,7 +502,6 @@ async function details(browser, base) {
   await shotEl('.hero__bat', "bat-hero-3x.png", 30);
   await shotEl('.problem__bat', "bat-problem-3x.png", 30);
   await openCal(page);
-  await shotEl(".proof__hash", "hashtag-mummy-3x.png", 30);
   await shotEl(".proof__mummy", "mummy-proof-3x.png", 40);
   await shotEl(".jack-panel", "jack-panel-3x.png", 20);
   await shotEl(".proof__scroll", "ladder-3x.png", 20);

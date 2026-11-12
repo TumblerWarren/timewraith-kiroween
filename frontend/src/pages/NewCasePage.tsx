@@ -1,0 +1,42 @@
+import { OpenCaseForm } from "../cases/form/OpenCaseForm";
+import { ModeShape } from "../cases/library/ModeShape";
+import { NEW_CASE } from "../content/app";
+import { CASE_MODES } from "../content/modes";
+import { ReadinessNote } from "./HomePage";
+
+/** `#/new`: the form, with the readiness note and what each mode does beside it. */
+export function NewCasePage() {
+  return (
+    <article className="page" aria-labelledby="page-title">
+      <header className="page__head">
+        <h1 id="page-title" className="page__title" tabIndex={-1}>
+          {NEW_CASE.title}
+        </h1>
+        <p className="page__lead">{NEW_CASE.lead}</p>
+      </header>
+      <div className="split">
+        <section className="sheet" aria-labelledby="page-title">
+          <OpenCaseForm labelledBy="page-title" />
+        </section>
+        <aside className="split__aside">
+          <ReadinessNote />
+          <section className="panel" aria-labelledby="modes-title">
+            <h2 id="modes-title" className="panel__title">
+              {NEW_CASE.modesTitle}
+            </h2>
+            <dl className="modes">
+              {CASE_MODES.map((m) => (
+                <div key={m.id}>
+                  <dt>
+                    <ModeShape shape={m.shape} size={18} /> {m.label}
+                  </dt>
+                  <dd>{m.description}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </aside>
+      </div>
+    </article>
+  );
+}

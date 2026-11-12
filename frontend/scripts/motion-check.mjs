@@ -244,37 +244,6 @@ async function regionChecks(page, shot) {
   );
 }
 
-/** Task 14.10: scrubbing the Cal.com case to e11 makes the Version_Timeline's "reproduced" milestone reached, with motion. */
-async function timelineCheck(page, shot) {
-  await page.locator('li[data-case-id="calcom-30021"]').getByRole("button", { name: /^Open case/ }).click();
-  await page.waitForSelector('[data-case="calcom-30021"] .vtl', { timeout: 4000 });
-  await page.waitForTimeout(1200);
-  await page.evaluate(() => {
-    const el = document.querySelector(".vtl");
-    window.scrollTo({ top: Math.round(el.getBoundingClientRect().top + window.scrollY - 140), behavior: "instant" });
-  });
-  await page.waitForTimeout(500);
-  const state = () => page.evaluate(() => document.querySelector('[data-milestone="reproduced"]')?.getAttribute("data-state") ?? "missing");
-  await page.locator('[data-case="calcom-30021"] .scrubber__slider').focus();
-  for (let i = 0; i < 9; i++) {
-    await page.keyboard.press("ArrowRight");
-    await page.waitForTimeout(60);
-  }
-  await page.waitForTimeout(700);
-  const before = await state();
-  const reveal = page.evaluate(`(${WATCH_FN})(${JSON.stringify(['[data-milestone="reproduced"] .vtl__ring, [data-milestone="reproduced"] .vtl__state, [data-milestone="reproduced"] .vtl__seg', 700])})`);
-  await page.keyboard.press("ArrowRight");
-  await page.waitForTimeout(260);
-  await shot(page, "12-timeline-milestone-1440.png");
-  const moved = await reveal;
-  const after = await state();
-  const stampText = await page.evaluate(() => document.querySelector('[data-milestone="reproduced"] .vtl__state')?.textContent ?? "");
-  check(
-    "Version_Timeline: scrubbing the Cal.com case to e11 reaches the reproduced milestone and its ring and stamp animate (timeline.milestone)",
-    before === "ahead" && after === "reached" && stampText === "reached" && moved.moved >= 1,
-    `state ${before} -> ${after}, stamp "${stampText}", ${moved.moved} of ${moved.total} parts animated`,
-  );
-}
 async function main() {
   if (!existsSync(join(distDir, "index.html"))) {
     console.error(`motion-check: ${distDir} has no index.html; run the build first.`);
@@ -482,7 +451,6 @@ async function main() {
     await rp.waitForTimeout(2600);
     await rp.waitForSelector('[data-thread-mode="scroll"]', { timeout: 5000 }).catch(() => {});
     await regionChecks(rp, shot);
-    await timelineCheck(rp, shot);
     await rp.close();
 
     check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));

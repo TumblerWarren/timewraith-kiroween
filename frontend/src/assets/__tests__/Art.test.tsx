@@ -1,15 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Mascot } from "../../mascots/Mascot";
 import { MASCOT_ART } from "../../mascots/roster";
-import {
-  PLACEHOLDER_FOOTNOTE,
-  PLACEHOLDER_HINT,
-  PLACEHOLDER_MARK,
-  PlaceholderFootnote,
-  PlaceholderLink,
-} from "../../components/PlaceholderBadge";
-import { LINKS } from "../../config/links";
 import { AssetProvider } from "../AssetProvider";
 import { Art } from "../Art";
 import { EMPTY_MANIFEST, type Manifest } from "../manifest";
@@ -101,30 +93,5 @@ describe("Mascot", () => {
     expect(container.querySelector("svg")).toHaveAttribute("height", "220");
     const { container: c2 } = render(<Mascot id="watchtower-warden" width={70} />);
     expect(c2.querySelector("svg")).toHaveAttribute("height", "110");
-  });
-});
-
-describe("PlaceholderLink", () => {
-  it("marks a placeholder link with a visible footnote dagger and an aria-describedby hint", () => {
-    render(<PlaceholderLink link={LINKS.demo} />);
-    const link = screen.getByRole("link", { name: LINKS.demo.label });
-    expect(within(link).getByText(PLACEHOLDER_MARK)).toBeVisible();
-    expect(link).toHaveAccessibleDescription(PLACEHOLDER_HINT);
-  });
-
-  it("renders a real link with no mark and no hint", () => {
-    const { container } = render(<PlaceholderLink link={LINKS.issue7998}>Issue 7998</PlaceholderLink>);
-    const link = screen.getByRole("link", { name: "Issue 7998" });
-    expect(link).not.toHaveAttribute("aria-describedby");
-    expect(link).toHaveTextContent(/^Issue 7998$/);
-    expect(container.querySelector(".footnote-mark")).toBeNull();
-    expect(container.textContent).not.toContain(PLACEHOLDER_HINT);
-  });
-
-  it("renders the shared footnote only while a link in the group is a placeholder", () => {
-    const { container, rerender } = render(<PlaceholderFootnote links={[LINKS.issue7998, LINKS.demo]} />);
-    expect(container).toHaveTextContent(`${PLACEHOLDER_MARK} ${PLACEHOLDER_FOOTNOTE}`);
-    rerender(<PlaceholderFootnote links={[LINKS.issue7998, { ...LINKS.demo, placeholder: false }]} />);
-    expect(container).toBeEmptyDOMElement();
   });
 });
