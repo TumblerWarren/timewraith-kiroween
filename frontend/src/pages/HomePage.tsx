@@ -3,11 +3,9 @@ import { href } from "../app/router";
 import { useReadiness } from "../app/SetupProvider";
 import { StatusPill } from "../app/StatusPill";
 import { useCaseStore } from "../cases/store";
-import { Clock } from "../components/Clock";
 import { Intro } from "../components/Intro";
-import { HOME, FIG } from "../content/app";
-import { HEADLINE } from "../content/copy";
-import { Mascot } from "../mascots/Mascot";
+import { LanternWraith } from "../components/cinematic/LanternWraith";
+import { HOME } from "../content/app";
 import { CaseRows } from "./CaseRows";
 
 /** A one-line readiness summary with the way forward. */
@@ -42,11 +40,10 @@ export function HomePage() {
   const { cases } = useCaseStore();
   return (
     <article className="page page--home" aria-labelledby="page-title">
-      <Intro />
       <section className="hero">
         <div className="hero__copy">
           <h1 id="page-title" className="hero__title" tabIndex={-1}>
-            {HEADLINE}
+            Hunt the bugs<br />that hide in<br /><em>time.</em>
           </h1>
           <p className="page__lead">{HOME.lead}</p>
           <p className="actions">
@@ -57,12 +54,10 @@ export function HomePage() {
               How it works
             </a>
           </p>
+          <Intro />
         </div>
         <div className="hero__art" aria-hidden="true">
-          <Clock id="home-clock" hours={1} minutes={59} />
-          <div className="hero__wraith">
-            <Mascot id="wraith-director" width={FIG.scene} decorative idle={false} actor={false} />
-          </div>
+          <LanternWraith />
         </div>
       </section>
 

@@ -12,6 +12,16 @@
  *   pumpkin-600: shapes and decoration, never text. divider-300 and gold-500 on light: decoration only.
  */
 :root {
+  /* The supplied Violet Midnight landing world, scoped by cinematic.css. */
+  --midnight-black: #000000;
+  --midnight-surface: #06050a;
+  --midnight-panel: #100d17;
+  --midnight-ink: #f4eefb;
+  --midnight-muted: #b9adc8;
+  --midnight-violet: #c4a0f5;
+  --midnight-bright: #dfcaff;
+  --midnight-line: #382b49;
+  --midnight-lamp: #b573f0;
   /* ---- The twelve required colors (Requirement 12.1) ---- */
   --tower-950: #24251f;
   --ink-900: #292720;
