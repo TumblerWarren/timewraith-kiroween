@@ -2,22 +2,19 @@ import { useApi } from "../api/ApiProvider";
 import { useReadiness } from "../app/SetupProvider";
 import { StatusPill } from "../app/StatusPill";
 import { CrewSetup } from "../components/CrewSetup";
-import { FIG } from "../content/app";
+import { CrewAwakening, UmbrellaGhost } from "../components/cinematic/CrewAwakening";
 import { SETUP } from "../content/copy";
 import { SETUP_STATES, setupChecks } from "../data/setup-checklist";
-import { Mascot } from "../mascots/Mascot";
 
 /** `#/crew`: the three setup steps with their actions, then what the backend reports about this machine. */
 export function CrewPage() {
   const { health } = useApi();
-  const { status, ready } = useReadiness();
+  const { status, ready, busyAction, docker, crew, login } = useReadiness();
   const limits = health?.limits;
+  const busy = busyAction !== null || docker === "busy" || crew === "busy" || login === "busy";
   return (
-    <article className="page" aria-labelledby="page-title">
-      <header className="page__head page__head--figure">
-        <span aria-hidden="true">
-          <Mascot id="watchtower-warden" width={FIG.badge} decorative idle={false} actor={false} />
-        </span>
+    <article className="page crew-page" aria-labelledby="page-title">
+      <header className="crew-page__hero">
         <div>
           <h1 id="page-title" className="page__title" tabIndex={-1}>
             {SETUP.title}
@@ -26,7 +23,9 @@ export function CrewPage() {
             Investigations run Kiro agents inside the Kiro Crew container and the repository's code inside separate Docker sandboxes. Nothing is installed on this
             machine apart from Docker.
           </p>
+          <CrewAwakening />
         </div>
+        <UmbrellaGhost busy={busy} />
       </header>
 
       <div className="split">

@@ -20,14 +20,15 @@ afterEach(() => {
 
 describe("app shell smoke test", () => {
   it("renders the home page inside main with one h1", () => {
-    renderAt("#/");
+    renderAt("#/home");
     expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Bugs are hiding in time." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Hunt the bugs that hide in time." })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Backend offline" })).toHaveAttribute("href", "#/crew");
+    expect(screen.getByRole("link", { name: "Crew setup" })).toHaveAttribute("href", "#/crew");
   });
 
   it.each([
+    ["#/", "TimeWraith · The midnight hour"],
     ["#/new", "Open a case"],
     ["#/cases", "Cases"],
     ["#/crew", "Set up the Crew on this machine"],

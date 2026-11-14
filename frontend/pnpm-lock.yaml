@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@astryxdesign/core':
+        specifier: ^0.7.14
+        version: 0.7.14(@stylexjs/stylex@0.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
@@ -92,6 +95,13 @@ packages:
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
+
+  '@astryxdesign/core@0.7.14':
+    resolution: {integrity: sha512-MSRNyl8/t+0Uo3dmdPZfQi7WNktRZS1UBTicHbQdVIXX3DuCmQ5pPTOHi0OW4jPKszcifV5b6v/mFArjs9oVbA==}
+    peerDependencies:
+      '@stylexjs/stylex': ^0.19.0
+      react: '>=19.0.0'
+      react-dom: '>=19.0.0'
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -226,6 +236,15 @@ packages:
 
   '@fontsource/im-fell-english@5.3.0':
     resolution: {integrity: sha512-FcgdWfY9WeUM2gQkfmwhn4Ed9LVtlll8LSSZvHfbsUrnHK5tHHnGg6BgwAfHogp52adU3eE89J/3B52qV3b+Vw==}
+
+  '@formatjs/fast-memoize@3.1.7':
+    resolution: {integrity: sha512-zXfhLpvA6T7+efdt9JLbBwZ00tT7NsBMDVnDu8rpHeNNv8KfRZAMo2gkG0k9lK/Nzc//3kJ9pImsfuJxk3KhUA==}
+
+  '@formatjs/icu-messageformat-parser@3.5.18':
+    resolution: {integrity: sha512-wX1efcL8d7K5QapOTRsP/OLTA/kpwe4LwqWyNxDNg5iRs8i9jJbCyxB5P8jc4KOW5oiLzz2DJr+BRY5xMV9+bA==}
+
+  '@formatjs/icu-skeleton-parser@2.1.11':
+    resolution: {integrity: sha512-j8cUmOJzVgkHuS0QiQ6ga76UIoLOFSAMWhs7aZJztH3aAdCOAE6vpC8KVvFB4cU10ON0y2/5oOVmPJ43s2lTwA==}
 
   '@gsap/react@2.1.2':
     resolution: {integrity: sha512-JqliybO1837UcgH2hVOM4VO+38APk3ECNrsuSM4MuXp+rbf+/2IG2K1YJiqfTcXQHH7XlA0m3ykniFYstfq0Iw==}
@@ -378,6 +397,9 @@ packages:
 
   '@rolldown/pluginutils@1.1.0':
     resolution: {integrity: sha512-K+NU2HDCEem4sClgHH4ZZXwdJeNFkJo+hRk479DIwdIviAPN2hFJH1KHHwg8CxHQXvi0M5XY4deTXINfIiSG6w==}
+
+  '@stylexjs/stylex@0.19.2':
+    resolution: {integrity: sha512-l0fRhOBZ4rFiZ0GntYSlp4lYO5dPT11F3mLb7O4ShK6eE1WOjHtv9GHGQZuzHJbQkjcEaRjPSpBn6itI7yXc3Q==}
 
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
@@ -822,6 +844,9 @@ packages:
     resolution: {integrity: sha512-EdDDZu4A2OyIK7Lr/2zG+w5jmbuk1DVBnEwREQvBzspBJkCEbRa8GxU1lghYcaGJCnRWibjDXlq779X1/y5xwg==}
     engines: {node: '>=8'}
 
+  intl-messageformat@11.2.15:
+    resolution: {integrity: sha512-W4VNytsXyWgW5lvVchmsb9xgA5rSKqoflu3/IQ9UCtB0z4R+Bx9MoEkwFT/+30RCl/KzUoH0QGGe9lppF5SuvQ==}
+
   is-alphabetical@2.0.1:
     resolution: {integrity: sha512-FWyyY60MeTNyeSRpkM2Iry0G9hpr7/9kD40mD/cGQEuilcZYS4okz8SN2Q6rLCJ8gbCt6fN+rC+6tMGS99LaxQ==}
 
@@ -1137,6 +1162,9 @@ packages:
     resolution: {integrity: sha512-laJTa3Jb+VQpaC6DseHhF7dXVqHTfJPCRDaEbid/drOhgitgYku/letMUqOXFoWV0zIIUbjpdH2t+tYj4bQMRQ==}
     engines: {node: '>=8'}
 
+  styleq@0.2.1:
+    resolution: {integrity: sha512-L0TR0NQb+X4/ktDEKmjWyp27gla+LUYi/by5k5SjKXf6/pvZP7wbwEB5J+tqxdFVPgzbsuz+d4RTScO/QZquBw==}
+
   tinybench@6.2.3:
     resolution: {integrity: sha512-Al01C2JIBnO2CXCAPbpAl6sUiOZHeThGtHYNTa51JRw9PyWOCdr+9Ong05R4qg/Sk3+H645E8ov1h2c58ityNw==}
     engines: {node: '>=20.0.0'}
@@ -1346,6 +1374,13 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
+  '@astryxdesign/core@0.7.14(@stylexjs/stylex@0.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+    dependencies:
+      '@stylexjs/stylex': 0.19.2
+      intl-messageformat: 11.2.15
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
+
   '@babel/code-frame@7.29.7':
     dependencies:
       '@babel/helper-validator-identifier': 7.29.7
@@ -1502,6 +1537,14 @@ snapshots:
 
   '@fontsource/im-fell-english@5.3.0': {}
 
+  '@formatjs/fast-memoize@3.1.7': {}
+
+  '@formatjs/icu-messageformat-parser@3.5.18':
+    dependencies:
+      '@formatjs/icu-skeleton-parser': 2.1.11
+
+  '@formatjs/icu-skeleton-parser@2.1.11': {}
+
   '@gsap/react@2.1.2(gsap@3.15.1)(react@19.3.1)':
     dependencies:
       gsap: 3.15.1
@@ -1602,6 +1645,10 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.1.0': {}
+
+  '@stylexjs/stylex@0.19.2':
+    dependencies:
+      styleq: 0.2.1
 
   '@testing-library/dom@10.4.2':
     dependencies:
@@ -2042,6 +2089,11 @@ snapshots:
 
   indent-string@4.0.0: {}
 
+  intl-messageformat@11.2.15:
+    dependencies:
+      '@formatjs/fast-memoize': 3.1.7
+      '@formatjs/icu-messageformat-parser': 3.5.18
+
   is-alphabetical@2.0.1: {}
 
   is-alphanumerical@2.0.1:
@@ -2317,6 +2369,8 @@ snapshots:
   strip-indent@3.0.0:
     dependencies:
       min-indent: 1.0.1
+
+  styleq@0.2.1: {}
 
   tinybench@6.2.3: {}
 

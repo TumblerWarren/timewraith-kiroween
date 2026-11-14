@@ -2,10 +2,10 @@ import { OpenCaseForm } from "../cases/form/OpenCaseForm";
 import { ModeShape } from "../cases/library/ModeShape";
 import { NEW_CASE } from "../content/app";
 import { CASE_MODES } from "../content/modes";
-import { ReadinessNote } from "./HomePage";
+import { ReadinessNote } from "./ReadinessNote";
 
 /** `#/new`: the form, with the readiness note and what each mode does beside it. */
-export function NewCasePage() {
+export function NewCasePage({ repoUrl }: { readonly repoUrl?: string | undefined }) {
   return (
     <article className="page" aria-labelledby="page-title">
       <header className="page__head">
@@ -16,7 +16,7 @@ export function NewCasePage() {
       </header>
       <div className="split">
         <section className="sheet" aria-labelledby="page-title">
-          <OpenCaseForm labelledBy="page-title" />
+          <OpenCaseForm labelledBy="page-title" initial={repoUrl ? { repoUrl } : {}} />
         </section>
         <aside className="split__aside">
           <ReadinessNote />

@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 720" fill="none" role="img" aria-label="A violet umbrella ghost with one large eye">
+<defs>
+<linearGradient id="bg-canopyFill" x1="190" y1="70" x2="450" y2="420" gradientUnits="userSpaceOnUse">
+<stop stop-color="#c9a3f2"/>
+<stop offset=".35" stop-color="#714a9f"/>
+<stop offset=".7" stop-color="#34233f"/>
+<stop offset="1" stop-color="#140d22"/>
+</linearGradient>
+<linearGradient id="bg-panelFill" x1="320" y1="100" x2="320" y2="400" gradientUnits="userSpaceOnUse">
+<stop stop-color="#9b6ccd"/>
+<stop offset="1" stop-color="#302036"/>
+</linearGradient>
+<linearGradient id="bg-stemFill" x1="280" y1="400" x2="380" y2="660" gradientUnits="userSpaceOnUse">
+<stop stop-color="#e3c8ff"/>
+<stop offset=".45" stop-color="#8b5eb4"/>
+<stop offset="1" stop-color="#3b204f"/>
+</linearGradient>
+<radialGradient id="bg-aura">
+<stop stop-color="#a356ea" stop-opacity=".22"/>
+<stop offset="1" stop-color="#a356ea" stop-opacity="0"/>
+</radialGradient>
+</defs>
+<ellipse cx="320" cy="345" rx="310" ry="310" fill="url(#bg-aura)"/>
+<g id="bg-ghost-body" class="ghost-body">
+<g id="bg-handle">
+<path d="M324 355C324 452 291 483 307 553C318 603 382 611 391 564C395 541 385 525 371 533C356 543 379 560 361 573C340 586 325 557 334 522C351 460 351 396 347 357" fill="url(#bg-stemFill)" stroke="#b591d6" stroke-opacity=".3" stroke-width="2"/>
+<path d="M321 410C324 483 295 520 318 563" stroke="#f4dbff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+</g>
+<g id="bg-canopy">
+<path d="M82 355C110 224 209 137 319 105C431 138 524 228 563 355C530 321 489 330 462 377C433 338 389 346 359 393C332 353 280 353 250 393C221 346 174 338 148 377C135 344 105 336 82 355Z" fill="url(#bg-canopyFill)" stroke="#c19bdc" stroke-width="2"/>
+<path d="M319 105C248 176 233 271 250 393C279 351 332 353 359 393C377 275 369 175 319 105Z" fill="url(#bg-panelFill)"/>
+<path d="M319 105C202 173 160 251 148 377M319 105C248 176 233 271 250 393M319 105C369 175 377 275 359 393M319 105C424 168 460 267 462 377" stroke="#e0b5fb" stroke-opacity=".27" stroke-width="2"/>
+<path d="M82 355C135 344 135 344 148 377C174 338 221 346 250 393C280 353 332 353 359 393C389 346 433 338 462 377C489 330 530 321 563 355" stroke="#e1baf9" stroke-opacity=".5" stroke-width="3"/>
+<path d="M319 105L320 72" stroke="#d1a6fa" stroke-width="7" stroke-linecap="round"/>
+<path d="M194 223C229 177 263 151 302 132" stroke="#f5dcff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+<path d="M103 333L113 318M544 336L531 307" stroke="#dec0f6" stroke-opacity=".4" stroke-width="3"/>
+</g>
+<g id="bg-ghost-eye" transform="translate(202 201) scale(.98)">
+<defs>
+<radialGradient id="bg-eyeWhite">
+<stop stop-color="#fff9ff"/>
+<stop offset=".7" stop-color="#e6d5f8"/>
+<stop offset="1" stop-color="#966ac4"/>
+</radialGradient>
+<radialGradient id="bg-irisFill">
+<stop stop-color="#090410" offset=".27"/>
+<stop stop-color="#5d2994" offset=".3"/>
+<stop stop-color="#ba7cf4" offset=".68"/>
+<stop stop-color="#4c246f" offset="1"/>
+</radialGradient>
+<clipPath id="bg-eyeClip">
+<path d="M12 80Q120 -34 228 80Q120 194 12 80Z"/>
+</clipPath>
+</defs>
+<g class="eyelid" id="bg-ghost-eyelid">
+<path d="M12 80Q120 -34 228 80Q120 194 12 80Z" fill="url(#bg-eyeWhite)" stroke="#d3b2ff" stroke-width="2"/>
+<g clip-path="url(#bg-eyeClip)">
+<g class="iris" id="bg-ghost-iris">
+<circle cx="120" cy="80" r="51" fill="url(#bg-irisFill)"/>
+<g stroke="#edbfff" stroke-width="1" opacity=".65">
+<path d="M120 37V47" transform="rotate(0 120 80)"/>
+<path d="M120 37V47" transform="rotate(15 120 80)"/>
+<path d="M120 37V47" transform="rotate(30 120 80)"/>
+<path d="M120 37V47" transform="rotate(45 120 80)"/>
+<path d="M120 37V47" transform="rotate(60 120 80)"/>
+<path d="M120 37V47" transform="rotate(75 120 80)"/>
+<path d="M120 37V47" transform="rotate(90 120 80)"/>
+<path d="M120 37V47" transform="rotate(105 120 80)"/>
+<path d="M120 37V47" transform="rotate(120 120 80)"/>
+<path d="M120 37V47" transform="rotate(135 120 80)"/>
+<path d="M120 37V47" transform="rotate(150 120 80)"/>
+<path d="M120 37V47" transform="rotate(165 120 80)"/>
+<path d="M120 37V47" transform="rotate(180 120 80)"/>
+<path d="M120 37V47" transform="rotate(195 120 80)"/>
+<path d="M120 37V47" transform="rotate(210 120 80)"/>
+<path d="M120 37V47" transform="rotate(225 120 80)"/>
+<path d="M120 37V47" transform="rotate(240 120 80)"/>
+<path d="M120 37V47" transform="rotate(255 120 80)"/>
+<path d="M120 37V47" transform="rotate(270 120 80)"/>
+<path d="M120 37V47" transform="rotate(285 120 80)"/>
+<path d="M120 37V47" transform="rotate(300 120 80)"/>
+<path d="M120 37V47" transform="rotate(315 120 80)"/>
+<path d="M120 37V47" transform="rotate(330 120 80)"/>
+<path d="M120 37V47" transform="rotate(345 120 80)"/>
+</g>
+<ellipse cx="120" cy="80" rx="13" ry="32" fill="#08030f"/>
+<circle cx="138" cy="59" r="9" fill="#fff6ff"/>
+<circle cx="103" cy="96" r="4" fill="#e5c5ff" opacity=".6"/>
+</g>
+</g>
+<path d="M12 80Q120 -34 228 80" stroke="#f1d6ff" stroke-width="3"/>
+</g>
+</g>
+<g id="bg-tassels" stroke="#aa78d5" stroke-linecap="round">
+<path d="M148 377L143 401M250 393L246 418M359 393L363 418M462 377L470 402" stroke-width="2"/>
+<path d="M140 401L148 403M242 418L250 420M359 418L367 416M466 403L474 401" stroke-width="4"/>
+</g>
+</g>
+</svg>

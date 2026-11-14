@@ -7,6 +7,16 @@
 }
 
 /* The supplied artwork is the focal point. All light is anchored to its lantern. */
+.clock-landing {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--midnight-black);
+  color: var(--midnight-ink);
+}
+.clock-landing__fallback { color: var(--midnight-violet); }
+body:has(.cinema[open]) .clock-landing__fallback { visibility: hidden; }
 .cinema {
   position: fixed;
   inset: 0;
@@ -33,6 +43,7 @@
   display: grid;
   place-items: center;
   pointer-events: none;
+  opacity: 0;
 }
 .cinema__clock-frame { width: min(76vw, 67dvh, 560px); aspect-ratio: 1; }
 .cinema__dial { display: block; width: 100%; height: 100%; overflow: visible; }
@@ -43,23 +54,15 @@
   color: var(--midnight-muted);
   font: 500 11px var(--font-ui);
   letter-spacing: .28em;
-  text-transform: uppercase; /* allow-uppercase: supplied cinematic clock caption */
+  text-transform: uppercase; /* allow-uppercase */
 }
 .cinema__swarm { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cinema__figure { width: min(94vw, 860px, 137dvh); aspect-ratio: 725 / 559; position: relative; margin-top: -5dvh; }
-.cinema__figure img { display: block; width: 100%; height: auto; }
-.cinema__light, .landing-wraith__light {
-  position: absolute;
-  left: 64%;
-  top: 55%;
-  width: 29%;
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  background: url("../assets/cinematic/lantern-light.svg") center / contain no-repeat;
-  mix-blend-mode: screen;
-  pointer-events: none;
+.cinema__figure img, .landing-wraith img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
-.cinema[data-ready="true"] .cinema__light { animation: lantern-breathe 3.4s ease-in-out infinite; }
 .cinema__lantern {
   position: absolute;
   left: 64%;
@@ -72,8 +75,7 @@
   background: transparent;
 }
 .cinema[data-ready="true"] .cinema__lantern { pointer-events: auto; }
-.cinema__lantern:hover { background: color-mix(in srgb, var(--midnight-lamp) 8%, transparent); }
-.cinema__invitation { position: absolute; bottom: max(12dvh, 88px); text-align: center; }
+.cinema__invitation { position: absolute; bottom: max(12dvh, 88px); text-align: center; opacity: 0; }
 .cinema__invitation h2 {
   margin: 0 0 14px;
   font: italic 800 clamp(32px, 5vw, 50px) / 1 "Barlow Condensed", sans-serif;
@@ -92,70 +94,23 @@
 }
 .cinema__controls button:hover { border-color: var(--midnight-violet); color: var(--midnight-ink); }
 .cinema[data-paused="true"] *, .cinema[data-reduced="true"] * { animation-play-state: paused !important; }
+.cinema[data-reduced="true"] .cinema__clock, .cinema[data-reduced="true"] .cinema__swarm { display: none; }
 
-/* Scope the reference palette to home; investigation and setup retain their existing UI. */
-body:has(.page--home) {
-  background: var(--midnight-surface);
-  color: var(--midnight-ink);
-  --color-text: var(--midnight-ink);
-}
-body:has(.page--home) .appbar, body:has(.page--home) .footer {
-  background: var(--midnight-surface); color: var(--midnight-muted); border-color: var(--midnight-line);
-}
-body:has(.page--home) .appbar a, body:has(.page--home) .footer a { color: var(--midnight-muted); }
-body:has(.page--home) .appbar__wordmark { color: var(--midnight-ink); }
-body:has(.page--home) .appbar__motion { background: transparent; color: var(--midnight-muted); border-color: var(--midnight-line); box-shadow: none; }
-body:has(.page--home) .appbar__ready { background: var(--midnight-panel); color: var(--midnight-ink); border-color: var(--midnight-line); }
-.page--home { max-width: 1440px; padding-inline: clamp(24px, 5.3vw, 80px); }
-.page--home .hero {
-  display: grid; grid-template-columns: 1.05fr 1fr; gap: 0; min-height: 620px;
-  padding: 64px 0 72px; align-items: center; border: 0;
-}
-.page--home .hero__copy { position: relative; z-index: 1; }
-.page--home .hero__title {
-  color: var(--midnight-ink); font: italic 800 clamp(60px, 6.4vw, 96px) / .92 "Barlow Condensed", sans-serif;
-  text-transform: uppercase; /* allow-uppercase */
-  letter-spacing: -.025em; margin: 0 0 28px;
-}
-.page--home .hero__title em { color: var(--midnight-violet); font-style: inherit; }
-.page--home .page__lead { color: var(--midnight-muted); max-width: 48ch; font-size: 16px; line-height: 1.75; }
-.page--home .hero__art { width: 100%; height: auto; min-height: 380px; position: relative; display: grid; place-items: center; }
-.landing-wraith { width: 135%; position: relative; mix-blend-mode: screen; pointer-events: none; }
-.landing-wraith img { display: block; width: 100%; height: auto; }
-.landing-wraith[data-active="true"] { animation: lantern-drift 7s ease-in-out infinite; }
-.landing-wraith[data-active="true"] .landing-wraith__light { animation: lantern-breathe 3.4s ease-in-out infinite; }
-.page--home .btn { border: 1px solid var(--midnight-line); background: transparent; color: var(--midnight-ink); box-shadow: none; border-radius: 4px; }
-.page--home .btn--primary { background: var(--midnight-violet); color: var(--midnight-panel); border-color: transparent; }
-.page--home .btn:hover { transform: none; border-color: var(--midnight-violet); }
-.page--home .btn--primary:hover { background: var(--midnight-bright); }
+
 .landing-replay {
-  display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 0; margin-top: 12px;
-  color: var(--midnight-muted); border: 0; background: none; cursor: pointer; font: 12px var(--font-ui);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--midnight-violet);
+  font: 12px var(--font-ui);
 }
-.landing-replay:hover { color: var(--midnight-bright); }
-.page--home .home-grid { border-top: 1px solid var(--midnight-line); padding-top: 32px; gap: 64px; }
-.page--home .panel { background: transparent; border: 0; box-shadow: none; padding: 0; color: var(--midnight-muted); }
-.page--home .panel__title { color: var(--midnight-ink); font-family: var(--font-ui); font-size: 20px; font-weight: 600; }
-.page--home .panel a { color: var(--midnight-violet); }
-.page--home .panel p { font-size: 14px; line-height: 1.7; }
-.page--home .status-pill { color: var(--midnight-ink); background: var(--midnight-panel); border-color: var(--midnight-line); }
-.page--home .muted-note { color: var(--midnight-muted); }
-body:has(.page--home) ::selection, .cinema ::selection { color: var(--midnight-panel); background: var(--midnight-violet); }
-body:has(.page--home) { scrollbar-color: var(--midnight-line) var(--midnight-surface); }
-@keyframes lantern-drift { 0%, 100% { transform: translateY(0) rotate(-.3deg); } 50% { transform: translateY(-10px) rotate(.3deg); } }
-@keyframes lantern-breathe { 0%, 100% { opacity: .55; } 45% { opacity: .9; } 65% { opacity: .7; } }
-@media (max-width: 700px) {
-  .page--home .hero { display: flex; flex-direction: column-reverse; gap: 8px; padding: 12px 0 36px; min-height: 0; align-items: stretch; }
-  .page--home .hero__art { min-height: 0; height: 265px; overflow: hidden; }
-  .landing-wraith { width: min(115%, 460px); margin-top: -18px; }
-  .page--home .hero__title { font-size: clamp(52px, 12vw, 76px); }
-  .page--home .home-grid { gap: 32px; }
+.landing-replay:hover { color: var(--midnight-ink); }
+
+@media (max-width: 650px) {
   .cinema__clock-frame { width: min(90vw, 65dvh); }
   .cinema__figure { width: 115vw; margin-top: -12dvh; }
   .cinema__invitation { bottom: max(15dvh, 100px); }
   .cinema__controls { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .cinema *, .landing-wraith, .landing-wraith__light { animation: none !important; }
-}
-html[data-reduce-motion="true"] .landing-wraith, html[data-reduce-motion="true"] .landing-wraith__light { animation: none; }

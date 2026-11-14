@@ -3,8 +3,9 @@ import { caseHref, href, parseHash } from "../router";
 
 describe("hash routes", () => {
   it("parses every page, case tabs and unknown paths", () => {
-    expect(parseHash("")).toEqual({ page: "home" });
-    expect(parseHash("#/")).toEqual({ page: "home" });
+    expect(parseHash("")).toEqual({ page: "landing" });
+    expect(parseHash("#/")).toEqual({ page: "landing" });
+    expect(parseHash("#/home")).toEqual({ page: "home" });
     expect(parseHash("#/cases")).toEqual({ page: "cases" });
     expect(parseHash("#/new")).toEqual({ page: "new" });
     expect(parseHash("#/crew")).toEqual({ page: "crew" });
@@ -19,6 +20,7 @@ describe("hash routes", () => {
     expect(caseHref("7bd6dc7c")).toBe("#/cases/7bd6dc7c");
     expect(caseHref("a b", "plan")).toBe("#/cases/a%20b/plan");
     expect(parseHash(caseHref("a b", "plan"))).toEqual({ page: "case", id: "a b", tab: "plan" });
-    expect(href({ page: "home" })).toBe("#/");
+    expect(href({ page: "landing" })).toBe("#/");
+    expect(href({ page: "home" })).toBe("#/home");
   });
 });

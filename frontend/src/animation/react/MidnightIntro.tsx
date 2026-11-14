@@ -1,20 +1,15 @@
 import { gsap } from "gsap";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useReduceMotion } from "../../a11y/ReduceMotionProvider";
-import wraith from "../../assets/cinematic/lantern-wraith.jpg";
+import { navigate } from "../../app/router";
+import wraith from "../../assets/cinematic/lantern-wraith.svg";
 import { CLOCK_IMAGES, MidnightClock } from "../../components/cinematic/MidnightClock";
 import { createSwarm } from "../../components/cinematic/swarm";
-
-const SEEN_KEY = "tw.introSeen";
-function seen() {
-  try { return sessionStorage.getItem(SEEN_KEY) === "1"; } catch { return false; }
-}
 
 /** Midnight → perspective swarm → darkness → the lantern invitation. */
 export function Intro() {
   const { reduceMotion } = useReduceMotion();
-  const [open, setOpen] = useState(() => !seen() && !reduceMotion);
   const [ready, setReady] = useState(false);
   const [sound, setSound] = useState(false);
   const [soundFailed, setSoundFailed] = useState(false);
@@ -22,18 +17,16 @@ export function Intro() {
   const audio = useRef<AudioContext | null>(null);
   const soundEnabled = useRef(false);
 
-  const close = useCallback(() => {
-    try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* Storage is optional. */ }
-    setOpen(false);
+  const close = () => {
     void audio.current?.suspend();
-    requestAnimationFrame(() => document.getElementById("page-title")?.focus({ preventScroll: true }));
-  }, []);
+    navigate({ page: "home" });
+  };
 
   useEffect(() => () => { void audio.current?.close(); }, []);
 
   useEffect(() => {
     const root = dialog.current;
-    if (!open || !root) return;
+    if (!root || typeof root.showModal !== "function") return;
     root.showModal();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -60,6 +53,8 @@ export function Intro() {
     };
     const tl = gsap.timeline({ paused: true });
     gsap.set([clock, ghost, invitation], { opacity: 0 });
+    gsap.set(clock, { visibility: "visible" });
+    gsap.set(canvas, { opacity: 1 });
     if (reduceMotion) {
       gsap.set([ghost, invitation], { opacity: 1 });
       queueMicrotask(() => { if (!disposed) setReady(true); });
@@ -72,7 +67,9 @@ export function Intro() {
         } }, 2.6)
         .call(bell, [], 4.7)
         .to(flight, { time: 8.4, duration: 3.6, ease: "none", onUpdate: () => swarm.draw(flight.time) }, 4.8)
-        .to(clock, { opacity: 0, duration: .6 }, 7.6)
+        // Remove the clock while the converging swarm still covers the center.
+        .to(clock, { opacity: 0, duration: .6 }, 7.1)
+        .set(clock, { visibility: "hidden" }, 7.7)
         .to(canvas, { opacity: 0, duration: .6 }, 7.8)
         .to(ghost, { opacity: 1, duration: 2.6, ease: "sine.inOut" }, 9)
         .fromTo(figure, { y: 42, scale: .78 }, { y: 0, scale: 1, duration: 2.6, ease: "sine.out" }, 9)
@@ -95,7 +92,7 @@ export function Intro() {
       document.body.style.overflow = previousOverflow;
       root.close();
     };
-  }, [open, reduceMotion]);
+  }, [reduceMotion]);
 
   async function toggleSound() {
     try {
@@ -106,12 +103,7 @@ export function Intro() {
     } catch { setSoundFailed(true); }
   }
 
-  return <>
-    <button className="landing-replay" type="button" onClick={() => { setReady(false); setOpen(true); }}>
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6" /></svg>
-      Replay the midnight intro
-    </button>
-    {open && createPortal(<dialog ref={dialog} className="cinema" aria-label="TimeWraith midnight introduction"
+  return createPortal(<dialog ref={dialog} className="cinema" aria-label="TimeWraith midnight introduction"
       data-ready={ready} data-reduced={reduceMotion} onCancel={event => { event.preventDefault(); close(); }}>
       <div className="cinema__clock" aria-hidden="true">
         <div className="cinema__clock-frame"><MidnightClock /></div>
@@ -121,7 +113,6 @@ export function Intro() {
       <div className="cinema__ghost">
         <div className="cinema__figure">
           <img src={wraith} width="725" height="559" alt="A spectral ghost offers a violet lantern" />
-          <span className="cinema__light" aria-hidden="true" />
           <button className="cinema__lantern" disabled={!ready} onClick={close} aria-label="Touch the lantern to enter TimeWraith" />
         </div>
         <div className="cinema__invitation">
@@ -133,6 +124,5 @@ export function Intro() {
         <button type="button" aria-pressed={sound} disabled={soundFailed} onClick={() => void toggleSound()}>{soundFailed ? "Sound unavailable" : sound ? "Sound on" : "Sound off"}</button>
         <button type="button" onClick={close}>Skip intro <span aria-hidden="true">↗</span></button>
       </div>
-    </dialog>, document.body)}
-  </>;
+    </dialog>, document.body);
 }

@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="animated" viewBox="0 0 725 559" role="img" aria-labelledby="wraith-title wraith-description">
+  <title id="wraith-title">TimeWraith holding a violet lantern</title>
+  <desc id="wraith-description">A shadowed figure with violet eyes drifts in a tattered hooded cloak, carrying a lit iron lantern.</desc>
+  <style>
+    /* Opt in with #animated. The plain asset stays still for the intro and reduced motion. */
+    svg:target #lantern-flame {
+      transform-origin: 461px 320px;
+      animation: flame-flicker 2.7s linear infinite;
+    }
+    svg:target #lantern-glass { animation: glass-flicker 2.7s linear infinite; }
+    svg:target #cloak-lantern-light { animation: cloth-flicker 2.7s linear infinite; }
+    @keyframes flame-flicker {
+      0%, 100% { opacity: .9; transform: scale(.95, 1); }
+      13% { opacity: .66; transform: scale(1.08, .88); }
+      21% { opacity: 1; transform: scale(.89, 1.12); }
+      35% { opacity: .8; transform: scale(1.03, .96); }
+      47% { opacity: .96; transform: scale(.94, 1.08); }
+      56% { opacity: .62; transform: scale(1.05, .86); }
+      62% { opacity: .93; transform: scale(.9, 1.1); }
+      79% { opacity: .76; transform: scale(1.04, .94); }
+      91% { opacity: 1; transform: scale(.93, 1.06); }
+    }
+    @keyframes glass-flicker {
+      0%, 100% { opacity: .96; }
+      13% { opacity: .79; }
+      21% { opacity: 1; }
+      35% { opacity: .89; }
+      47% { opacity: .98; }
+      56% { opacity: .76; }
+      62% { opacity: .97; }
+      79% { opacity: .86; }
+      91% { opacity: 1; }
+    }
+    @keyframes cloth-flicker {
+      0%, 100% { opacity: .91; }
+      13% { opacity: .64; }
+      21% { opacity: 1; }
+      35% { opacity: .8; }
+      47% { opacity: .96; }
+      56% { opacity: .58; }
+      62% { opacity: .95; }
+      79% { opacity: .74; }
+      91% { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      svg:target #lantern-flame, svg:target #lantern-glass, svg:target #cloak-lantern-light { animation: none; }
+    }
+  </style>
+  <defs>
+    <linearGradient id="tw-cloak" x1="439" y1="122" x2="136" y2="469" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#68588b"/>
+      <stop offset=".19" stop-color="#332b51"/>
+      <stop offset=".52" stop-color="#1b172d"/>
+      <stop offset=".83" stop-color="#21192f"/>
+      <stop offset="1" stop-color="#100c19" stop-opacity=".68"/>
+    </linearGradient>
+    <linearGradient id="tw-hood" x1="318" y1="32" x2="302" y2="299" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#726399"/>
+      <stop offset=".22" stop-color="#3d335d"/>
+      <stop offset=".58" stop-color="#211932"/>
+      <stop offset="1" stop-color="#141020" stop-opacity=".08"/>
+    </linearGradient>
+    <linearGradient id="tw-left-fold" x1="322" y1="138" x2="89" y2="397" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1b162a"/>
+      <stop offset=".44" stop-color="#3c3159"/>
+      <stop offset=".72" stop-color="#302643"/>
+      <stop offset="1" stop-color="#2c2240" stop-opacity=".1"/>
+    </linearGradient>
+    <linearGradient id="tw-right-fold" x1="449" y1="134" x2="275" y2="485" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#81709f"/>
+      <stop offset=".25" stop-color="#393052"/>
+      <stop offset=".51" stop-color="#623792"/>
+      <stop offset=".73" stop-color="#40275c"/>
+      <stop offset="1" stop-color="#2b1b40" stop-opacity=".14"/>
+    </linearGradient>
+    <linearGradient id="tw-hem" x1="376" y1="298" x2="161" y2="536" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7f42b4"/>
+      <stop offset=".42" stop-color="#4b316a"/>
+      <stop offset="1" stop-color="#292037" stop-opacity=".2"/>
+    </linearGradient>
+    <radialGradient id="tw-spill" cx="460" cy="296" r="145" gradientUnits="userSpaceOnUse" gradientTransform="matrix(1 0 -.31 1.08 91.76 -23.68)">
+      <stop stop-color="#e297ff" stop-opacity=".85"/>
+      <stop offset=".29" stop-color="#c64cfd" stop-opacity=".65"/>
+      <stop offset=".67" stop-color="#922de9" stop-opacity=".37"/>
+      <stop offset="1" stop-color="#7929db" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tw-hand" x1="453" y1="142" x2="489" y2="189" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8c7fa6"/>
+      <stop offset=".3" stop-color="#54496f"/>
+      <stop offset=".76" stop-color="#211b31"/>
+      <stop offset="1" stop-color="#100c18"/>
+    </linearGradient>
+    <linearGradient id="tw-iron" x1="413" y1="275" x2="508" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#120c1d"/>
+      <stop offset=".32" stop-color="#51406a"/>
+      <stop offset=".49" stop-color="#22182f"/>
+      <stop offset=".78" stop-color="#130d20"/>
+      <stop offset="1" stop-color="#3b2c51"/>
+    </linearGradient>
+    <radialGradient id="tw-glass" cx="462" cy="308" r="62" gradientUnits="userSpaceOnUse" gradientTransform="matrix(.88 0 0 1.2 55.44 -61.6)">
+      <stop stop-color="#f9cfff"/>
+      <stop offset=".18" stop-color="#e884ff"/>
+      <stop offset=".45" stop-color="#ac35f0"/>
+      <stop offset=".78" stop-color="#531f86"/>
+      <stop offset="1" stop-color="#24133e"/>
+    </radialGradient>
+    <radialGradient id="tw-eye">
+      <stop stop-color="#fff3ff"/>
+      <stop offset=".25" stop-color="#f1b2ff"/>
+      <stop offset=".47" stop-color="#a954f4" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#7e35de" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tw-mist" x1="47" y1="225" x2="264" y2="89" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#443361" stop-opacity="0"/>
+      <stop offset=".54" stop-color="#443361" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#59457a" stop-opacity="0"/>
+    </linearGradient>
+    <path id="tw-cloak-outline" d="M328 28C354 25 369 39 381 66c10 23 24 47 48 56 24 7 36 17 46 33 10 19 14 48 20 72 6 25 24 50 28 74l-3 10 2 8-6-3-1 11-8 12-5-3-6 15-6 1-5 13-12 6-6 25-9-10-5 13 1 12-10 18-3-7-12 21 1-22-11 17-5-2-6 14-12 11 2-13-15 13-14 27-10 3 5-15-20 24-20 15-4 13-16 6 4-9-22 15 8-15-23 19 6-13-21 16 7-18 20-21 11-22-17 10 4-12-19 10 9-15-13 6-21 24-9-1-18 24-17 10 6-14-17 16-22 13 9-16-17 12 9-20-28 18 9-14-17 5 15-13-10-2 19-16 1-11-21 6-22 18 2-13-13 8 15-22-27 17 12-17-14 5 15-17 25-18-8-1 19-19-9 4-23 15-15 2-18 13 5-12-23 11 7-12-18 5 11-13-18 7 10-13-16 4 13-16 31-25 22-31-26 14-14 2 17-17-17 7 20-18 36-22 17-17-22 9 13-14-21 10 13-14-18 6 23-17 36-20c22-13 38-21 56-35 22-17 45-28 55-56 11-27 19-61 38-81 10-10 22-15 31-17Z"/>
+    <clipPath id="tw-cloak-clip"><use href="#tw-cloak-outline"/></clipPath>
+  </defs>
+
+  <g id="wraith" stroke-linejoin="round" stroke-linecap="round">
+    <g id="trailing-mist" fill="url(#tw-mist)">
+      <path d="M278 99C237 149 187 175 140 159 112 150 110 134 128 119c12-10 21-8 25-22-1 17-13 18-21 28-10 13-2 24 13 27 42 13 83-11 133-53Z"/>
+      <path d="M286 113c-42 60-91 97-161 102-35 3-67 22-99 40 28-26 67-48 104-49 67-7 110-41 156-93Z"/>
+      <path d="M258 91c-48 71-139 48-132 16 3-17 26-25 29-43 8 24-21 36-18 47 6 21 67 17 121-20Z" opacity=".44"/>
+      <path d="M256 142C183 208 103 226 45 261c22-20 58-36 96-48 50-16 72-29 115-71Z"/>
+    </g>
+
+    <g id="cloak">
+      <use href="#tw-cloak-outline" fill="url(#tw-cloak)"/>
+      <g clip-path="url(#tw-cloak-clip)">
+        <path fill="#0d0a15" opacity=".76" d="M326 63c-6 58-24 95-62 145-37 51-93 111-146 145 66-16 142-74 180-129-24 67-94 127-156 161 77-28 146-82 190-153-5 70-51 132-120 190 68-30 124-95 158-172l5 39 53-120-34-75Z"/>
+        <path fill="url(#tw-left-fold)" d="M309 55c-17 26-26 71-57 100-31 29-72 43-100 67-16 13-31 26-56 38 28-3 53-15 77-29 23-14 43-24 58-39-25 36-63 64-94 92-21 20-53 35-78 61 28-10 56-23 79-42 52-36 101-64 134-116-12 34-36 76-72 109-23 22-47 40-71 52 40-8 90-37 126-74 50-53 57-110 68-162Z"/>
+        <path fill="url(#tw-left-fold)" d="M295 186c-22 53-55 98-113 132-58 35-91 61-107 84 33-21 68-30 103-52 58-33 98-68 117-164Z" opacity=".62"/>
+        <path fill="#170f24" d="M431 133c46 8 53 50 62 89 5 23 17 47 24 81l-12 22-9-18-17 20-5-58-7 43-11-22-10 60-13 20 6-57-24 52-15 10 6-44 7-89-5-76Z"/>
+        <path fill="url(#tw-right-fold)" d="M456 140c-23-22-56-11-71 9-19 25-20 55-31 84-18 50-45 89-86 122-38 30-82 53-123 90 32-18 66-26 97-42 34-17 63-44 88-72-25 50-61 92-102 125 28-14 59-26 82-52 19-21 33-40 46-64-3 44-20 78-44 111 33-27 49-71 64-112 13-34 17-70 22-103 6-35 16-63 58-96Z"/>
+        <path fill="url(#tw-hem)" d="M411 205c-16 54-23 111-57 159-29 42-68 67-115 86l-43 44 23-15-19 29 36-30 20-11-4 16 30-32-6 16 25-23 22-35-7 27 28-37 13-27-2 25 19-28 8-25 7 19 17-35 6-44Z"/>
+        <path id="cloak-lantern-light" fill="url(#tw-spill)" d="M412 151c-14 26-18 55-28 93-13 54-43 106-80 145 49-27 78-60 100-110-9 43-24 82-46 114 42-33 58-75 72-126 0 35-6 71-17 101 22-25 35-64 46-107 5 39-2 70-6 90 18-24 26-58 31-88 9 22 10 42 4 60 17-20 29-47 31-74l-54-116Z"/>
+        <g fill="none" stroke-width="1.25">
+          <path stroke="#9380b4" opacity=".32" d="M390 142c-19 28-22 71-38 106-18 41-40 70-77 102m122-201c-20 39-17 82-44 132m42-110c-11 41-15 82-39 124-22 38-67 77-107 95m171-240c-20 22-19 45-26 63m-37 75c-30 57-70 103-133 125m182-191c-10 47-19 90-44 128m64-164c-8 34-6 77-20 105m61-154c13 23 19 55 23 81"/>
+          <path stroke="#736396" opacity=".33" d="M294 106c-13 55-49 94-99 128m93-101c-29 47-76 72-133 97m121-89c-24 26-54 46-86 56m95-25c-17 49-56 84-108 119m93-92c-30 44-67 64-107 92m60-25c-31 41-87 67-122 96m88-61c-31 35-59 49-89 68m174-157c-20 59-65 97-130 135m89-75c-27 36-64 54-99 74m100-25c-24 24-68 50-102 65m105-45c-29 28-70 45-100 61"/>
+          <path stroke="#a77bca" opacity=".38" d="M390 234c-12 60-32 119-76 162m56-84c-17 44-40 70-80 93m122-126c-10 33-22 66-39 95m39-67c-12 49-32 88-58 117m24-36c-19 41-43 65-72 83m47-72c-11 22-29 47-51 61m-50-50c-20 16-60 40-87 52"/>
+        </g>
+        <g fill="#08060d" opacity=".7">
+          <path d="M114 380l24-14-7 15-15 4Zm32-23 13-9-4 9-14 12Zm47 34 17-16-8 16-15 9Zm-39 54 16-11-5 10-15 9Zm38 5 13-8-4 8-13 9Zm107-44 18-17-8 16-13 12Zm46-12 13-20-3 13-11 17Zm41-26 8-18-2 16-8 14Zm30 14 11-18-5 18-9 8Zm54-31 9-16-1 13-8 12Z"/>
+        </g>
+      </g>
+    </g>
+
+    <g id="hood">
+      <path fill="url(#tw-hood)" d="M286 72c10-23 23-42 42-44 27-3 42 15 52 39 12 29 25 45 44 55-20-5-37-20-49-36 7 25 14 38 25 47-16-4-26-17-34-29 9 48-5 99-44 148 19-35 22-51 23-82-10 54-40 93-64 111 20-36 28-68 31-106-12 52-37 79-66 102 29-54 42-98 46-150-10 32-27 54-46 68 16-29 24-64 31-90Z"/>
+      <path fill="#08060f" d="M334 59c-7 12-15 15-22 29-9 17-9 45-2 69 4 15 11 30 17 43 4-27 16-45 24-65 9-25 5-53-17-76Z"/>
+      <path fill="#030206" d="M326 98c-7 5-11 17-10 31 0 15 7 34 11 50 4-18 12-38 13-52 1-13-6-25-14-29Z"/>
+      <g fill="none" stroke-width="1.15">
+        <path stroke="#a291c5" opacity=".29" d="M289 78c8-19 21-39 39-43 23-5 40 17 47 34m-74-3c8-11 17-20 29-22 18-3 33 9 43 29m-66 12c5-15 17-22 26-34 15 8 22 20 28 33m-29-31c-9 15-19 19-27 41-7 20-5 44-7 67m61-82c15 36 8 79-5 116m-56-96c-12 39-16 86-36 125"/>
+        <path stroke="#61517d" opacity=".52" d="M284 98c-9 31-17 59-38 84m44-92c-7 40-12 71-24 105m31-78c-2 35-8 70-23 103m83-105c1 43-16 76-29 111m31-79c-4 33-13 53-23 72m35-125c12 27 13 33 27 45"/>
+      </g>
+    </g>
+
+    <g id="eyes">
+      <ellipse cx="320" cy="97" rx="8.5" ry="6.8" fill="url(#tw-eye)"/>
+      <ellipse cx="350" cy="97.5" rx="8" ry="6.4" fill="url(#tw-eye)"/>
+      <circle cx="320" cy="97" r="1.65" fill="#f9d4ff"/>
+      <circle cx="350" cy="97.5" r="1.55" fill="#f9d4ff"/>
+    </g>
+
+    <g id="lantern">
+      <path d="M428 232c3-20 3-42 13-54 10-12 31-14 43-1 9 11 8 34 14 54" fill="none" stroke="#15101f" stroke-width="5"/>
+      <path d="M432 214c1-15 5-28 10-34 6-7 17-10 26-9 9 1 16 7 19 16" fill="none" stroke="#625078" stroke-width="1.2" opacity=".64"/>
+      <path id="lantern-glass" d="M433 258l59 0-1 81-65 0Z" fill="url(#tw-glass)" stroke="#29203b" stroke-width="3"/>
+      <path id="lantern-flame" d="M460 321c-9-1-12-8-7-14 4-4 4-9 5-15 1 8 5 10 7 16 1-4 1-7 0-11 7 8 8 22-5 24Z" fill="#f7b7ff" opacity=".79"/>
+      <path d="M449 264l-5 69m33-69 1 68m-44-49 46 49m9-51-55 53" fill="none" stroke="#2d1b47" stroke-width="1.2" opacity=".8"/>
+      <path d="M438 264l-4 69m58-68-2 69" stroke="#130d20" stroke-width="4"/>
+      <path d="M438 269l-2 59m52-56v54" stroke="#d984f2" stroke-opacity=".48" stroke-width="1.3"/>
+      <path d="M424 249c-7-3-7-12-2-16 6-4 9 4 5 8m72 8c8-3 9-12 4-16-6-5-10 3-6 8" fill="none" stroke="#181023" stroke-width="3"/>
+      <path d="M421 258v-6l11-6c5-15 15-22 25-25l1-7-6-5 9-5 2-12 4-1 2 14 8 4-7 5v7c12 4 22 12 25 25l9 5v7c-22 5-64 6-83 0Z" fill="url(#tw-iron)" stroke="#120d1d" stroke-width="2.5"/>
+      <path d="M432 246c14-5 48-5 62-1m-58-6c6-8 15-13 25-14m-4-12 13 0m-49 42c21-5 62-6 81-1" fill="none" stroke="#79618d" stroke-opacity=".52" stroke-width="1.4"/>
+      <path d="M422 337c15-6 59-8 75-2l-1 7 5 9 1 11c-19 7-62 8-87 2l2-10 6-8Z" fill="url(#tw-iron)" stroke="#110b1b" stroke-width="2.5"/>
+      <path d="M424 341c18-5 51-6 72-2m-76 13c19-5 58-6 80-1m-83 9c21 5 60 4 85-1" fill="none" stroke="#9373ae" stroke-opacity=".54" stroke-width="1.2"/>
+      <path d="M452 239l2-2 2 2-2 2Zm7-3 2-2 2 2-2 2Zm7 0 2-2 2 2-2 2Zm7 2 2-2 2 2-2 2Z" fill="#816d9e" opacity=".53"/>
+    </g>
+
+    <g id="hand">
+      <path d="M439 148c-10 4-16 16-18 29 8-7 15-7 21 0l5 9 10 4 7-3 8 4 8-4 7 1 8-7c7-9 5-22-3-26l-8-1c-5-10-13-11-19-7-7-5-13-3-18 0Z" fill="url(#tw-hand)"/>
+      <path d="M447 153c-6 9-6 16 0 24 3 5 6 6 10 5m-1-32c7 3 9 13 6 23-1 5-4 10-7 13m13-37c8 6 11 16 7 28-1 5-4 8-7 10m12-34c7 5 11 13 7 24l-5 8m9-26c5 5 6 14 1 20" fill="none" stroke="#1a1428" stroke-width="2.4"/>
+      <path d="M444 151c-6 2-13 8-15 14m24-13c6 3 7 10 6 15m11-15c4 5 6 11 5 16m9-10c4 4 6 9 5 14" fill="none" stroke="#9a88b4" stroke-width="1.1" opacity=".52"/>
+      <path d="M449 178c6 5 12 4 16 1 6 4 12 3 15 0 7 4 12 1 15-2-1 11-8 17-17 13-5 4-10 2-15-1-7 4-15-1-14-11Z" fill="#120e1d" opacity=".79"/>
+    </g>
+  </g>
+</svg>

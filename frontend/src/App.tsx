@@ -8,10 +8,12 @@ import { CasePage } from "./pages/case/CasePage";
 import { CasesPage } from "./pages/CasesPage";
 import { CrewPage } from "./pages/CrewPage";
 import { HomePage } from "./pages/HomePage";
+import { LandingPage } from "./pages/LandingPage";
 import { NewCasePage } from "./pages/NewCasePage";
 
 const TITLES: Readonly<Record<Route["page"], string>> = {
-  home: "TimeWraith",
+  landing: "The midnight hour · TimeWraith",
+  home: "Home · TimeWraith",
   new: "Open a case · TimeWraith",
   cases: "Cases · TimeWraith",
   case: "Case · TimeWraith",
@@ -22,10 +24,12 @@ const TITLES: Readonly<Record<Route["page"], string>> = {
 
 function Page({ route }: { readonly route: Route }) {
   switch (route.page) {
+    case "landing":
+      return <LandingPage />;
     case "home":
       return <HomePage />;
     case "new":
-      return <NewCasePage />;
+      return <NewCasePage key={route.repoUrl ?? ""} repoUrl={route.repoUrl} />;
     case "cases":
       return <CasesPage />;
     case "case":
@@ -74,15 +78,15 @@ export function App() {
         <a className="skip-link" href="#main" onClick={(e) => (e.preventDefault(), document.getElementById("main")?.focus())}>
           Skip to content
         </a>
-        <AppBar route={route} />
+        {route.page !== "home" && route.page !== "landing" && <AppBar route={route} />}
         <main id="main" tabIndex={-1} className="main">
           <Page route={route} />
         </main>
-        <footer className="footer">
+        {route.page !== "home" && route.page !== "landing" && <footer className="footer">
           <p>
             TimeWraith · a Kiro Crew agent team for date-sensitive code · <a href="https://kiroween.devpost.com/">Kiroween 2026</a>
           </p>
-        </footer>
+        </footer>}
       </SetupProvider>
     </LiveAnnouncer>
   );

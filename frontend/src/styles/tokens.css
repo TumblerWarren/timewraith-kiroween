@@ -21,7 +21,9 @@
   --midnight-violet: #c4a0f5;
   --midnight-bright: #dfcaff;
   --midnight-line: #382b49;
-  --midnight-lamp: #b573f0;
+  --midnight-success: #b3dbbe;
+  --midnight-error: #ffbdc8;
+  --font-midnight-display: "Barlow Condensed", sans-serif;
   /* ---- The twelve required colors (Requirement 12.1) ---- */
   --tower-950: #24251f;
   --ink-900: #292720;
@@ -52,7 +54,7 @@
   /* Visual revision R2: IM Fell English (400 roman and italic only, no bold) for headings, Libre Franklin for
      interface text, JetBrains Mono for times and evidence values. */
   --font-display: "IM Fell English", "IM Fell English Fallback", Georgia, "Times New Roman", serif;
-  --font-ui: "Libre Franklin Variable", "Libre Franklin", "Libre Franklin Fallback", Arial, system-ui, sans-serif;
+  --font-ui: "IM Fell English", "IM Fell English Fallback", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
   --text-sm: 0.875rem; /* 14px: short captions only */
