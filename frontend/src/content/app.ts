@@ -16,13 +16,6 @@ export const NAV = {
   about: "How it works",
 } as const;
 
-export const READINESS = {
-  ready: "Crew ready",
-  notReady: "Crew not ready",
-  offline: "Backend offline",
-  checking: "Checking",
-} as const;
-
 /** The first-visit intro on the home page. */
 export const INTRO = {
   label: "TimeWraith introduction",

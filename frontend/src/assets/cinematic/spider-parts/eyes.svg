@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="eyes">
+  <defs>
+    <radialGradient id="sw-abdomen" cx=".36" cy=".24" r=".81">
+      <stop stop-color="#8e78a9" />
+      <stop offset=".32" stop-color="#514064" />
+      <stop offset=".67" stop-color="#271d35" />
+      <stop offset="1" stop-color="#100c19" />
+    </radialGradient>
+    <radialGradient id="sw-head" cx=".38" cy=".25" r=".8">
+      <stop stop-color="#74608e" />
+      <stop offset=".48" stop-color="#33253f" />
+      <stop offset="1" stop-color="#100c1a" />
+    </radialGradient>
+    <linearGradient id="sw-leg" x1="0" y1="-20" x2="-65" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#685479" />
+      <stop offset=".38" stop-color="#35273f" />
+      <stop offset="1" stop-color="#1b1327" />
+    </linearGradient>
+    <linearGradient id="sw-tip" x1="-15" y1="-25" x2="15" y2="70" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4d3b61" />
+      <stop offset="1" stop-color="#120d1d" />
+    </linearGradient>
+    <radialGradient id="sw-joint">
+      <stop stop-color="#725d88" />
+      <stop offset="1" stop-color="#20152e" />
+    </radialGradient>
+    <linearGradient id="sw-silk" x1="272" y1="198" x2="369" y2="346" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#baa2d9" stop-opacity=".32" />
+      <stop offset=".55" stop-color="#8c65b4" stop-opacity=".13" />
+      <stop offset="1" stop-color="#6d4692" stop-opacity="0" />
+    </linearGradient>
+    <radialGradient id="sw-eye">
+      <stop stop-color="#fff2ff" />
+      <stop offset=".24" stop-color="#eac0ff" />
+      <stop offset=".64" stop-color="#ac69e1" />
+      <stop offset="1" stop-color="#432354" />
+    </radialGradient>
+    <radialGradient id="sw-eye-light">
+      <stop stop-color="#ce8eff" stop-opacity=".6" />
+      <stop offset="1" stop-color="#a764e9" stop-opacity="0" />
+    </radialGradient>
+    <clipPath id="sw-eye-L-clip">
+      <ellipse cx="299" cy="333" rx="15" ry="18" />
+    </clipPath>
+    <clipPath id="sw-eye-R-clip">
+      <ellipse cx="341" cy="333" rx="15" ry="18" />
+    </clipPath>
+  </defs>
+  <g id="eyes">
+    <g id="eye-L" data-pivot="299 333">
+      <ellipse cx="299" cy="333" rx="24" ry="27" fill="url(#sw-eye-light)" opacity=".6" />
+      <g id="eyelid-L" data-pivot="299 333">
+        <ellipse cx="299" cy="333" rx="16" ry="19" fill="#130d20" stroke="#9470ad" stroke-width="1.4" />
+        <g clip-path="url(#sw-eye-L-clip)">
+          <ellipse cx="299" cy="333" rx="14" ry="17" fill="url(#sw-eye)" />
+          <g id="iris-L" data-pivot="299 333">
+            <ellipse cx="299" cy="334" rx="5" ry="12" fill="#11091b" />
+            <ellipse cx="303" cy="326" rx="3.4" ry="4" fill="#fff5ff" />
+            <circle cx="295" cy="339" r="1.6" fill="#e5c6ff" opacity=".7" />
+          </g>
+        </g>
+        <path d="M284 327Q299 307 314 327" fill="none" stroke="#cab0df" stroke-opacity=".45" stroke-width="1" />
+      </g>
+    </g>
+    <g id="eye-R" data-pivot="341 333">
+      <ellipse cx="341" cy="333" rx="24" ry="27" fill="url(#sw-eye-light)" opacity=".6" />
+      <g id="eyelid-R" data-pivot="341 333">
+        <ellipse cx="341" cy="333" rx="16" ry="19" fill="#130d20" stroke="#9470ad" stroke-width="1.4" />
+        <g clip-path="url(#sw-eye-R-clip)">
+          <ellipse cx="341" cy="333" rx="14" ry="17" fill="url(#sw-eye)" />
+          <g id="iris-R" data-pivot="341 333">
+            <ellipse cx="341" cy="334" rx="5" ry="12" fill="#11091b" />
+            <ellipse cx="345" cy="326" rx="3.4" ry="4" fill="#fff5ff" />
+            <circle cx="337" cy="339" r="1.6" fill="#e5c6ff" opacity=".7" />
+          </g>
+        </g>
+        <path d="M326 327Q341 307 356 327" fill="none" stroke="#cab0df" stroke-opacity=".45" stroke-width="1" />
+      </g>
+    </g>
+  </g>
+</svg>

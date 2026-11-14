@@ -44,7 +44,7 @@ function parseColorTokens(css: string): Record<string, string> {
 
 interface Theme {
   selector: string;
-  /** Resolved token names (e.g. "paper-100") for each role. */
+  /** Resolved token names (e.g. "night-950") for each role. */
   bg: string;
   fg: string;
   fgMuted: string;
@@ -100,22 +100,22 @@ function textPairPasses(pair: ContrastPair | undefined, size: "normal" | "large"
 
 // ---------------------------------------------------------------- tests
 
-describe("contrast of text pairs", () => {
-  it("parses all twelve palette colors from tokens.css", () => {
+describe("contrast of Violet Midnight text pairs", () => {
+  it("parses all twelve Violet Midnight palette colors from tokens.css", () => {
     expect(Object.keys(tokens).sort()).toEqual(
       [
-        "tower-950",
-        "ink-900",
-        "walnut-700",
-        "paper-100",
-        "parchment-200",
-        "divider-300",
-        "pumpkin-600",
-        "gold-500",
-        "sage-700",
-        "brick-700",
-        "moon-200",
-        "mist-300",
+        "night-1000",
+        "night-950",
+        "night-900",
+        "night-850",
+        "line-700",
+        "ink-50",
+        "ink-300",
+        "violet-300",
+        "violet-200",
+        "mint-300",
+        "rose-300",
+        "amber-300",
       ].sort(),
     );
   });
@@ -125,7 +125,6 @@ describe("contrast of text pairs", () => {
     expect(contrastRatio("#777777", "#777777")).toBeCloseTo(1, 5);
   });
 
-  /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
   it("Property 14: every declared text pair meets 4.5:1 (normal) or 3:1 (large text, boundaries)", () => {
     const usable = CONTRAST_PAIRS.filter((p) => p.role !== "decoration");
     fc.assert(
@@ -136,27 +135,6 @@ describe("contrast of text pairs", () => {
     );
   });
 
-  /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
-  it("Property 14: any pair with pumpkin-600 and role text has size large, and is exactly ink-900 on pumpkin-600", () => {
-    const withPumpkin = CONTRAST_PAIRS.filter((p) => p.fg === "pumpkin-600" || p.bg === "pumpkin-600");
-    expect(withPumpkin.length).toBeGreaterThan(0);
-    fc.assert(
-      fc.property(fc.constantFrom(...withPumpkin), (pair) => {
-        if (pair.role !== "text") return true;
-        return pair.size === "large" && pair.fg === "ink-900" && pair.bg === "pumpkin-600";
-      }),
-      { numRuns: 100 },
-    );
-    // Never small text on paper-100 or parchment-200: pumpkin-600 has no text row on any light background.
-    for (const bg of ["paper-100", "parchment-200"]) {
-      expect(pairOf("pumpkin-600", bg)?.role).not.toBe("text");
-    }
-    // ink-900 on pumpkin-600 is below 4.5, which is exactly why it is large-only.
-    expect(ratioOf("ink-900", "pumpkin-600")).toBeLessThan(4.5);
-    expect(ratioOf("ink-900", "pumpkin-600")).toBeGreaterThanOrEqual(3);
-  });
-
-  /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
   it("Property 14: the table ratios match the ratios computed from tokens.css within rounding", () => {
     fc.assert(
       fc.property(fc.constantFrom(...CONTRAST_PAIRS), (pair) => {
@@ -166,7 +144,6 @@ describe("contrast of text pairs", () => {
     );
   });
 
-  /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
   it("Property 14: contrast is symmetric and between 1 and 21 for any two palette colors", () => {
     const names = Object.keys(tokens);
     fc.assert(
@@ -178,44 +155,30 @@ describe("contrast of text pairs", () => {
     );
   });
 
-  /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
   it("Property 14: decoration-only pairs stay below the 3:1 component threshold, so they cannot pass as boundaries", () => {
     for (const pair of CONTRAST_PAIRS.filter((p) => p.role === "decoration")) {
       expect(ratioOf(pair.fg, pair.bg), `${pair.fg} on ${pair.bg}`).toBeLessThan(3);
     }
   });
 
-  /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
   it("negative case: disallowed pairs are detected as failing", () => {
-    // gold-500 text on paper-100 / parchment-200 is decoration only (2.48 / 2.17).
-    expect(textPairPasses(pairOf("gold-500", "paper-100"), "normal")).toBe(false);
-    expect(textPairPasses(pairOf("gold-500", "parchment-200"), "normal")).toBe(false);
-    expect(ratioOf("gold-500", "paper-100")).toBeLessThan(3);
-    // pumpkin-600 is never small text on light backgrounds, even though its boundary ratio is above 3.
-    expect(textPairPasses(pairOf("pumpkin-600", "paper-100"), "normal")).toBe(false);
-    expect(textPairPasses(pairOf("pumpkin-600", "parchment-200"), "large")).toBe(false);
-    // ink-900 on pumpkin-600 passes only as large text.
-    expect(textPairPasses(pairOf("ink-900", "pumpkin-600"), "large")).toBe(true);
-    expect(textPairPasses(pairOf("ink-900", "pumpkin-600"), "normal")).toBe(false);
-    // A pair that is not in the table at all is not allowed.
-    expect(textPairPasses(pairOf("mist-300", "paper-100"), "normal")).toBe(false);
-    // A made-up row with a bad ratio would be caught by the threshold check.
-    expect(ratioOf("gold-500", "paper-100") >= requiredRatio({ role: "text", size: "normal" })).toBe(false);
+    expect(textPairPasses(pairOf("line-700", "night-950"), "normal")).toBe(false);
+    expect(textPairPasses(pairOf("line-700", "night-900"), "normal")).toBe(false);
+    expect(ratioOf("line-700", "night-950")).toBeLessThan(3);
   });
 
-  describe("section themes in layout.css and tokens.css", () => {
+  describe("surface themes in layout.css and tokens.css", () => {
     const themes = [
       ...parseThemes(readCss("tokens.css")).map((t) => ({ ...t, selector: `tokens.css ${t.selector}` })),
       ...parseThemes(readCss("layout.css")).map((t) => ({ ...t, selector: `layout.css ${t.selector}` })),
     ];
 
-    it("finds the default alias set and all five section themes", () => {
-      expect(themes.length).toBe(6);
+    it("finds the default alias set and surface themes", () => {
+      expect(themes.length).toBe(4);
       const bgs = new Set(themes.map((t) => t.bg));
-      for (const bg of ["tower-950", "walnut-700", "moon-200", "parchment-200", "paper-100"]) expect(bgs.has(bg)).toBe(true);
+      for (const bg of ["night-950", "night-900", "night-850"]) expect(bgs.has(bg)).toBe(true);
     });
 
-    /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
     it("Property 14: --fg and --fg-muted on --bg are allowed text pairs with at least 4.5:1", () => {
       fc.assert(
         fc.property(fc.constantFrom(...themes), fc.constantFrom<"fg" | "fgMuted">("fg", "fgMuted"), (theme, key) => {
@@ -226,7 +189,6 @@ describe("contrast of text pairs", () => {
       );
     });
 
-    /** Feature: timewraith, Property 14: Contrast of text pairs. **Validates: Requirements 11.8, 11.9, 15.6** */
     it("Property 14: --edge and --focus-color on --bg are allowed pairs with at least 3:1", () => {
       fc.assert(
         fc.property(fc.constantFrom(...themes), fc.constantFrom<"edge" | "focus">("edge", "focus"), (theme, key) => {
@@ -245,39 +207,11 @@ describe("contrast of text pairs", () => {
       css: stripComments(readFileSync(file, "utf8")),
     }));
 
-    it("never uses pumpkin-600 or divider-300 as a text color", () => {
+    it("never uses line-700 or midnight-line as a text color", () => {
       for (const { name, css } of files) {
-        const bad = [...css.matchAll(/(?<![-\w])color\s*:\s*var\(--(pumpkin-600|divider-300)\)/g)].map((m) => m[0]);
+        const bad = [...css.matchAll(/(?<![-\w])color\s*:\s*var\(--(line-700|midnight-line)\)/g)].map((m) => m[0]);
         expect(bad, name).toEqual([]);
       }
-    });
-
-    it("uses gold-500 as a text color only on the night shell (app.css, tower-950 ground)", () => {
-      for (const { name, css } of files) {
-        const uses = [...css.matchAll(/(?<![-\w])color\s*:\s*var\(--gold-500\)/g)];
-        if (name !== "app.css") expect(uses.length, name).toBe(0);
-      }
-    });
-
-    it("puts text on a pumpkin-600 background only for the primary CTA label (ink-900, large bold, ink border)", () => {
-      for (const { name, css } of files) {
-        for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-          const body = m[2] as string;
-          if (!/background(?:-color)?\s*:\s*var\(--pumpkin-600\)/.test(body)) continue;
-          const color = /(?<![-\w])color\s*:\s*var\(--([a-z]+-\d+)\)/.exec(body);
-          if (!color) continue; // a shape, not text
-          const selector = (m[1] as string).trim();
-          expect({ name, selector }).toEqual({ name: "base.css", selector: ".btn--primary" });
-          expect(color[1]).toBe("ink-900");
-          expect(body).toMatch(/font-size\s*:\s*var\(--text-cta\)/);
-          expect(body).toMatch(/font-weight\s*:\s*(?:7|8|9)00/);
-          expect(body).toMatch(/border\s*:\s*var\(--border-ink\)/);
-        }
-      }
-      const tokensCss = readCss("tokens.css");
-      // --text-cta is 1.25rem = 20px, above the 18.66px large bold threshold.
-      expect(/--text-cta\s*:\s*1\.25rem/.test(tokensCss)).toBe(true);
-      expect(1.25 * 16).toBeGreaterThanOrEqual(18.66);
     });
   });
 });

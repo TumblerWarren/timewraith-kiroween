@@ -18,8 +18,12 @@ export function CasesPage() {
     <article className="page" aria-labelledby="page-title">
       <header className="page__head page__head--row">
         <div>
+          <p className="midnight-kicker">
+            <span />
+            Investigation archive
+          </p>
           <h1 id="page-title" className="page__title" tabIndex={-1}>
-            {CASES.title}
+            <em>{CASES.title}</em>
           </h1>
           <p className="page__lead">{CASES.lead}</p>
         </div>

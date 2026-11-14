@@ -15,8 +15,12 @@ export function AboutPage() {
   return (
     <article className="page" aria-labelledby="page-title">
       <header className="page__head">
+        <p className="midnight-kicker">
+          <span />
+          Architecture &amp; verification
+        </p>
         <h1 id="page-title" className="page__title" tabIndex={-1}>
-          {ABOUT.title}
+          How TimeWraith <em>works</em>
         </h1>
         <p className="page__lead">{ABOUT.lead}</p>
       </header>
@@ -34,6 +38,10 @@ export function AboutPage() {
           </figure>
         </div>
         <div>
+          <p className="midnight-kicker">
+            <span />
+            The failure class
+          </p>
           <h2 id="lost-title" className="panel__title">
             {ABOUT.lostHourTitle}
           </h2>
@@ -43,16 +51,24 @@ export function AboutPage() {
       </section>
 
       <section className="section-block" aria-labelledby="flow-title">
-        <h2 id="flow-title">{ABOUT.flowTitle}</h2>
+        <div className="section-block__head">
+          <p className="midnight-kicker">
+            <span />
+            Investigation pipeline
+          </p>
+          <h2 id="flow-title" className="section-block__title">
+            {ABOUT.flowTitle}
+          </h2>
+        </div>
         <ol role="list" className="about-flow">
           {FLOW_STEPS.map((s) => (
             <li key={s.id} className="about-flow__step" data-kind={s.kind}>
               <span aria-hidden="true">
-                <Mascot id={s.lead} width={FIG.badge} decorative idle={false} actor={false} />
+                <Mascot id={s.lead} width={FIG.badge} decorative idle={false} />
               </span>
               <div>
                 <h3>
-                  <span className="about-flow__no">{s.followOn ? "+" : s.index}</span> {s.title}
+                  <span className="about-flow__no mono">{s.followOn ? "+" : `0${s.index}`}</span> {s.title}
                 </h3>
                 <p className="row__meta">
                   {s.kind === "kiro-agent" ? "Kiro agent" : "Code"} · {s.mascots.map((id) => CREW_BY_ID[id].name).join(", ")}
@@ -65,16 +81,24 @@ export function AboutPage() {
       </section>
 
       <section className="section-block" aria-labelledby="crew-title">
-        <h2 id="crew-title">{ABOUT.crewTitle}</h2>
-        <p className="page__lead">{ABOUT.crewLead}</p>
+        <div className="section-block__head">
+          <p className="midnight-kicker">
+            <span />
+            Agents &amp; sandboxes
+          </p>
+          <h2 id="crew-title" className="section-block__title">
+            {ABOUT.crewTitle}
+          </h2>
+          <p className="page__lead">{ABOUT.crewLead}</p>
+        </div>
         <ul role="list" className="crew-grid">
           {crew.map((m) => (
             <li key={m.id} className="crew-card" data-kind={m.kind}>
               <span aria-hidden="true">
-                <Mascot id={m.id} width={FIG.badge} decorative idle={false} actor={false} />
+                <Mascot id={m.id} width={FIG.badge} decorative idle={false} />
               </span>
               <h3 className="crew-card__name">{m.name}</h3>
-              <p className="crew-card__kind">{KIRO_AGENTS.has(m.id) ? "Kiro agent" : "Code"}</p>
+              <p className="crew-card__kind mono">{KIRO_AGENTS.has(m.id) ? "Kiro agent" : "Code"}</p>
               <p>{m.job}</p>
             </li>
           ))}
@@ -82,7 +106,15 @@ export function AboutPage() {
       </section>
 
       <section className="section-block section-block--paper" aria-labelledby="ladder-title">
-        <h2 id="ladder-title">{ABOUT.ladderTitle}</h2>
+        <div className="section-block__head">
+          <p className="midnight-kicker">
+            <span />
+            Verification standard
+          </p>
+          <h2 id="ladder-title" className="section-block__title">
+            {ABOUT.ladderTitle}
+          </h2>
+        </div>
         <EvidenceLadder />
       </section>
     </article>

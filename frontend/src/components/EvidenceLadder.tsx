@@ -1,10 +1,9 @@
 import { EVIDENCE_BY_ID, EVIDENCE_LADDER, INCONCLUSIVE, type EvidenceStatusId } from "../content/evidence";
 import { EvidenceShape } from "./EvidenceShape";
-import { stampTilt } from "./tilt";
 
 export interface EvidenceLadderProps {
   /**
-   * The rung reached at the current replay event (shared with `LadderStrip` through `view().ladderRung`).
+   * The rung reached at the current replay event.
    * Undefined: no rung is lit (a draft, or the ladder shown on its own).
    */
   readonly current?: EvidenceStatusId;
@@ -43,15 +42,14 @@ export function EvidenceLadder({ current }: EvidenceLadderProps = {}) {
               >
                 <EvidenceShape shape={status.shape} size={40} hollow={state === "ahead"} className="ladder__shape" />
                 <p className="ladder__status">
-                  {/* The rank is a small rubber stamp, each pressed at its own angle. */}
-                  <span className="ladder__rank stamp" style={stampTilt(`ladder-rank-${status.id}`)} aria-hidden="true">
-                    {status.rank}
+                  <span className="ladder__rank" aria-hidden="true">
+                    0{status.rank}
                   </span>
                   {status.label}
                   {state === "current" ? (
                     <>
                       <span className="visually-hidden">, current rung</span>
-                      <span className="ladder__now stamp" style={stampTilt(`ladder-now-${status.id}`, 3)} aria-hidden="true">
+                      <span className="ladder__now" aria-hidden="true">
                         now
                       </span>
                     </>

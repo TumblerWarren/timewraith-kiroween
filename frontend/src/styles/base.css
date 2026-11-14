@@ -1,4 +1,4 @@
-/* Reset, typography, focus ring, motion switches, utilities. Colors come from tokens only. */
+/* Reset, Violet Midnight base typography, focus ring, buttons, reduce-motion switches. Colors come from tokens only. */
 
 *,
 *::before,
@@ -11,13 +11,12 @@
 }
 
 html {
-  background: var(--tower-950);
-  color-scheme: normal;
+  background: var(--midnight-surface);
+  color-scheme: dark;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   scroll-behavior: smooth;
   scroll-padding-top: var(--nav-h);
-  /* Overflow is clipped, not hidden, so position: sticky keeps working. */
   overflow-x: clip;
 }
 
@@ -31,9 +30,13 @@ body {
   font-size: var(--text-base);
   font-weight: 400;
   line-height: var(--leading-body);
-  font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--midnight-violet);
+  color: var(--midnight-panel);
 }
 
 img,
@@ -80,27 +83,40 @@ ol[role="list"] {
 /* ---- Typography ---- */
 
 h1,
-h2,
-h3,
-h4 {
-  font-family: var(--font-display);
-  /* IM Fell English ships 400 only and font-synthesis is off, so headings are never bold (visual revision R2). */
-  font-weight: 400;
-  line-height: var(--leading-tight);
-  text-wrap: balance;
+h2 {
+  color: var(--midnight-ink);
+  font-family: var(--font-midnight-display);
+  font-style: italic;
+  font-weight: 800;
+  font-synthesis: none;
+  letter-spacing: -0.025em;
 }
 
 h1 {
   font-size: var(--text-display);
+  line-height: var(--leading-display);
 }
 
 h2 {
   font-size: var(--text-h2);
+  line-height: var(--leading-tight);
 }
 
-h3 {
+h1 em,
+h2 em {
+  color: var(--midnight-violet);
+  font-style: inherit;
+}
+
+h3,
+h4 {
+  color: var(--midnight-ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
   font-size: var(--text-xl);
   line-height: var(--leading-snug);
+  text-wrap: balance;
 }
 
 p,
@@ -113,14 +129,14 @@ small,
   font-size: var(--text-sm);
 }
 
-/* Evidence values and timestamps use JetBrains Mono (Requirement 12.5). */
+/* Evidence values and timestamps use JetBrains Mono. */
 code,
 kbd,
 samp,
 time,
 .mono {
   font-family: var(--font-mono);
-  font-size: 0.94em;
+  font-size: 0.92em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -128,26 +144,63 @@ time,
   color: var(--fg-muted);
 }
 
-/* Links are marked by an underline, not by color alone (Requirement 11.10). */
 a {
   color: inherit;
   text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+  transition: color 160ms ease-out;
 }
 
-/* ---- Focus ring (Requirement 11.2): gold-500 on dark themes, ink-900 on light themes via --focus-color ---- */
+a:hover {
+  color: var(--midnight-bright);
+}
+
+/* ---- Shared Violet Midnight kicker & arrow ---- */
+
+.midnight-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--midnight-violet);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase; /* allow-uppercase */
+}
+
+.midnight-kicker span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--midnight-violet);
+  flex: none;
+}
+
+.midnight-arrow {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
+/* ---- Focus ring ---- */
 
 :focus {
   outline: none;
 }
 
 :focus-visible {
-  outline: 3px solid var(--focus-color);
-  outline-offset: 3px;
+  outline: 2px solid var(--focus-color);
+  outline-offset: 4px;
 }
 
-/* ---- Buttons ---- */
+h1:focus {
+  outline: none;
+}
+
+/* ---- Buttons (unified with landing page .midnight-submit & .midnight-quiet) ---- */
 
 .btn {
   display: inline-flex;
@@ -155,45 +208,70 @@ a {
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--target-min);
-  min-width: var(--target-min);
-  padding: var(--space-3) var(--space-5);
-  border: 2px solid var(--edge);
+  padding: 10px 16px;
+  border: 1px solid var(--midnight-line);
   border-radius: var(--radius);
-  background: transparent;
-  color: var(--fg);
+  background: var(--midnight-panel);
+  color: var(--midnight-ink);
   font-family: var(--font-ui);
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: var(--leading-snug);
   text-align: center;
   text-decoration: none;
-  box-shadow: var(--shadow-card);
-  transition: transform 120ms var(--ease-snap);
+  white-space: nowrap;
+  transition:
+    background 180ms ease-out,
+    border-color 180ms ease-out,
+    color 180ms ease-out,
+    transform 120ms ease-out;
 }
 
 .btn:hover {
-  transform: translate(-1px, -1px);
+  border-color: var(--midnight-violet);
+  color: var(--midnight-bright);
 }
 
 .btn:active {
-  transform: translate(2px, 2px);
+  transform: scale(0.985);
 }
 
-/* Primary CTA: ink-900 on pumpkin-600 is 3.60:1, so the label is large bold text with a 2px ink-900 border. */
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .btn--primary {
-  min-height: 56px;
-  padding-inline: var(--space-6);
-  border: var(--border-ink);
-  background: var(--pumpkin-600);
-  color: var(--ink-900);
+  border-color: transparent;
+  background: var(--midnight-violet);
+  color: var(--night-900);
   font-size: var(--text-cta);
   font-weight: 700;
 }
 
-/* A control that is visually small still gets a 44px hit area. */
-.touch-target {
-  position: relative;
+.btn--primary:hover {
+  border-color: transparent;
+  background: var(--midnight-bright);
+  color: var(--night-900);
+}
+
+.btn--small {
   min-height: var(--target-min);
-  min-width: var(--target-min);
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+}
+
+.btn--quiet {
+  background: transparent;
+  border-color: var(--midnight-line);
+  color: var(--midnight-muted);
+}
+
+.btn--quiet:hover {
+  background: var(--midnight-elevated);
+  border-color: var(--midnight-violet);
+  color: var(--midnight-ink);
 }
 
 /* ---- Utilities ---- */
@@ -217,40 +295,21 @@ a {
   z-index: var(--z-skip);
   padding: var(--space-3) var(--space-5);
   min-height: var(--target-min);
-  border: var(--border-ink);
+  border: 1px solid var(--midnight-violet);
   border-radius: var(--radius);
-  background: var(--paper-100);
-  color: var(--ink-900);
+  background: var(--midnight-panel);
+  color: var(--midnight-ink);
+  font-size: var(--text-sm);
   font-weight: 600;
-  box-shadow: var(--shadow-ink);
+  text-decoration: none;
   transform: translateY(calc(-100% - var(--space-4)));
 }
 
 .skip-link:focus,
 .skip-link:focus-visible {
   transform: none;
-  outline: 3px solid var(--gold-500);
-  outline-offset: 3px;
-}
-
-/* ---- Idle loops (breathing, blinking): only under .idle-loop. The director owns both attributes. ---- */
-
-@keyframes idle-breathe {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -3px;
-  }
-}
-
-.idle-loop {
-  animation: idle-breathe 4.8s var(--ease-ink) infinite;
-}
-
-html[data-ambient="paused"] .idle-loop {
-  animation-play-state: paused;
+  outline: 2px solid var(--midnight-bright);
+  outline-offset: 4px;
 }
 
 /* ---- Reduce Motion (site toggle, overrides the OS setting in both directions) ---- */
@@ -259,11 +318,6 @@ html[data-reduce-motion="true"] {
   scroll-behavior: auto;
 }
 
-html[data-reduce-motion="true"] .idle-loop {
-  animation: none;
-}
-
-/* Everything settles to its final state; only an opacity fade of at most --reduced-fade remains. */
 html[data-reduce-motion="true"] *,
 html[data-reduce-motion="true"] *::before,
 html[data-reduce-motion="true"] *::after {

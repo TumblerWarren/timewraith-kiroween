@@ -1,12 +1,10 @@
-/* Style entry point. Order matters: tokens, fonts, base, layout, paper, then components and the app pages. */
+/* Style entry point. Order matters: tokens, fonts, base, layout, components, then forms and pages. */
 @import "./tokens.css";
 @import "./fonts.css";
 @import "./base.css";
 @import "./layout.css";
-@import "./paper.css";
 @import "./components.css";
 @import "./clock.css";
-@import "./sprites.css";
 @import "./rig.css";
 @import "./form.css";
 @import "./app.css";

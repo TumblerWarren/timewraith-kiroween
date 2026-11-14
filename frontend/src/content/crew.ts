@@ -1,9 +1,8 @@
 import type { MascotId } from "../mascots/ids";
-import type { SectionId } from "./nodes";
 
 /**
  * The 14 Mascots (Requirement 4.1, decision D15). The id union lives in `mascots/ids.ts` (single source of truth)
- * and is re-exported here. `sections` follows the design's per-region mascot table.
+ * and is re-exported here.
  */
 export { MASCOT_IDS } from "../mascots/ids";
 export type { MascotId } from "../mascots/ids";
@@ -17,10 +16,6 @@ export interface CrewMember {
   readonly name: string;
   readonly tier: MascotTier;
   readonly kind: MascotKind;
-  /** Board regions in which the mascot appears on stage (design: per-region mascot assignment). */
-  readonly sections: readonly SectionId[];
-  /** True for the overlay companions that also roam the whole board. */
-  readonly roams: boolean;
   /** One line describing its job (Requirement 3.5). */
   readonly job: string;
 }
@@ -31,8 +26,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Wraith Director",
     tier: 1,
     kind: "agent",
-    sections: ["open", "crew", "flow"],
-    roams: false,
     job: "Clones the pinned commit and runs the investigation from start to end.",
   },
   {
@@ -40,8 +33,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Watchtower Warden",
     tier: 1,
     kind: "agent",
-    sections: ["open", "crew", "flow"],
-    roams: false,
     job: "Holds the queue, waits for your plan approval and enforces the limits.",
   },
   {
@@ -49,8 +40,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Bat Scout",
     tier: 1,
     kind: "agent",
-    sections: ["case", "crew", "flow"],
-    roams: false,
     job: "Kiro agent: reads the scan results and keeps the time-sensitive code worth testing.",
   },
   {
@@ -58,8 +47,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Pumpkin Mechanic",
     tier: 1,
     kind: "agent",
-    sections: ["case", "crew", "flow"],
-    roams: false,
     job: "Kiro agent: writes a small adapter for each experiment and picks the rules it must keep.",
   },
   {
@@ -67,8 +54,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Raven Archivist",
     tier: 1,
     kind: "agent",
-    sections: ["case", "crew", "flow", "close"],
-    roams: false,
     job: "Kiro agent: judges each reproduced violation and blind-reviews every fix.",
   },
   {
@@ -76,8 +61,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Doctor Stitch",
     tier: 1,
     kind: "agent",
-    sections: ["case", "crew", "flow"],
-    roams: false,
     job: "Kiro agent: writes a fix, which counts only after it passes eight gates.",
   },
   {
@@ -85,8 +68,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Gargoyle Gatekeeper",
     tier: 2,
     kind: "system",
-    sections: ["crew", "flow"],
-    roams: false,
     job: "Reads the manifests, lockfile and test setup and says what the repository supports.",
   },
   {
@@ -94,8 +75,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Cauldron Cat",
     tier: 2,
     kind: "system",
-    sections: ["crew", "flow"],
-    roams: false,
     job: "Runs the Docker sandbox: no network after install, 2 CPUs, 4 GB.",
   },
   {
@@ -103,8 +82,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Spider Weaver",
     tier: 2,
     kind: "system",
-    sections: ["case", "crew", "flow"],
-    roams: false,
     job: "Sweeps thousands of clock settings through each adapter in thirteen time zones.",
   },
   {
@@ -112,8 +89,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Mummy Wrapper",
     tier: 2,
     kind: "system",
-    sections: ["crew", "flow"],
-    roams: false,
     job: "Keeps the record of every run, decision and piece of evidence.",
   },
   {
@@ -121,8 +96,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Two-Faced Jack",
     tier: 2,
     kind: "system",
-    sections: ["case", "crew", "flow"],
-    roams: false,
     job: "Searches the public issues to tell a known bug from a new one.",
   },
   {
@@ -130,8 +103,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Skeleton Scribe",
     tier: 2,
     kind: "system",
-    sections: ["library", "crew", "flow", "close"],
-    roams: false,
     job: "Bundles the accepted fix with its regression test as a patch.",
   },
   {
@@ -139,8 +110,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Mini Bat",
     tier: 1,
     kind: "companion",
-    sections: ["open", "lost-hour", "library", "case", "crew"],
-    roams: true,
     job: "Keeps watch on the board.",
   },
   {
@@ -148,8 +117,6 @@ export const CREW: readonly CrewMember[] = [
     name: "Mini Ghost",
     tier: 1,
     kind: "companion",
-    sections: ["lost-hour", "crew"],
-    roams: true,
     job: "Haunts the lost hour.",
   },
 ];

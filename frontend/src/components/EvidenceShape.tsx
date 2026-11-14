@@ -8,10 +8,10 @@ import { inkPath, type InkPoint } from "../mascots/placeholder/inkPath";
  * ink-900. All shapes share one 48 x 48 box so a row of them lines up.
  */
 
-const INK = "var(--ink-900)";
-const PAPER = "var(--paper-100)";
-const SAGE = "var(--sage-700)";
-const BRICK = "var(--brick-700)";
+const INK = "var(--ink-300)";
+const PAPER = "var(--night-950)";
+const SAGE = "var(--mint-300)";
+const BRICK = "var(--rose-300)";
 
 const ring = (cx: number, cy: number, r: number, n: number): InkPoint[] =>
   Array.from({ length: n }, (_, i) => {

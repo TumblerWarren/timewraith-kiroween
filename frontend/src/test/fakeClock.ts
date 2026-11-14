@@ -1,10 +1,11 @@
-import type { DirectorClock } from "../animation/director/types";
-
 /**
- * Deterministic clock for director and effect tests. Time moves only through `advance` / `advanceTo`;
+ * Deterministic clock for tests. Time moves only through `advance` / `advanceTo`;
  * due timers fire in time order (FIFO for equal times), including timers scheduled by earlier callbacks.
  */
-export interface FakeClock extends DirectorClock {
+export interface FakeClock {
+  now(): number;
+  setTimeout(fn: () => void, ms: number): number;
+  clearTimeout(id: number): void;
   advance(ms: number): void;
   advanceTo(t: number): void;
   /** Fires every pending timer (bounded, in case callbacks keep scheduling). */

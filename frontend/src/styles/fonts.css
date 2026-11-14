@@ -1,38 +1,31 @@
 /*
- * Self-hosted fonts (visual revision R2). Fontsource declares every face with `font-display: swap` and split
- * unicode-ranges, so only the latin file is fetched for English text.
- *   - IM Fell English (headings and display): static 400 roman and 400 italic. There is no bold, and base.css sets
- *     `font-synthesis: none`, so headings are always weight 400; hierarchy comes from size, italics and spacing.
- *   - Libre Franklin (interface and body): variable weight axis 100 to 900, roman only.
- *   - JetBrains Mono (timestamps and evidence values): variable weight axis.
- * vite.config.ts (fontPreload) injects preload links for the IM Fell English roman and Libre Franklin latin files.
- * JetBrains Mono and the Fell italic are not above the fold and are not preloaded.
+ * Self-hosted fonts for the unified Violet Midnight UI:
+ *   - Barlow Condensed (display headings h1/h2): 800 italic.
+ *   - IM Fell English (body, UI, subheadings h3/h4): static 400 roman and 400 italic.
+ *   - JetBrains Mono (timestamps, code, and evidence values): variable weight axis.
+ * vite.config.ts (fontPreload) injects preload links for the above-the-fold latin files.
  */
 @import "@fontsource/im-fell-english/latin-400.css";
 @import "@fontsource/im-fell-english/latin-400-italic.css";
-@import "@fontsource-variable/libre-franklin/wght.css";
 @import "@fontsource-variable/jetbrains-mono/wght.css";
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: italic;
+  font-weight: 800;
+  font-display: swap;
+  src: url("../assets/cinematic/barlow-condensed-800-italic.ttf") format("truetype");
+}
 
 /*
  * Fallback faces: a local system font scaled to roughly the width of the web font, so the swap moves text as
  * little as possible. Line heights are set explicitly in base.css, so ascent and descent overrides are not needed.
- * Measured with Pillow on one sample sentence at 100px (tools run 2026-11-10):
- *   IM Fell English 400 advances 92% of Georgia: size-adjust 92%.
- *   Libre Franklin 400 advances 105% of Arial: size-adjust 105%.
- *   JetBrains Mono advances 0.6em and Consolas 0.55em: 0.6 / 0.55 = 109%.
  */
 @font-face {
   font-family: "IM Fell English Fallback";
   src: local("Georgia");
   font-display: swap;
   size-adjust: 92%;
-}
-
-@font-face {
-  font-family: "Libre Franklin Fallback";
-  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
-  font-display: swap;
-  size-adjust: 105%;
 }
 
 @font-face {

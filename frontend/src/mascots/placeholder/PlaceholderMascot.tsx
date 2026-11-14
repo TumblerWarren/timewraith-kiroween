@@ -12,17 +12,17 @@ import { inkPath, mapPoints, mirrorX, seededRandom, type InkPoint } from "./inkP
  * With zero images on disk the whole page still builds and lays out with these (Requirements 4.8, 14.2).
  */
 
-const INK = "var(--ink-900)";
-const PAPER = "var(--paper-100)";
-const PARCH = "var(--parchment-200)";
-const MOON = "var(--moon-200)";
-const MIST = "var(--mist-300)";
-const STONE = "var(--divider-300)";
-const WALNUT = "var(--walnut-700)";
-const PUMPKIN = "var(--pumpkin-600)";
-const GOLD = "var(--gold-500)";
-const SAGE = "var(--sage-700)";
-const BRICK = "var(--brick-700)";
+const INK = "var(--night-950)";
+const PAPER = "var(--ink-50)";
+const PARCH = "var(--violet-200)";
+const MOON = "var(--ink-300)";
+const MIST = "var(--ink-300)";
+const STONE = "var(--line-700)";
+const WALNUT = "var(--night-850)";
+const PUMPKIN = "var(--violet-300)";
+const GOLD = "var(--amber-300)";
+const SAGE = "var(--mint-300)";
+const BRICK = "var(--rose-300)";
 
 const SW = 3;
 

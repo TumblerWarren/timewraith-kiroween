@@ -3,7 +3,6 @@ import { useReadiness } from "../app/SetupProvider";
 import { StatusPill } from "../app/StatusPill";
 import { CrewSetup } from "../components/CrewSetup";
 import { CrewAwakening, UmbrellaGhost } from "../components/cinematic/CrewAwakening";
-import { SETUP } from "../content/copy";
 import { SETUP_STATES, setupChecks } from "../data/setup-checklist";
 
 /** `#/crew`: the three setup steps with their actions, then what the backend reports about this machine. */
@@ -15,9 +14,14 @@ export function CrewPage() {
   return (
     <article className="page crew-page" aria-labelledby="page-title">
       <header className="crew-page__hero">
-        <div>
+        <div className="page__head">
+          <p className="midnight-kicker">
+            <span />
+            Local runtime &amp; Docker sandbox
+          </p>
           <h1 id="page-title" className="page__title" tabIndex={-1}>
-            {SETUP.title}
+            Set up the <em>Crew</em> <br />
+            on this machine
           </h1>
           <p className="page__lead">
             Investigations run Kiro agents inside the Kiro Crew container and the repository's code inside separate Docker sandboxes. Nothing is installed on this
@@ -71,7 +75,9 @@ export function CrewPage() {
                 </div>
                 <div>
                   <dt>Bugs fixed</dt>
-                  <dd>up to {limits.bugs_to_fix}, with {limits.fix_attempts} attempts each</dd>
+                  <dd>
+                    up to {limits.bugs_to_fix}, with {limits.fix_attempts} attempts each
+                  </dd>
                 </div>
               </dl>
             </section>

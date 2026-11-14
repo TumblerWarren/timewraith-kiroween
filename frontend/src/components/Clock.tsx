@@ -95,8 +95,8 @@ export function Clock({ hours = 23, minutes = 59, id = "clock", className, label
   const time = formatClockTime(hours, minutes);
   const angles = clockHandAngles(hours, minutes);
   const hands = [
-    { name: "hour", angle: angles.hour, d: HOUR_HAND, fill: "var(--pumpkin-600)" },
-    { name: "minute", angle: angles.minute, d: MINUTE_HAND, fill: "var(--ink-900)" },
+    { name: "hour", angle: angles.hour, d: HOUR_HAND, fill: "var(--violet-300)" },
+    { name: "minute", angle: angles.minute, d: MINUTE_HAND, fill: "var(--ink-50)" },
   ] as const;
 
   return (
@@ -108,24 +108,24 @@ export function Clock({ hours = 23, minutes = 59, id = "clock", className, label
       data-clock-time={time}
     >
       <svg className="clock__face" viewBox="0 0 200 200" width={200} height={200} focusable="false" aria-hidden="true">
-        <path d={FACE.shadow} fill="var(--walnut-700)" />
-        <path d={FACE.bezel} fill="var(--gold-500)" stroke="var(--ink-900)" strokeWidth={4} strokeLinejoin="round" />
-        <path d={FACE.dial} fill="var(--paper-100)" stroke="var(--ink-900)" strokeWidth={3} strokeLinejoin="round" />
+        <path d={FACE.shadow} fill="var(--night-950)" />
+        <path d={FACE.bezel} fill="var(--night-850)" stroke="var(--violet-300)" strokeWidth={4} strokeLinejoin="round" />
+        <path d={FACE.dial} fill="var(--night-900)" stroke="var(--line-700)" strokeWidth={3} strokeLinejoin="round" />
         {FACE.rivets.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r={4.5} fill="var(--pumpkin-600)" stroke="var(--ink-900)" strokeWidth={2} />
+          <circle key={i} cx={x} cy={y} r={4.5} fill="var(--violet-300)" stroke="var(--night-950)" strokeWidth={2} />
         ))}
         {FACE.ticks.map((t, i) => (
           <path
             key={i}
             d={t.d}
             fill="none"
-            stroke="var(--ink-900)"
+            stroke="var(--ink-300)"
             strokeWidth={t.major ? 4 : 2.5}
             strokeLinecap="round"
           />
         ))}
         <g transform={`translate(${C} 134)`}>
-          <path d={FACE.bat} fill="var(--walnut-700)" stroke="var(--ink-900)" strokeWidth={1.5} strokeLinejoin="round" />
+          <path d={FACE.bat} fill="var(--violet-300)" stroke="var(--night-950)" strokeWidth={1.5} strokeLinejoin="round" />
         </g>
       </svg>
       <svg className="clock__hands" viewBox="0 0 200 200" width={200} height={200} focusable="false" aria-hidden="true">
@@ -138,10 +138,10 @@ export function Clock({ hours = 23, minutes = 59, id = "clock", className, label
             data-angle={h.angle}
             style={{ transform: `rotate(${h.angle}deg)` }}
           >
-            <path d={h.d} fill={h.fill} stroke="var(--ink-900)" strokeWidth={3} strokeLinejoin="round" />
+            <path d={h.d} fill={h.fill} stroke="var(--night-950)" strokeWidth={3} strokeLinejoin="round" />
           </g>
         ))}
-        <circle cx={C} cy={C} r={7} fill="var(--gold-500)" stroke="var(--ink-900)" strokeWidth={3} data-clock-hub="" />
+        <circle cx={C} cy={C} r={7} fill="var(--violet-200)" stroke="var(--night-950)" strokeWidth={3} data-clock-hub="" />
       </svg>
     </div>
   );

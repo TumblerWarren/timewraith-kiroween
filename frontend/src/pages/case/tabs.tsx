@@ -356,7 +356,7 @@ function BugFix({ bug, invId, onChanged }: { readonly bug: Bug; readonly invId: 
     <li className="row row--bug" data-fix-state={bug.fix.state}>
       <div className="row__headline">
         <span aria-hidden="true">
-          <Mascot id="doctor-stitch" width={FIG.avatar} decorative idle={false} actor={false} />
+          <Mascot id="doctor-stitch" width={FIG.avatar} decorative idle={false} />
         </span>
         <h4 className="row__title">{bug.title}</h4>
         <span className="fix-state" data-fix-state={bug.fix.state}>

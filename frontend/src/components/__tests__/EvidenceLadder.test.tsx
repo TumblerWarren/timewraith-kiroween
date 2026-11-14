@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { EVIDENCE_LADDER, EVIDENCE_STATUSES, INCONCLUSIVE } from "../../content/evidence";
 import { EvidenceLadder } from "../EvidenceLadder";
-import { LadderStrip } from "../LadderStrip";
 
 describe("EvidenceLadder (Requirements 8.1, 8.2, 8.3, 8.6)", () => {
   it("lists the five rungs in order in one <ol>, lowest first", () => {
@@ -44,12 +43,10 @@ describe("EvidenceLadder (Requirements 8.1, 8.2, 8.3, 8.6)", () => {
     expect(shapes).toEqual(EVIDENCE_STATUSES.map((s) => s.shape));
     expect(new Set(shapes).size).toBe(6);
   });
-});
 
-describe("LadderStrip", () => {
   it.each(EVIDENCE_LADDER)("marks only the $label rung as current and the lower rungs as reached", (status) => {
-    const { container } = render(<LadderStrip current={status.id} />);
-    const rungs = Array.from(container.querySelectorAll("li.ladder-strip__rung"));
+    const { container } = render(<EvidenceLadder current={status.id} />);
+    const rungs = Array.from(container.querySelectorAll("li.ladder__rung"));
     expect(rungs).toHaveLength(5);
     const current = rungs.filter((r) => r.getAttribute("aria-current") === "step");
     expect(current.map((r) => r.getAttribute("data-status"))).toEqual([status.id]);
@@ -58,8 +55,8 @@ describe("LadderStrip", () => {
   });
 
   it("marks no rung as current for Inconclusive and highlights the separate block instead", () => {
-    const { container } = render(<LadderStrip current="inconclusive" />);
+    const { container } = render(<EvidenceLadder current="inconclusive" />);
     expect(container.querySelectorAll('li[aria-current="step"]')).toHaveLength(0);
-    expect(container.querySelector(".ladder-strip__other")).toHaveAttribute("data-state", "current");
+    expect(container.querySelector(".ladder__inconclusive")).toHaveAttribute("data-state", "current");
   });
 });

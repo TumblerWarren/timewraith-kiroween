@@ -13,7 +13,7 @@ export function StatusBanner({ state, children }: { readonly state: CaseState; r
   return (
     <section className="banner" data-state={state.id} aria-labelledby="case-status" aria-live="polite">
       <div className="banner__figure" aria-hidden="true">
-        <Mascot id={state.mascot} width={FIG.badge} decorative idle={state.id === "running"} actor={false} />
+        <Mascot id={state.mascot} width={FIG.badge} decorative idle={state.id === "running"} />
       </div>
       <div className="banner__text">
         <h2 id="case-status" className="banner__title">
@@ -92,7 +92,7 @@ export function Stepper({ states, inv }: { readonly states: Readonly<Record<Flow
               {MARK[st]}
             </span>
             <span className="stepper__fig" aria-hidden="true">
-              <Mascot id={step.lead} width={FIG.avatar} decorative idle={false} actor={false} />
+              <Mascot id={step.lead} width={FIG.avatar} decorative idle={false} />
             </span>
             <span className="stepper__title">{step.sign}</span>
             <span className="stepper__state">

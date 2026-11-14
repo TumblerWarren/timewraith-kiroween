@@ -5,7 +5,6 @@ import { ApiError } from "../../api/client";
 import { FORM_HINTS, FORM_LABELS, FORM_LIMIT_REACHED, FORM_NOTE_OFFLINE, FORM_NOTE_ONLINE, FORM_SUBMIT } from "../../content/form";
 import { CASE_MODE_BY_ID, type CaseModeId } from "../../content/modes";
 import { useCaseActions } from "../actions";
-import { onTextInputFocus } from "../motionHooks";
 import { ErrorSummary } from "./ErrorSummary";
 import { ModeField } from "./ModeField";
 import { TargetFields } from "./TargetFields";
@@ -55,11 +54,8 @@ export function OpenCaseForm({ initial, labelledBy = "open-case-title" }: OpenCa
     onChange: setValue,
     onFocus: (id: FieldId, value: string) => {
       focusValue.current[id] = value;
-      // The director sets `suppressed.input` while a text input has focus.
-      onTextInputFocus(true);
     },
     onBlur: (id: FieldId, value: string) => {
-      onTextInputFocus(false);
       if (focusValue.current[id] === value) return;
       const next = { ...values, [id]: value };
       const error = validateField(id, next);

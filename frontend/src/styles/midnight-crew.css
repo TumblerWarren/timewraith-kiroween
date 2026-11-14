@@ -1,141 +1,184 @@
-body:has(.crew-page) {
-  background: var(--midnight-surface);
-  color: var(--midnight-ink);
-  --focus-color: var(--midnight-violet);
-}
-
-body:has(.crew-page) :is(.appbar, .footer) {
-  background: var(--midnight-surface);
-  border-color: var(--midnight-line);
-}
-
-body:has(.crew-page) .appbar__nav a[aria-current="page"] {
-  color: var(--midnight-violet);
-}
+/*
+ * Crew setup page (#/crew): hero split with the animated UmbrellaGhost character
+ * and the CrewAwakening eye entrance modal. Typography, colors, panels, and buttons
+ * come from the shared Violet Midnight stylesheet modules.
+ */
 
 .crew-page__hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-5);
-  padding: var(--space-4) 0;
+  padding-block: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--midnight-rule);
 }
 
-.crew-page .page__title {
-  font: italic 800 clamp(3.4rem, 6vw, 5.5rem)/.94 var(--font-midnight-display);
-  letter-spacing: -.025em;
-  margin-bottom: var(--space-4);
+.crew-page__hero .page__head {
+  padding-block: 0;
+  border-bottom: 0;
 }
 
-.crew-page .page__lead {
-  max-width: 52ch;
-  color: var(--midnight-muted);
+.crew-ghost {
+  width: min(100%, 370px);
+  justify-self: center;
+  pointer-events: none;
 }
 
-.crew-page .split { align-items: start; }
-
-.crew-page :is(.sheet, .panel),
-.crew-page .status-pill,
-body:has(.crew-page) .appbar__ready {
-  --fg: var(--midnight-ink);
-  --fg-muted: var(--midnight-muted);
-  --focus-color: var(--midnight-violet);
-  --rule: var(--midnight-line);
-  background: var(--midnight-panel);
-  color: var(--midnight-ink);
-  border: 1px solid var(--midnight-line);
-  box-shadow: none;
+.crew-ghost svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.crew-page .panel__title {
-  font: italic 800 var(--text-xl)/1.1 var(--font-midnight-display);
-}
-
-.crew-page :is(.crew-setup__state, .row__meta) { color: var(--midnight-muted); }
-.crew-page .crew-setup__step { border-color: var(--midnight-line); }
-.crew-page .crew-setup__device { border-color: var(--midnight-line); }
-.crew-page .crew-setup__step[data-state="done"] :is(.crew-setup__mark, .crew-setup__state) { color: var(--midnight-success); }
-.crew-page :is(.crew-setup__error, .checks > li[data-state="fail"] strong) { color: var(--midnight-error); }
-.crew-page .checks__mark { border-color: var(--midnight-muted); }
-
-.crew-page .btn {
-  background: var(--midnight-violet);
-  color: var(--midnight-panel);
-  border: 1px solid transparent;
-  box-shadow: none;
-}
-.crew-page .btn:hover { background: var(--midnight-bright); }
-.crew-page .btn--quiet { background: transparent; color: var(--midnight-ink); border-color: var(--midnight-line); }
-.crew-page .btn--quiet:hover { background: var(--midnight-line); }
-
-.crew-ghost { width: min(100%, 370px); justify-self: center; pointer-events: none; }
-.crew-ghost svg { display: block; width: 100%; height: auto; }
 .crew-ghost .ghost-body {
   transform-origin: 320px 350px;
   animation: crew-float 7s ease-in-out infinite;
 }
+
 .crew-ghost .eyelid {
   transform-origin: 120px 80px;
   animation: crew-blink 8s infinite;
 }
+
 .crew-ghost[data-busy="true"] .iris {
   transform-origin: 120px 80px;
   animation: crew-spin 1.15s linear infinite;
 }
-.crew-ghost:not([data-moving="true"]) :is(.ghost-body, .eyelid, .iris) { animation-play-state: paused; }
+
+.crew-ghost:not([data-moving="true"]) :is(.ghost-body, .eyelid, .iris) {
+  animation-play-state: paused;
+}
 
 .crew-awakening[open] {
   display: grid;
   place-items: center;
   animation: crew-awakening-exit 4.7s both;
 }
-.crew-awakening::backdrop { background: transparent; }
-.crew-awakening__eye { width: min(340px, 65vw); }
-.crew-awakening__eye svg { display: block; width: 100%; }
-.crew-awakening__eye :is(.eyelid, .iris) { transform-origin: 120px 80px; }
-.crew-awakening__eye .eyelid { animation: crew-eye-opening 3.8s both; }
-.crew-awakening__eye .iris { animation: crew-eye-turn 3.8s both; }
+
+.crew-awakening::backdrop {
+  background: transparent;
+}
+
+.crew-awakening__eye {
+  width: min(340px, 65vw);
+}
+
+.crew-awakening__eye svg {
+  display: block;
+  width: 100%;
+}
+
+.crew-awakening__eye :is(.eyelid, .iris) {
+  transform-origin: 120px 80px;
+}
+
+.crew-awakening__eye .eyelid {
+  animation: crew-eye-opening 3.8s both;
+}
+
+.crew-awakening__eye .iris {
+  animation: crew-eye-turn 3.8s both;
+}
+
 .crew-awakening__caption {
   position: absolute;
   top: calc(50% + min(125px, 24vw));
   margin: 0;
   color: var(--midnight-muted);
   font: 12px var(--font-ui);
-  letter-spacing: .18em;
+  letter-spacing: 0.18em;
   animation: crew-eye-caption 3.8s both;
 }
-.crew-awakening .cinema__controls { justify-content: end; }
-.crew-awakening__replay { margin-top: var(--space-2); }
+
+.crew-awakening__replay {
+  margin-top: var(--space-1);
+}
 
 @keyframes crew-float {
-  0%, 100% { transform: translateY(0) rotate(-2deg); }
-  50% { transform: translateY(-17px) rotate(2deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-17px) rotate(2deg);
+  }
 }
+
 @keyframes crew-blink {
-  0%, 42%, 46%, 100% { transform: scaleY(1); }
-  44% { transform: scaleY(.03); }
+  0%,
+  42%,
+  46%,
+  100% {
+    transform: scaleY(1);
+  }
+  44% {
+    transform: scaleY(0.03);
+  }
 }
-@keyframes crew-spin { to { transform: rotate(360deg); } }
+
+@keyframes crew-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes crew-eye-opening {
-  0%, 17% { transform: scaleY(0); }
-  36%, 66% { transform: scaleY(1); }
-  83%, 100% { transform: scaleY(0); }
+  0%,
+  17% {
+    transform: scaleY(0);
+  }
+  36%,
+  66% {
+    transform: scaleY(1);
+  }
+  83%,
+  100% {
+    transform: scaleY(0);
+  }
 }
+
 @keyframes crew-eye-turn {
-  0%, 38% { transform: rotate(-30deg); }
-  70%, 100% { transform: rotate(330deg); }
+  0%,
+  38% {
+    transform: rotate(-30deg);
+  }
+  70%,
+  100% {
+    transform: rotate(330deg);
+  }
 }
+
 @keyframes crew-eye-caption {
-  0%, 25%, 80%, 100% { opacity: 0; }
-  40%, 65% { opacity: 1; }
+  0%,
+  25%,
+  80%,
+  100% {
+    opacity: 0;
+  }
+  40%,
+  65% {
+    opacity: 1;
+  }
 }
+
 @keyframes crew-awakening-exit {
-  0%, 83% { opacity: 1; }
-  100% { opacity: 0; }
+  0%,
+  83% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 @media (max-width: 650px) {
-  .crew-page__hero { grid-template-columns: 1fr; gap: 0; }
-  .crew-ghost { width: min(58vw, 215px); grid-row: 1; }
-  .crew-page .page__title { font-size: clamp(2.85rem, 12vw, 4rem); }
+  .crew-page__hero {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .crew-ghost {
+    width: min(58vw, 215px);
+    grid-row: 1;
+  }
 }

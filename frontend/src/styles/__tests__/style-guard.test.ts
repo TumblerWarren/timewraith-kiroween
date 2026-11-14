@@ -28,7 +28,7 @@ function runGuard(files: Record<string, string>) {
 
 describe("style guard rule uppercase-label (visual revision R1, Requirement 12.11)", () => {
   it("flags text-transform: uppercase in CSS with file, line and rule, and exits 2", () => {
-    const { status, out } = runGuard({ "a.css": ".label {\n  color: var(--ink-900);\n  text-transform: uppercase;\n}\n" });
+    const { status, out } = runGuard({ "a.css": ".label {\n  color: var(--ink-50);\n  text-transform: uppercase;\n}\n" });
     expect(status).toBe(2);
     expect(out).toMatch(/frontend\/src\/a\.css:3 uppercase-label /);
   });

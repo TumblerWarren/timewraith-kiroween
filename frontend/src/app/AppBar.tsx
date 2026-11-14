@@ -1,43 +1,42 @@
-import { useLiveAnnouncer } from "../a11y/LiveAnnouncer";
-import { useReduceMotion, type ReduceMotionSource } from "../a11y/ReduceMotionProvider";
-import { useApi } from "../api/ApiProvider";
-import { NAV, READINESS } from "../content/app";
+import { NAV } from "../content/app";
 import { href, type Route } from "./router";
-import { useReadiness } from "./SetupProvider";
-import { StateShape } from "./StatusPill";
 
-export const WORDMARK = "TimeWraith";
-export const REDUCE_MOTION_LABEL = "Reduce motion";
+export function Arrow({ diagonal = false }: { readonly diagonal?: boolean }) {
+  return (
+    <svg className="midnight-arrow" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <path d={diagonal ? "M4 12 12 4M6 4h6v6" : "M2 8h11m-4-4 4 4-4 4"} />
+    </svg>
+  );
+}
 
-/** Visible state text of the Reduce Motion toggle. */
-export function motionStateText(reduceMotion: boolean, source: ReduceMotionSource): string {
-  if (!reduceMotion) return "Motion: on";
-  return source === "system" ? "Motion: reduced (system setting)" : "Motion: reduced";
+export function Brand({ current = false, className }: { readonly current?: boolean; readonly className?: string }) {
+  return (
+    <a className={className ? `midnight-brand ${className}` : "midnight-brand"} href={href({ page: "home" })} aria-current={current ? "page" : undefined}>
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 6.5V12l3 2M12 1v2.5M12 20.5V23" />
+      </svg>
+      <span>
+        TIME<em>WRAITH</em>
+      </span>
+    </a>
+  );
 }
 
 const LINKS = [
+  { page: "home", label: NAV.home, match: ["home"] },
   { page: "cases", label: NAV.cases, match: ["cases", "case"] },
   { page: "new", label: NAV.newCase, match: ["new"] },
   { page: "crew", label: NAV.crew, match: ["crew"] },
   { page: "about", label: NAV.about, match: ["about"] },
 ] as const;
 
-/** Header: wordmark, the four pages, the Crew readiness (links to Crew setup) and the Reduce Motion toggle. */
+/** Unified top navigation bar shared across all pages. */
 export function AppBar({ route }: { readonly route: Route }) {
-  const { online, checking } = useApi();
-  const { ready } = useReadiness();
-  const { reduceMotion, source, toggle } = useReduceMotion();
-  const { announce } = useLiveAnnouncer();
-
-  const readiness = !online ? (checking ? READINESS.checking : READINESS.offline) : ready ? READINESS.ready : READINESS.notReady;
-  const shape = !online ? (checking ? "queued" : "failed") : ready ? "done" : "waiting";
-
   return (
     <header className="appbar">
-      <div className="appbar__inner">
-        <a className="appbar__wordmark" href={href({ page: "home" })} aria-current={route.page === "home" ? "page" : undefined}>
-          {WORDMARK}
-        </a>
+      <div className="midnight-wrap appbar__inner midnight-nav">
+        <Brand className="appbar__wordmark" current={route.page === "home"} />
         <nav className="appbar__nav" aria-label={NAV.label}>
           <ul role="list">
             {LINKS.map((l) => (
@@ -49,20 +48,6 @@ export function AppBar({ route }: { readonly route: Route }) {
             ))}
           </ul>
         </nav>
-        <a className="appbar__ready status-pill" data-state={shape} href={href({ page: "crew" })}>
-          <StateShape state={shape} size={18} />
-          <span>{readiness}</span>
-        </a>
-        <button
-          type="button"
-          className="appbar__motion"
-          aria-pressed={reduceMotion}
-          onClick={() => announce(toggle() ? "Reduced motion on" : "Reduced motion off")}
-          data-motion-source={source}
-        >
-          <span className="visually-hidden">{REDUCE_MOTION_LABEL}: </span>
-          {motionStateText(reduceMotion, source)}
-        </button>
       </div>
     </header>
   );

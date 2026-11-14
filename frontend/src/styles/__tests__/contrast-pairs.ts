@@ -1,5 +1,5 @@
 /**
- * The design's "Token contrast table" (design.md), one row per pair, with role and size.
+ * Violet Midnight token contrast table, one row per pair, with role and size.
  * The property test in contrast.test.ts reads this table and checks it against the real colors in tokens.css.
  *
  * role:
@@ -33,36 +33,49 @@ const text = (fg: string, bg: string, ratio: number, use: string, size: PairSize
   size,
   use,
 });
-const boundary = (fg: string, bg: string, ratio: number, use: string): ContrastPair => ({ fg, bg, ratio, role: "boundary", use });
-const decoration = (fg: string, bg: string, ratio: number, use: string): ContrastPair => ({ fg, bg, ratio, role: "decoration", use });
+
+const decoration = (fg: string, bg: string, ratio: number, use: string): ContrastPair => ({
+  fg,
+  bg,
+  ratio,
+  role: "decoration",
+  use,
+});
 
 export const CONTRAST_PAIRS: readonly ContrastPair[] = [
-  text("paper-100", "tower-950", 13.62, "all text (night)"),
-  text("moon-200", "tower-950", 11.09, "muted text (night)"),
-  text("mist-300", "tower-950", 7.53, "captions (night)"),
-  text("gold-500", "tower-950", 5.48, "small accents text and focus ring (night)"),
-  text("paper-100", "walnut-700", 8.52, "all text (Crew)"),
-  text("ink-900", "moon-200", 10.73, "all text (Flow)"),
-  text("ink-900", "parchment-200", 11.52, "all text (day)"),
-  text("ink-900", "paper-100", 13.17, "all text (CTA sheet, checklist)"),
-  text("walnut-700", "paper-100", 8.52, "muted text"),
-  text("walnut-700", "parchment-200", 7.45, "muted text"),
-  text("sage-700", "paper-100", 5.17, "status text"),
-  text("sage-700", "parchment-200", 4.53, "status text (no margin; not below 14 px regular)"),
-  text("brick-700", "paper-100", 6.29, "status text"),
-  text("brick-700", "parchment-200", 5.51, "status text"),
-  text("paper-100", "sage-700", 5.17, "status chip label"),
-  text("paper-100", "brick-700", 6.29, "status chip label"),
-  text("ink-900", "pumpkin-600", 3.6, "large text only: CTA label, 18.66 px bold or larger, 2 px ink-900 border", "large"),
-  boundary("pumpkin-600", "tower-950", 3.72, "shapes, boundaries, decoration only"),
-  boundary("pumpkin-600", "paper-100", 3.66, "shapes, boundaries, decoration only"),
-  boundary("pumpkin-600", "parchment-200", 3.2, "shapes, boundaries, decoration only"),
-  boundary("gold-500", "walnut-700", 3.43, "trim and the ladder rail tip on walnut-700 (R2); never text or focus ring"),
-  boundary("mist-300", "walnut-700", 4.71, "moonlit figure rim on walnut-700 (R2, computed); not in the design table, so never text"),
-  decoration("divider-300", "paper-100", 1.52, "decorative rules only"),
-  decoration("divider-300", "parchment-200", 1.33, "decorative rules only"),
-  decoration("gold-500", "paper-100", 2.48, "decoration only, never text on light backgrounds"),
-  decoration("gold-500", "parchment-200", 2.17, "decoration only, never text on light backgrounds"),
+  text("ink-50", "night-950", 17.86, "primary text on midnight surface"),
+  text("ink-300", "night-950", 9.55, "muted text on midnight surface"),
+  text("violet-300", "night-950", 9.38, "accent text and focus ring on midnight surface"),
+  text("violet-200", "night-950", 13.57, "bright accent and code text on midnight surface"),
+  text("mint-300", "night-950", 13.34, "success status text on midnight surface"),
+  text("rose-300", "night-950", 12.93, "error status text on midnight surface"),
+  text("amber-300", "night-950", 13.6, "warning status text on midnight surface"),
+
+  text("ink-50", "night-900", 16.91, "primary text on midnight panel"),
+  text("ink-300", "night-900", 9.04, "muted text on midnight panel"),
+  text("violet-300", "night-900", 8.88, "accent text and focus ring on midnight panel"),
+  text("violet-200", "night-900", 12.85, "bright accent and code text on midnight panel"),
+  text("mint-300", "night-900", 12.63, "success status text on midnight panel"),
+  text("rose-300", "night-900", 12.24, "error status text on midnight panel"),
+  text("amber-300", "night-900", 12.87, "warning status text on midnight panel"),
+
+  text("ink-50", "night-850", 15.83, "primary text on elevated surface"),
+  text("ink-300", "night-850", 8.46, "muted text on elevated surface"),
+  text("violet-300", "night-850", 8.31, "accent text on elevated surface"),
+  text("violet-200", "night-850", 12.02, "bright accent on elevated surface"),
+  text("mint-300", "night-850", 11.82, "diff add text on elevated surface"),
+  text("rose-300", "night-850", 11.45, "diff remove text on elevated surface"),
+  text("amber-300", "night-850", 12.05, "warning text on elevated surface"),
+
+  text("night-900", "violet-300", 8.88, "primary CTA button label and active chip"),
+  text("night-900", "violet-200", 12.85, "primary CTA button hover label"),
+  text("night-900", "mint-300", 12.63, "done/pass mark glyph"),
+  text("night-900", "rose-300", 12.24, "failed/error mark glyph"),
+  text("night-900", "amber-300", 12.87, "waiting mark glyph"),
+
+  decoration("line-700", "night-950", 1.56, "decorative rules and panel outlines only"),
+  decoration("line-700", "night-900", 1.47, "decorative rules only"),
+  decoration("line-700", "night-850", 1.38, "decorative rules only"),
 ];
 
 /** Minimum ratio for a pair used the way its role says. Decoration has no minimum. */

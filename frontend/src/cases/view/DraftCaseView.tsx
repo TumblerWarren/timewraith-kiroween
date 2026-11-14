@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useApi } from "../../api/ApiProvider";
 import { ApiError } from "../../api/client";
-import { stampTilt } from "../../components/tilt";
 import { CASE_AREA_TERM, CASE_ISSUE_TERM, CASE_MODE_TERM, CASE_TARGET_TERM, DRAFT_NO_EVENTS, DRAFT_RESULT, DRAFT_VERSION_TERM } from "../../content/caseView";
 import { DRAFT_NOT_RUN, ISSUE_HIDDEN, RUN_DRAFT } from "../../content/copy";
 import { FORM_NOTE_OFFLINE, FORM_NOTE_ONLINE } from "../../content/form";
@@ -44,7 +43,7 @@ export function DraftCaseView({ d }: { readonly d: DraftCase }) {
       <div className="case-head">
         <div className="case-file__head">
           <h3 id="case-file-title">{draftTitle(d)}</h3>
-          <p className="case-file__sample case-file__sample--draft stamp" style={stampTilt(`draft-label-${d.id}`, 2.5)}>
+          <p className="case-file__sample case-file__sample--draft">
             <DraftShape size={20} />
             {DRAFT_NOT_RUN}
           </p>

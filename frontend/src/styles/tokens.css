@@ -1,44 +1,48 @@
 /*
- * Design tokens. This is the ONLY file that may contain color literals (scripts/check-style-guard.mjs).
+ * Design tokens: Violet Midnight theme.
+ * This is the ONLY file that may contain color literals (scripts/check-style-guard.mjs).
  * Every other stylesheet uses var(--token) or the semantic aliases below.
  *
- * Contrast pairs that are allowed (WCAG ratios from the design):
- *   paper-100 on tower-950 13.62 | moon-200 on tower-950 11.09 | mist-300 on tower-950 7.53
- *   gold-500 on tower-950 5.48 (small accents, focus ring) | paper-100 on walnut-700 8.52
- *   ink-900 on moon-200 10.73 | ink-900 on parchment-200 11.52 | ink-900 on paper-100 13.17
- *   walnut-700 on paper-100 8.52 | walnut-700 on parchment-200 7.45
- *   sage-700 / brick-700 on paper-100 5.17 / 6.29, on parchment-200 4.53 / 5.51
- *   ink-900 on pumpkin-600 3.60: large bold text only (>= 18.66px), 2px ink-900 border
- *   pumpkin-600: shapes and decoration, never text. divider-300 and gold-500 on light: decoration only.
+ * Palette WCAG contrast ratios:
+ *   ink-50 on night-950 17.86 | ink-300 on night-950 9.55 | violet-300 on night-950 9.38 | violet-200 on night-950 13.57
+ *   mint-300 on night-950 13.34 | rose-300 on night-950 12.93 | amber-300 on night-950 13.60
+ *   ink-50 on night-900 16.91 | ink-300 on night-900 9.04 | violet-300 on night-900 8.88 | violet-200 on night-900 12.85
+ *   mint-300 on night-900 12.63 | rose-300 on night-900 12.24 | amber-300 on night-900 12.87
+ *   ink-50 on night-850 15.83 | ink-300 on night-850 8.46 | violet-300 on night-850 8.31 | violet-200 on night-850 12.02
+ *   night-900 on violet-300 8.88 | night-900 on violet-200 12.85 | night-900 on mint-300 12.63 | night-900 on rose-300 12.24
+ *   line-700 on night-950 1.56 / night-900 1.47: decorative rules and subtle panel borders only, never text.
  */
 :root {
-  /* The supplied Violet Midnight landing world, scoped by cinematic.css. */
-  --midnight-black: #000000;
-  --midnight-surface: #06050a;
-  --midnight-panel: #100d17;
-  --midnight-ink: #f4eefb;
-  --midnight-muted: #b9adc8;
-  --midnight-violet: #c4a0f5;
-  --midnight-bright: #dfcaff;
-  --midnight-line: #382b49;
-  --midnight-success: #b3dbbe;
-  --midnight-error: #ffbdc8;
-  --font-midnight-display: "Barlow Condensed", sans-serif;
-  /* ---- The twelve required colors (Requirement 12.1) ---- */
-  --tower-950: #24251f;
-  --ink-900: #292720;
-  --walnut-700: #4d4336;
-  --paper-100: #f8f0de;
-  --parchment-200: #ece1ca;
-  --divider-300: #d0c4ae;
-  --pumpkin-600: #b7683c;
-  --gold-500: #b79557;
-  --sage-700: #526b50;
-  --brick-700: #913e33;
-  --moon-200: #e8d9bc;
-  --mist-300: #a9b8b8;
+  /* ---- The twelve Violet Midnight palette colors ---- */
+  --night-1000: #000000;
+  --night-950: #06050a;
+  --night-900: #100d17;
+  --night-850: #191424;
+  --line-700: #382b49;
+  --ink-50: #f4eefb;
+  --ink-300: #b9adc8;
+  --violet-300: #c4a0f5;
+  --violet-200: #dfcaff;
+  --mint-300: #b3dbbe;
+  --rose-300: #ffbdc8;
+  --amber-300: #f0cf94;
 
-  /* ---- Spacing: multiples of 4 and 8 (Requirement 12.2) ---- */
+  /* ---- Midnight semantic aliases ---- */
+  --midnight-black: var(--night-1000);
+  --midnight-surface: var(--night-950);
+  --midnight-panel: var(--night-900);
+  --midnight-elevated: var(--night-850);
+  --midnight-ink: var(--ink-50);
+  --midnight-muted: var(--ink-300);
+  --midnight-violet: var(--violet-300);
+  --midnight-bright: var(--violet-200);
+  --midnight-line: var(--line-700);
+  --midnight-success: var(--mint-300);
+  --midnight-error: var(--rose-300);
+  --midnight-warning: var(--amber-300);
+  --midnight-rule: color-mix(in srgb, var(--midnight-muted) 20%, transparent);
+
+  /* ---- Spacing: multiples of 4 and 8 ---- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -50,39 +54,35 @@
   --space-9: 96px;
   --space-10: 128px;
 
-  /* ---- Type ---- */
-  /* Visual revision R2: IM Fell English (400 roman and italic only, no bold) for headings, Libre Franklin for
-     interface text, JetBrains Mono for times and evidence values. */
+  /* ---- Typography (unified across landing and all inner pages) ---- */
+  --font-midnight-display: "Barlow Condensed", sans-serif;
   --font-display: "IM Fell English", "IM Fell English Fallback", Georgia, "Times New Roman", serif;
   --font-ui: "IM Fell English", "IM Fell English Fallback", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  --text-sm: 0.875rem; /* 14px: short captions only */
-  --text-base: 1.0625rem; /* 17px: body copy never goes below this */
-  --text-lg: 1.125rem; /* 18px */
-  /* Heading sizes are about 10% larger than in R1: IM Fell English has a small x-height and no bold weight. */
-  --text-xl: clamp(1.375rem, 1.2rem + 0.7vw, 1.625rem);
-  --text-cta: 1.25rem; /* 20px; bold CTA labels must stay >= 18.66px (decision D7) */
-  --text-h2: clamp(2rem, 1.35rem + 2.5vw, 3.375rem);
-  --text-display: clamp(2.5rem, 1.5rem + 4vw, 5rem);
-  --leading-tight: 1.1;
+  --text-xs: 0.6875rem; /* 11px: mono headers, badges, footer */
+  --text-sm: 0.8125rem; /* 13px: nav, buttons, meta, captions */
+  --text-base: 0.9375rem; /* 15px: unified body copy (matches landing page) */
+  --text-lg: 1.125rem; /* 18px: lead copy (.page__lead, .midnight-lead) */
+  --text-xl: 1.375rem; /* 22px: panel and card titles */
+  --text-cta: 0.8125rem; /* 13px: primary CTA buttons */
+  --text-h2: clamp(2.25rem, 4vw, 3.75rem); /* 36px - 60px section display headings */
+  --text-display: clamp(3.375rem, 5.8vw, 5.875rem); /* 54px - 94px hero display headings */
+  --leading-display: 0.88;
+  --leading-tight: 0.95;
   --leading-snug: 1.3;
-  --leading-body: 1.6;
-  --measure: 66ch; /* body copy line length, 60 to 70 characters */
+  --leading-body: 1.65;
+  --measure: 62ch;
 
-  /* ---- Shape: hard offset only, zero blur; one radius, cards never nest ----
-   * --shadow-ink, --shadow-card and --border-ink are for interactive controls only (buttons, CTAs, the Reduce
-   * Motion toggle, the scrubber, Tier 2 mascot buttons). Static paper objects use paper.css instead. */
-  --shadow-ink: 4px 4px 0 var(--ink-900);
-  --border-ink: 2px solid var(--ink-900);
-  --radius: 6px;
+  /* ---- Shape ---- */
+  --radius: 3px;
 
   /* ---- Motion ---- */
-  --ease-snap: cubic-bezier(0.2, 0.9, 0.25, 1);
+  --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-ink: cubic-bezier(0.4, 0, 0.2, 1);
-  --reduced-fade: 120ms; /* must stay <= 150ms (REDUCED_FADE_MS) */
+  --reduced-fade: 120ms;
 
-  /* ---- Stacking order (design: overlay 40 < ledge 45 < node anchors 46 < nav 50) ---- */
+  /* ---- Stacking order ---- */
   --z-thread: 10;
   --z-content: 20;
   --z-overlay: 40;
@@ -91,21 +91,17 @@
   --z-nav: 50;
   --z-skip: 60;
 
-  /* ---- Layout metrics ---- */
-  --seam-h: 64px; /* section seam height; seams never hold text */
-  --nav-h: 64px;
-  --target-min: 44px; /* minimum touch target (Requirement 11) */
-  --content-max: 1280px;
-  --rail-w: 96px;
-  --aside-w: 280px;
-  --gutter: var(--space-6);
+  /* ---- Layout metrics (unified with landing page .midnight-wrap) ---- */
+  --nav-h: 76px;
+  --target-min: 44px;
+  --content-max: 1510px;
+  --gutter: clamp(20px, 5.3vw, 82px);
 
-  /* ---- Semantic aliases (default theme = night; section themes in layout.css override them) ---- */
-  --bg: var(--tower-950);
-  --fg: var(--paper-100);
-  --fg-muted: var(--moon-200);
-  --rule: var(--walnut-700); /* decorative rules only */
-  --edge: var(--mist-300); /* interactive boundaries, at least 3:1 on --bg */
-  --focus-color: var(--gold-500);
-  --shadow-card: 4px 4px 0 var(--walnut-700);
+  /* ---- Default surface tokens (night-950 ground) ---- */
+  --bg: var(--night-950);
+  --fg: var(--ink-50);
+  --fg-muted: var(--ink-300);
+  --rule: var(--line-700);
+  --edge: var(--ink-300);
+  --focus-color: var(--violet-300);
 }

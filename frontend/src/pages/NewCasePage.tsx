@@ -9,8 +9,12 @@ export function NewCasePage({ repoUrl }: { readonly repoUrl?: string | undefined
   return (
     <article className="page" aria-labelledby="page-title">
       <header className="page__head">
+        <p className="midnight-kicker">
+          <span />
+          New investigation
+        </p>
         <h1 id="page-title" className="page__title" tabIndex={-1}>
-          {NEW_CASE.title}
+          Open a <em>case</em>
         </h1>
         <p className="page__lead">{NEW_CASE.lead}</p>
       </header>

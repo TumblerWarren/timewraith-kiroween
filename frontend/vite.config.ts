@@ -2,13 +2,11 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from "vite";
 
 /**
- * Injects `<link rel="preload" as="font">` for the two above-the-fold fonts: the IM Fell English roman (headings)
- * and the Libre Franklin variable roman (interface text), latin subset only. The woff2 files get hashed names, so
- * the tags are built from the bundle. Nothing is injected until a stylesheet imports the fontsource files
- * (styles/fonts.css), and nothing is injected in dev.
+ * Injects `<link rel="preload" as="font">` for the above-the-fold IM Fell English roman (body and UI text),
+ * latin subset only. The woff2 files get hashed names, so the tags are built from the bundle.
  */
 const PRELOAD_FONTS =
-  /^assets\/(?:im-fell-english-latin-400-normal|libre-franklin-latin-wght-normal)-[\w-]+\.woff2$/;
+  /^assets\/im-fell-english-latin-400-normal-[\w-]+\.woff2$/;
 
 function fontPreload(): Plugin {
   return {
