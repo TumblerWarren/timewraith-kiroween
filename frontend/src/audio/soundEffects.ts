@@ -702,3 +702,74 @@ export function installGlobalUiSounds(): void {
     { capture: true, passive: true },
   );
 }
+
+export type SpiderSoundCue = "weave" | "wake" | "legs" | "transform" | "bounce";
+
+/** Short, cancellable silk and spider cues; share the app's sound switch and output. */
+export function createSpiderSounds() {
+  const voices = new Set<AudioScheduledSourceNode>();
+  const track = (source: AudioScheduledSourceNode, nodes: AudioNode[]) => {
+    voices.add(source);
+    source.onended = () => {
+      voices.delete(source);
+      source.disconnect();
+      nodes.forEach(node => node.disconnect());
+    };
+  };
+  const play = (cue: SpiderSoundCue) => {
+    if (typeof document === "undefined" || document.hidden) return;
+    const context = activeContext();
+    // Do not queue sounds behind the browser's initial audio-unlock gesture.
+    if (!context || context.state !== "running") return;
+    const now = context.currentTime;
+    const out = outputNode(context);
+    const tone = (frequency: number, endFrequency: number, duration: number, peak: number, delay = 0) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const start = now + delay;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      oscillator.frequency.exponentialRampToValueAtTime(endFrequency, start + duration);
+      gain.gain.setValueAtTime(.0001, start);
+      gain.gain.exponentialRampToValueAtTime(peak, start + .012);
+      gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+      oscillator.connect(gain); gain.connect(out);
+      track(oscillator, [gain]);
+      oscillator.start(start); oscillator.stop(start + duration + .02);
+    };
+    const silk = (duration: number, frequency: number, peak: number) => {
+      const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
+      const samples = buffer.getChannelData(0);
+      for (let i = 0; i < samples.length; i++) samples[i] = (Math.random() * 2 - 1) * Math.sin(i / samples.length * Math.PI);
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      const filter = context.createBiquadFilter();
+      filter.type = "bandpass"; filter.Q.value = 2.5;
+      filter.frequency.setValueAtTime(frequency, now);
+      filter.frequency.exponentialRampToValueAtTime(frequency * .45, now + duration);
+      const gain = context.createGain(); gain.gain.value = peak;
+      source.connect(filter); filter.connect(gain); gain.connect(out);
+      track(source, [filter, gain]); source.start(now); source.stop(now + duration);
+    };
+    try {
+      switch (cue) {
+        case "weave": silk(.65, 2400, .055); tone(740, 540, .22, .018); break;
+        case "wake": tone(220, 293.66, .5, .035); tone(440, 415.3, .45, .018, .1); break;
+        case "legs": silk(.16, 1200, .035); tone(320, 170, .12, .02); break;
+        case "transform": silk(.8, 1800, .045); tone(147, 294, .7, .035); break;
+        case "bounce": tone(390, 260, .2, .012); break;
+      }
+    } catch {
+      // Audio must never interrupt the form or its animation.
+    }
+  };
+  return {
+    play,
+    stop() {
+      for (const source of voices) {
+        try { source.stop(); } catch { /* A voice may already have ended. */ }
+      }
+      voices.clear();
+    },
+  };
+}

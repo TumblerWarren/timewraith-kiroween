@@ -62,7 +62,7 @@ function Page({ route }: { readonly route: Route }) {
   }
 }
 
-function ShellFooter() {
+function ShellFooter({ page }: { readonly page: Route["page"] }) {
   const { reduceMotion, toggle } = useReduceMotion();
   const { announce } = useLiveAnnouncer();
   const [sound, setSound] = useState(isSoundEnabled);
@@ -91,9 +91,18 @@ function ShellFooter() {
           >
             {reduceMotion ? "Reduce motion: on" : "Reduce motion"}
           </button>
-          <a className="landing-replay" href={href({ page: "landing" })}>
+          {(page === "new" || page === "crew") && <button
+            id="page-animation-replay"
+            type="button"
+            className="footer__control"
+            disabled={reduceMotion}
+            onClick={() => window.dispatchEvent(new Event(`tw:replay-${page}`))}
+          >
+            {page === "new" ? "Replay the trap animation" : "Replay the crew animation"}
+          </button>}
+          {page !== "new" && page !== "crew" && <a className="landing-replay" href={href({ page: "landing" })}>
             Replay the midnight intro
-          </a>
+          </a>}
           <a className="landing-replay" href="https://kiroween.devpost.com/">
             Kiroween 2026
           </a>
@@ -137,7 +146,7 @@ export function App() {
         <main id="main" tabIndex={-1} className="main">
           <Page route={route} />
         </main>
-        {route.page !== "home" && route.page !== "landing" && <ShellFooter />}
+        {route.page !== "home" && route.page !== "landing" && <ShellFooter page={route.page} />}
       </SetupProvider>
     </LiveAnnouncer>
   );

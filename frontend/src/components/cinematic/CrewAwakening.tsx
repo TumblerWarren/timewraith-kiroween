@@ -44,9 +44,17 @@ export function CrewAwakening() {
   const [sound, setSound] = useState(isSoundEnabled);
   const [soundFailed, setSoundFailed] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
-  const replay = useRef<HTMLButtonElement>(null);
   const replaying = useRef(false);
   const open = playing && !reduceMotion;
+  useEffect(() => {
+    const replay = () => {
+      if (reduceMotion) return;
+      replaying.current = true;
+      setPlaying(true);
+    };
+    window.addEventListener("tw:replay-crew", replay);
+    return () => window.removeEventListener("tw:replay-crew", replay);
+  }, [reduceMotion]);
 
   useEffect(() => {
     installGlobalUiSounds();
@@ -71,7 +79,7 @@ export function CrewAwakening() {
     markCrewIntroShown();
     setPlaying(false);
     requestAnimationFrame(() => {
-      const target = replaying.current ? replay.current : document.getElementById("page-title");
+      const target = document.getElementById(replaying.current ? "page-animation-replay" : "page-title");
       target?.focus({ preventScroll: true });
     });
   }
@@ -89,17 +97,6 @@ export function CrewAwakening() {
 
   return (
     <>
-      <button
-        ref={replay}
-        className="landing-replay crew-awakening__replay"
-        type="button"
-        onClick={() => {
-          replaying.current = true;
-          setPlaying(true);
-        }}
-      >
-        Replay entrance
-      </button>
       {open &&
         createPortal(
           <dialog

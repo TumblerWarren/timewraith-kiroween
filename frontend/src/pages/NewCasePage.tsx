@@ -1,3 +1,4 @@
+import { NewCaseAwakening } from "../animation/react/NewCaseAwakening";
 import { OpenCaseForm } from "../cases/form/OpenCaseForm";
 import { ModeShape } from "../cases/library/ModeShape";
 import { NEW_CASE } from "../content/app";
@@ -7,17 +8,14 @@ import { ReadinessNote } from "./ReadinessNote";
 /** `#/new`: the form, with the readiness note and what each mode does beside it. */
 export function NewCasePage({ repoUrl }: { readonly repoUrl?: string | undefined }) {
   return (
-    <article className="page" aria-labelledby="page-title">
+    <article className="page new-case-page" aria-labelledby="page-title">
       <header className="page__head">
-        <p className="midnight-kicker">
-          <span />
-          New investigation
-        </p>
         <h1 id="page-title" className="page__title" tabIndex={-1}>
-          Open a <em>case</em>
+          Lay the <em>trap</em>
         </h1>
         <p className="page__lead">{NEW_CASE.lead}</p>
       </header>
+      <NewCaseAwakening />
       <div className="split">
         <section className="sheet" aria-labelledby="page-title">
           <OpenCaseForm labelledBy="page-title" initial={repoUrl ? { repoUrl } : {}} />
