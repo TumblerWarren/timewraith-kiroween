@@ -35,7 +35,7 @@ function Page({ route }: { readonly route: Route }) {
     case "cases":
       return <CasesPage />;
     case "case":
-      return <CasePage id={route.id} tab={route.tab} />;
+      return <CasePage id={route.id} tab={route.tab} planView={route.planView} />;
     case "crew":
       return <CrewPage />;
     case "about":

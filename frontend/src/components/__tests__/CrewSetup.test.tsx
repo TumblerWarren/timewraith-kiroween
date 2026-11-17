@@ -32,8 +32,10 @@ function fakeApi(states: SetupStatus[]): Api {
     branchPatchUrl: () => "",
     makeBranch: vi.fn(fail),
     githubPreview: vi.fn(fail),
+    prepareContribution: vi.fn(fail),
     githubPush: vi.fn(fail),
     githubPullRequest: vi.fn(fail),
+    githubUpdate: vi.fn(fail),
     githubStart: vi.fn(fail),
     githubLogin: vi.fn(fail),
     githubCancel: vi.fn(fail),
@@ -95,13 +97,17 @@ describe("CrewSetup", () => {
     });
     vi.mocked(api.githubLogout).mockResolvedValue(running);
     renderWith(api);
-    await user.click(await screen.findByRole("button", { name: GITHUB_SETUP.connect }));
+    const connect = await screen.findByRole("button", { name: GITHUB_SETUP.connect });
+    expect(connect.closest("li")?.querySelector(".crew-setup__mark")).toHaveTextContent("○");
+    await user.click(connect);
     expect(await screen.findByText("GITX-1234")).toBeVisible();
     expect(screen.getByRole("link", { name: GITHUB_SETUP.open })).toHaveAttribute("href", "https://github.com/login/device");
     await user.click(screen.getByRole("button", { name: GITHUB_SETUP.cancel }));
     expect(api.githubCancel).toHaveBeenCalledTimes(1);
     await user.click(await screen.findByRole("button", { name: GITHUB_SETUP.connect }));
-    expect(await screen.findByText(GITHUB_SETUP.connectedAs("reviewer"))).toBeVisible();
+    const account = await screen.findByText(GITHUB_SETUP.connectedAs("reviewer"));
+    expect(account).toBeVisible();
+    expect(account.closest("li")?.querySelector(".crew-setup__mark")).toHaveTextContent("✓");
     await user.click(screen.getByRole("button", { name: GITHUB_SETUP.disconnect }));
     expect(api.githubLogout).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: GITHUB_SETUP.disconnect }));

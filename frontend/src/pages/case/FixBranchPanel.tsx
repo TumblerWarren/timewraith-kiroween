@@ -44,6 +44,8 @@ export function FixBranchPanel({ bug, invId, notes, onChanged }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const branch = bug.fix.branch ?? created;
+  // The Compose mount keeps branch paths under /data/branches in the TimeWraith container.
+  const dockerFolder = branch?.path.startsWith("/data/branches/");
   const note = notes.findLast((text) => text.startsWith(`The fix for ${bug.id} was accepted, but its branch could not be made:`));
   async function remake() {
     if (!api || busy) return;
@@ -73,13 +75,12 @@ export function FixBranchPanel({ bug, invId, notes, onChanged }: {
             <dl className="case-branch-fields">
               <CopyField label={copy.branchName} value={branch.name}>{branch.name}</CopyField>
               <CopyField label={copy.commit} value={branch.commit}>{branch.commit.slice(0, 12)}</CopyField>
-              <CopyField label={copy.folder} value={branch.path}>{branch.path}</CopyField>
+              <CopyField label={dockerFolder ? copy.dockerFolder : copy.folder} value={branch.path}>{branch.path}</CopyField>
               <CopyField label={copy.files} value={branch.files.join("\n")}>
                 <ul role="list">{branch.files.map((file) => <li key={file}>{file}</li>)}</ul>
               </CopyField>
-              {command && <CopyField label={copy.log} value={command}>{command}</CopyField>}
+              {command && <CopyField label={dockerFolder ? copy.dockerLog : copy.log} value={command}>{command}</CopyField>}
             </dl>
-            {api && <a className="btn" href={api.branchPatchUrl(invId, bug.id)} download>{copy.download}</a>}
           </>
         ) : (
           <>
@@ -89,9 +90,12 @@ export function FixBranchPanel({ bug, invId, notes, onChanged }: {
             </button>
           </>
         )}
+        {api && <a className="btn" href={branch ? api.branchPatchUrl(invId, bug.id) : api.patchUrl(invId, bug.id)} download>
+          {branch ? copy.download : copy.originalPatch}
+        </a>}
         {error && <p role="alert" className="alert">{error}</p>}
       </section>
-      {branch && <ShareFix key={branch.commit} branch={branch} bugId={bug.id} invId={invId} saved={bug.fix.publish} onChanged={onChanged} />}
+      {branch && <ShareFix key={branch.name} branch={branch} bugId={bug.id} invId={invId} saved={bug.fix.publish} onChanged={onChanged} />}
     </>
   );
 }

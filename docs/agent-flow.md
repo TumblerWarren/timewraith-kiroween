@@ -216,6 +216,25 @@ After `submit`:
 
 A fix counts as verified only when all 8 pass. You then accept it or reject it. Accepting lets you download the patch and its regression test. Nothing is written to GitHub.
 
+## Following the repository's rules
+
+Before anything is pushed, `POST .../contribution` checks the accepted fix against the target repository's own rules (code, no agent):
+
+- Reads CONTRIBUTING, the PR template, commitlint and package scripts from the default branch. Warns about DCO, CLA, an issue-first request and AI policy lines. An archived repository is refused.
+- Fetches the upstream tip and carries the fix onto it. If the new test already passes there, the bug is fixed upstream and nothing is sent (`already_fixed_upstream`).
+- Places the test in the repository's test folder as `<Source>.<topic>.test.ts`, runs Prettier, ESLint and tsc with the repository's configuration, then the new test (fails without the fix, passes with it) and the full suite.
+- Rebuilds the branch as one commit with a conventional-commit title and fills the repository's PR template. Boxes are ticked only for checks that passed. A disclosure line says TimeWraith drafted the change.
+- Push and pull request are refused until this passes (`not_prepared`, `checks_failed`, `repo_archived`). Open pull requests about the same bug block the push unless the request sends `acknowledge_duplicates` (`duplicate_exists`).
+
+### Updating a fix that is already on the fork
+
+When the user checks the fix against the repository's rules again after a push, the local branch gets a new commit. `POST .../github/update` (`{title, body, confirm_branch}`) then adds one commit on top of what TimeWraith pushed and refreshes the open pull request's title and text. It is a fast-forward push only; nothing is force-pushed.
+
+- The preview's `update` field says whether an update is available (`{available, reason}`).
+- If the original moved on since the first push, the new commit also has the new upstream tip as a second parent, so the pull request still shows only the fix.
+- It refuses when the fork branch is not exactly the commit TimeWraith pushed last (`fork_changed`), when the pull request is closed or merged (`pr_closed`, `pr_merged`), or when there is nothing new (`nothing_to_update`). `not_prepared`, `checks_failed` and `not_pushed` apply as for a push.
+- The pull request being updated is not listed as a duplicate.
+
 ## Outcomes
 
 | Outcome | Shown as | Meaning |

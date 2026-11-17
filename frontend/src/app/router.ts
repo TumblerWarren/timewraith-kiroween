@@ -8,18 +8,20 @@ import { useEffect, useState } from "react";
  *   #/new              open a case
  *   #/cases            every case
  *   #/cases/:id[/tab]  one case (tab: overview, plan, findings, fixes, activity)
+ *   #/cases/:id/plan/:view  discovery or execution evidence
  *   #/crew             Crew setup
  *   #/about            how it works
  */
 export const CASE_TABS = ["overview", "plan", "findings", "fixes", "activity"] as const;
 export type CaseTab = (typeof CASE_TABS)[number];
+export type PlanView = "discovery" | "execution";
 
 export type Route =
   | { readonly page: "landing" }
   | { readonly page: "home" }
   | { readonly page: "new"; readonly repoUrl?: string }
   | { readonly page: "cases" }
-  | { readonly page: "case"; readonly id: string; readonly tab: CaseTab }
+  | { readonly page: "case"; readonly id: string; readonly tab: CaseTab; readonly planView?: PlanView }
   | { readonly page: "crew" }
   | { readonly page: "about" }
   | { readonly page: "not-found"; readonly path: string };
@@ -39,6 +41,10 @@ export function parseHash(hash: string): Route {
       return p;
     }
   });
+  const [planView] = rest;
+  if (rest.length === 1 && head === "cases" && id && tab === "plan" && (planView === "discovery" || planView === "execution")) {
+    return { page: "case", id, tab, planView };
+  }
   if (rest.length > 0) return { page: "not-found", path };
   switch (head ?? "") {
     case "":
@@ -64,7 +70,7 @@ export function href(route: Route): string {
     case "new":
       return route.repoUrl ? `#/new?${new URLSearchParams({ repo: route.repoUrl })}` : "#/new";
     case "case":
-      return `#/cases/${encodeURIComponent(route.id)}${route.tab === "overview" ? "" : `/${route.tab}`}`;
+      return `#/cases/${encodeURIComponent(route.id)}${route.tab === "overview" ? "" : `/${route.tab}`}${route.tab === "plan" && route.planView ? `/${route.planView}` : ""}`;
     case "not-found":
       return `#/${route.path}`;
     default:
@@ -72,7 +78,7 @@ export function href(route: Route): string {
   }
 }
 
-export const caseHref = (id: string, tab: CaseTab = "overview") => href({ page: "case", id, tab });
+export const caseHref = (id: string, tab: CaseTab = "overview", planView?: PlanView) => href({ page: "case", id, tab, planView });
 
 export function navigate(route: Route | string): void {
   const target = typeof route === "string" ? route : href(route);

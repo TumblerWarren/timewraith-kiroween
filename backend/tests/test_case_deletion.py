@@ -23,7 +23,9 @@ def engine(tmp_path: Path) -> Engine:
 
 def saved_case(engine: Engine, inv_id: str = "case-one") -> Investigation:
     inv = Investigation(
-        id=inv_id, created_at="2026-11-14T00:00:00Z", stage="completed",
+        id=inv_id,
+        created_at="2026-11-14T00:00:00Z",
+        stage="completed",
         request=CreateInvestigation(repository_url="https://github.com/example/repo", ref="main", mode="open-hunt"),
         target=Target(repository_url="https://github.com/example/repo", owner="example", repo="repo", ref="main"),
     )
@@ -34,10 +36,20 @@ def saved_case(engine: Engine, inv_id: str = "case-one") -> Investigation:
 def test_delete_cleans_case_history_and_only_its_files(engine: Engine) -> None:
     inv = saved_case(engine)
     other = saved_case(engine, "case-two")
-    engine.store.add_event(inv.id, ReplayEvent(
-        id="event-one", seq=0, tOffsetMs=0, actor="watchtower-warden", kind="stage", phase="repository",
-        text="Finished", status="planned", versionId="v1",
-    ))
+    engine.store.add_event(
+        inv.id,
+        ReplayEvent(
+            id="event-one",
+            seq=0,
+            tOffsetMs=0,
+            actor="watchtower-warden",
+            kind="stage",
+            phase="repository",
+            text="Finished",
+            status="planned",
+            versionId="v1",
+        ),
+    )
     engine.store.audit(inv.id, "now", "watchtower-warden", "test", "ok", "record")
     for base in (engine.s.workspaces, engine.s.artifacts):
         for inv_id in (inv.id, other.id):

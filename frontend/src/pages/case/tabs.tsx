@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useApi } from "../../api/ApiProvider";
 import { ApiError } from "../../api/client";
 import type { Bug, DecisionRecord, FixAttempt, IntendedFinding, Investigation, Phase, ReplayEventMsg } from "../../api/types";
-import { caseHref } from "../../app/router";
+import { caseHref, type PlanView } from "../../app/router";
 import { DiffView } from "../../cases/fix/DiffView";
 import { parseUnifiedDiff } from "../../cases/fix/parseDiff";
 import { CASE_PAGE } from "../../content/app";
@@ -16,7 +16,6 @@ import {
   INV_CAPABILITIES_TITLE,
   INV_DECISION_WORDS,
   INV_DECISIONS_TITLE,
-  INV_DOWNLOAD_PATCH,
   INV_DROPPED,
   INV_EXPERIMENTS_TITLE,
   INV_ISSUE_TERM,
@@ -50,6 +49,7 @@ import { FixBranchPanel } from "./FixBranchPanel";
 import { activityItems, observedAnomalies, visibleAttempts } from "./liveCase";
 
 const GATE_ORDER = ["test_first", "diff_limits", "fixed", "mutation_check", "no_regressions", "no_new_anomalies", "static_checks", "independent_review"] as const;
+const GATE_SHORT = ["Reproduce", "Patch size", "Fix verified", "Test sensitivity", "Regressions", "Fresh sweep", "Static checks", "Independent review"] as const;
 
 const agentName = (id: string) => CREW_BY_ID[id as keyof typeof CREW_BY_ID]?.name ?? id;
 const label = (map: Readonly<Record<string, string>>, id: string) => map[id] ?? id.replace(/_/g, " ");
@@ -57,12 +57,15 @@ const candTitle = (inv: Investigation, id: string) => inv.feature_map?.candidate
 
 const sentences = typeof Intl.Segmenter === "function" ? new Intl.Segmenter("en", { granularity: "sentence" }) : null;
 
-// Keep a complete, short sentence. Full Crew notes are available in the evidence.
+// Crew notes sometimes use lowercase identifiers at the start of a sentence.
 function shortNote(value: string | null | undefined, max = 230): string | null {
   const text = value?.replace(/\s+/g, " ").trim();
   if (!text) return null;
   const first = sentences?.segment(text).containing(0)?.segment.trim() ?? text;
-  return first && first.length <= max ? first : null;
+  if (first.length <= max) return first;
+  const line = first.split(/(?<=[.!?])\s+/, 1)[0] ?? first;
+  if (line.length <= max) return line;
+  return `${line.slice(0, max).replace(/\s+\S*$/, "").trimEnd()}…`;
 }
 
 function fixStatus(bug: Bug): string {
@@ -104,7 +107,7 @@ function SavedSummary({ text, label }: { readonly text: string; readonly label: 
   </>;
 }
 
-export function OverviewTab({ inv }: { readonly inv: Investigation }) {
+export function OverviewTab({ inv, runDetails }: { readonly inv: Investigation; readonly runDetails: ReactNode }) {
   const intended = inv.intended?.length ?? 0;
   const assessment = inv.feature_map?.note.trim();
   const notes = [...new Set(inv.notes.map((note) => note.trim()).filter((note) =>
@@ -113,15 +116,17 @@ export function OverviewTab({ inv }: { readonly inv: Investigation }) {
   return (
     <div className="tab-stack">
     <WrapUpNotes notes={inv.notes} />
-    <Panel id="ov-results" title="Case brief">
+    <div className="case-overview">
+    <section className="case-card case-overview__brief" aria-labelledby="ov-results">
+      <h3 id="ov-results" className="panel__title">Case brief</h3>
       {inv.bugs.length === 0 && intended === 0 && (
-        <p className="case-card">{inv.stage === "completed" ? INV_NO_BUGS : CASE_PAGE.noBugsYet}</p>
+        <p>{inv.stage === "completed" ? INV_NO_BUGS : CASE_PAGE.noBugsYet}</p>
       )}
-      {inv.bugs.length > 0 && <ul role="list" className="case-card-grid">
+      {inv.bugs.length > 0 && <ul role="list" className="case-overview__findings">
         {inv.bugs.slice(0, 3).map((bug) => {
           const summary = bug.fix.attempts.at(-1)?.summary.trim();
           return (
-          <li key={bug.id} className="case-card">
+          <li key={bug.id} className="case-overview__finding">
             <div className="case-card__heading">
               <h4>{bug.title}</h4>
               <div className="case-card__meta">
@@ -133,14 +138,22 @@ export function OverviewTab({ inv }: { readonly inv: Investigation }) {
               <h5>{bug.fix.state === "verified" ? "Fix summary" : "Latest fix attempt"}</h5>
               <SavedSummary text={summary} label="Read full fix summary" />
             </div>}
+            <a className="case-overview__action" href={caseHref(inv.id, "fixes")}>Review the fixes <span aria-hidden="true">↗</span></a>
           </li>
           );
         })}
       </ul>}
-      {intended > 0 && <p className="case-note">{intended} {intended === 1 ? "finding matches" : "findings match"} behavior documented by the repository.</p>}
-      {inv.bugs.length + intended > 0 && <p><a href={caseHref(inv.id, "findings")}>View all findings</a></p>}
-    </Panel>
-    {(assessment || latestNote) && <Panel id="ov-notes" title="Saved notes">
+      {inv.bugs.length + intended > 0 && <footer className="case-overview__footer">
+        {intended > 0 && <p className="case-note">{intended} {intended === 1 ? "finding matches" : "findings match"} behavior documented by the repository.</p>}
+        <a className="case-overview__action" href={caseHref(inv.id, "findings")}>View all findings</a>
+      </footer>}
+    </section>
+    <section className="case-card case-run-details" aria-labelledby="case-run-details-title">
+      <h3 id="case-run-details-title" className="panel__title">Run details</h3>
+      {runDetails}
+    </section>
+    </div>
+    {(assessment || latestNote) && <CaseDisclosure label="Saved notes">
       <div className="case-card-grid">
         {assessment && <div className="case-card">
           <h4>Repository assessment</h4>
@@ -154,23 +167,40 @@ export function OverviewTab({ inv }: { readonly inv: Investigation }) {
           </CaseDisclosure>}
         </div>}
       </div>
-    </Panel>}
+    </CaseDisclosure>}
     </div>
   );
 }
 
 // ---------------------------------------------------------------- plan
 
-export function PlanTab({ inv, onApprove, busy }: { readonly inv: Investigation; readonly onApprove: () => void; readonly busy: boolean }) {
+export function PlanTab({ inv, view, onApprove, busy }: {
+  readonly inv: Investigation;
+  readonly view?: PlanView;
+  readonly onApprove: () => void;
+  readonly busy: boolean;
+}) {
   const candidates = inv.feature_map?.candidates ?? [];
   const experiments = inv.test_plan?.experiments ?? [];
   const waiting = inv.stage === "awaiting-plan-approval";
   const ghost = <PumpkinGhost state={waiting ? "review" : inv.stage === "completed" ? "complete" : "planning"} />;
   const hasPlanEvidence = (inv.coverage?.length ?? 0) > 0 || (inv.intents?.length ?? 0) > 0 || inv.decisions.some((decision) => decision.step === "plan_round");
-  if (!waiting && !inv.capabilities && candidates.length === 0 && experiments.length === 0 && !hasPlanEvidence) return <div className="case-card plan-empty"><p>{CASE_PAGE.planNotReady}</p>{ghost}</div>;
+  const sweeps = inv.sweeps;
+  if (!view && !waiting && !inv.capabilities && candidates.length === 0 && experiments.length === 0 && !hasPlanEvidence) return <div className="case-card plan-empty"><p>{CASE_PAGE.planNotReady}</p>{ghost}</div>;
   return (
     <div className="tab-stack">
-      {experiments.length === 0 && <div className="case-section__intro"><h3 className="panel__title">Experiment plan</h3>{ghost}</div>}
+      <nav className="case-plan-paths" aria-label="Plan stages">
+        <a href={caseHref(inv.id, "plan", "discovery")} aria-current={view === "discovery" ? "location" : undefined}>
+          <strong>Discovery</strong><span>{candidates.length} candidates · {candidates.filter((candidate) => candidate.selected).length} kept</span>
+        </a>
+        <a href={caseHref(inv.id, "plan")} aria-current={!view ? "location" : undefined}>
+          <strong>Design</strong><span>{experiments.length} {experiments.length === 1 ? "experiment" : "experiments"}</span>
+        </a>
+        <a href={caseHref(inv.id, "plan", "execution")} aria-current={view === "execution" ? "location" : undefined}>
+          <strong>Execution</strong><span>{sweeps.reduce((total, sweep) => total + sweep.points_run, 0).toLocaleString()} clock points</span>
+        </a>
+      </nav>
+      {!view && experiments.length === 0 && <div className="case-section__intro"><h3 className="panel__title">Experiment plan</h3>{ghost}</div>}
       {waiting ? (
         <section className="case-card case-card--action" aria-labelledby="plan-approve">
           <h3 id="plan-approve" className="panel__title">
@@ -185,7 +215,7 @@ export function PlanTab({ inv, onApprove, busy }: { readonly inv: Investigation;
         </section>
       ) : null}
 
-      {experiments.length > 0 ? (
+      {!view && experiments.length > 0 ? (
         <section className="case-section" aria-labelledby="plan-exps">
         <PlanOrchestration headingId="plan-exps" title={`${INV_EXPERIMENTS_TITLE} (${experiments.length})`}
           state={waiting ? "review" : inv.stage === "completed" ? "complete" : "planning"}>
@@ -215,11 +245,17 @@ export function PlanTab({ inv, onApprove, busy }: { readonly inv: Investigation;
         </section>
       ) : null}
 
-      <PlanCoverage inv={inv} />
-      <PlannerRounds inv={inv} />
+      {view === "execution" && (
+        <Panel id="plan-execution" title={INV_SWEEPS_TITLE}>
+          {sweeps.length ? <SweepList inv={inv} /> : <p className="case-card">Clock sweeps appear here as the Crew runs the experiments.</p>}
+        </Panel>
+      )}
+      {!view && <PlanCoverage inv={inv} />}
+      {!view && <PlannerRounds inv={inv} />}
 
-      {candidates.length > 0 ? (
-        <CaseDisclosure label={`${INV_CANDIDATES_TITLE} (${candidates.length})`}>
+      {view === "discovery" && candidates.length === 0 && <p className="case-card">Candidates appear here as the Crew reviews time-sensitive code.</p>}
+      {view !== "execution" && candidates.length > 0 ? (
+        <CaseDisclosure key={view ?? "design"} label={`${INV_CANDIDATES_TITLE} (${candidates.length})`} initiallyOpen={view === "discovery"}>
           {inv.feature_map?.note ? <p className="muted-note">{inv.feature_map.note}</p> : null}
           <ol role="list" className="rows">
             {candidates.map((x, i) => (
@@ -237,7 +273,8 @@ export function PlanTab({ inv, onApprove, busy }: { readonly inv: Investigation;
         </CaseDisclosure>
       ) : null}
 
-      {inv.capabilities ? (
+      {view === "discovery" && <PlanCoverage inv={inv} />}
+      {view !== "execution" && inv.capabilities ? (
         <CaseDisclosure label={INV_CAPABILITIES_TITLE}>
           <ul role="list" className="checks">
             {inv.capabilities.items.map((it) => (
@@ -259,18 +296,19 @@ export function PlanTab({ inv, onApprove, busy }: { readonly inv: Investigation;
 
 // ---------------------------------------------------------------- findings
 
-function BugFinding({ bug, flightDelay = 0 }: { readonly bug: Bug; readonly flightDelay?: number }) {
+function BugFinding({ bug, invId, replay, flightDelay = 0 }: { readonly bug: Bug; readonly invId: string; readonly replay: number; readonly flightDelay?: number }) {
   return (
-    <li className="case-card">
+    <li className="case-card case-finding-card">
       <div className="case-finding__intro">
         <div className="case-card__heading">
-          <h4>{bug.title}</h4>
           <div className="case-card__meta"><span className="tag tag--bad">Reproduced</span></div>
+          <h4>{bug.title}</h4>
           <p>{label(INVARIANT_LABELS, bug.invariant)}</p>
           {bug.violation.zone && <p className="case-note">{bug.violation.zone.replaceAll("_", " ")} · {bug.violation.local}</p>}
         </div>
-        <FindingsBat flightDelay={flightDelay} />
+        <FindingsBat key={replay} flightDelay={flightDelay} />
       </div>
+      <a href={caseHref(invId, "fixes")}>Review the fixes <span aria-hidden="true">↗</span></a>
       <BugReproduction bug={bug} />
       <CaseDisclosure label="View reproduction and evidence">
       <dl className="facts">
@@ -309,15 +347,16 @@ function BugFinding({ bug, flightDelay = 0 }: { readonly bug: Bug; readonly flig
   );
 }
 
-function IntendedItem({ f, flightDelay = 0 }: { readonly f: IntendedFinding; readonly flightDelay?: number }) {
+function IntendedItem({ f, replay, flightDelay = 0 }: { readonly f: IntendedFinding; readonly replay: number; readonly flightDelay?: number }) {
   return (
-    <li className="case-card" data-intended={f.id}>
+    <li className="case-card case-finding-card" data-intended={f.id}>
       <div className="case-finding__intro">
         <div className="case-card__heading">
+          <div className="case-card__meta"><span className="tag">Intended behaviour</span></div>
           <h4>{f.title}</h4>
           <p>Matches behavior documented by the repository.</p>
         </div>
-        <FindingsBat flightDelay={flightDelay} />
+        <FindingsBat key={replay} flightDelay={flightDelay} />
       </div>
       <CaseDisclosure label="View explanation and evidence">
       <p>{f.explanation}</p>
@@ -352,7 +391,22 @@ function IntendedItem({ f, flightDelay = 0 }: { readonly f: IntendedFinding; rea
   );
 }
 
+function SweepList({ inv }: { readonly inv: Investigation }) {
+  const experiments = inv.test_plan?.experiments ?? [];
+  return (
+    <ul role="list" className="rows case-sweep-list">
+      {inv.sweeps.map((sweep) => (
+        <li key={sweep.experiment_id} className="row">
+          <strong>{candTitle(inv, experiments.find((experiment) => experiment.id === sweep.experiment_id)?.candidate_id ?? sweep.experiment_id)}</strong>
+          <p className="row__meta">{INV_SWEEP_LINE(sweep.points_run, sweep.zones.length, sweep.violations.length)}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function FindingsTab({ inv, events = [] }: { readonly inv: Investigation; readonly events?: readonly ReplayEventMsg[] }) {
+  const [replay, setReplay] = useState(0);
   const intended = inv.intended ?? [];
   if (inv.sweeps.length === 0 && inv.bugs.length === 0 && intended.length === 0) return (
     <div className="case-card"><div className="case-finding__intro"><p>{CASE_PAGE.findingsNone}</p><FindingsBat /></div></div>
@@ -380,39 +434,34 @@ export function FindingsTab({ inv, events = [] }: { readonly inv: Investigation;
           </ul>
         </Panel>
       )}
-      {intended.length > 0 ? (
-        <Panel id="find-intended" title={`Intended behaviour, not bugs (${intended.length})`}>
-          <ol role="list" className="case-card-grid">
-            {intended.map((f, index) => (
-              <IntendedItem key={f.id} f={f} flightDelay={(index % 4) * .18} />
-            ))}
-          </ol>
-        </Panel>
-      ) : null}
-      <Panel id="find-bugs" title={`Reproduced bugs (${inv.bugs.length})`}>
+      <Panel id="find-bugs" title={`Reproduced bugs (${inv.bugs.length})`} controls={
+        <button type="button" className="plan-stage__control case-findings__replay" onClick={() => setReplay((value) => value + 1)}>Replay the bats</button>
+      }>
         {inv.bugs.length === 0 ? (
           <div className="case-card"><div className="case-finding__intro">
             <p>{inv.stage === "completed" ? INV_NO_BUGS : CASE_PAGE.noBugsYet}</p>
-            {intended.length === 0 && <FindingsBat />}
+            {intended.length === 0 && <FindingsBat key={replay} />}
           </div></div>
         ) : (
           <ol role="list" className="case-card-grid">
             {inv.bugs.map((b, index) => (
-              <BugFinding key={b.id} bug={b} flightDelay={((intended.length + index) % 4) * .18} />
+              <BugFinding key={b.id} bug={b} invId={inv.id} replay={replay} flightDelay={(index % 4) * .18} />
             ))}
           </ol>
         )}
       </Panel>
+      {intended.length > 0 && (
+        <Panel id="find-intended" title={`Intended behaviour, not bugs (${intended.length})`}>
+          <ol role="list" className="case-card-grid">
+            {intended.map((finding, index) => (
+              <IntendedItem key={finding.id} f={finding} replay={replay} flightDelay={((inv.bugs.length + index) % 4) * .18} />
+            ))}
+          </ol>
+        </Panel>
+      )}
       {inv.sweeps.length > 0 ? (
         <CaseDisclosure label={`${INV_SWEEPS_TITLE} (${inv.sweeps.length})`}>
-          <ul role="list" className="rows">
-            {inv.sweeps.map((sw) => (
-              <li key={sw.experiment_id} className="row">
-                <strong>{candTitle(inv, experiments.find((e) => e.id === sw.experiment_id)?.candidate_id ?? sw.experiment_id)}</strong>
-                <p className="row__meta">{INV_SWEEP_LINE(sw.points_run, sw.zones.length, sw.violations.length)}</p>
-              </li>
-            ))}
-          </ul>
+          <SweepList inv={inv} />
         </CaseDisclosure>
       ) : null}
     </div>
@@ -463,6 +512,31 @@ function AttemptDetails({ attempt }: { readonly attempt: FixAttempt }) {
   );
 }
 
+function GateStrip({ attempt }: { readonly attempt: FixAttempt }) {
+  const outcomes = new Map(attempt.gates.map((gate) => [gate.gate, gate.passed]));
+  const passed = GATE_ORDER.filter((name) => outcomes.get(name) === true).length;
+  return (
+    <section className="case-fix__gates" aria-label="Patch verification">
+      <div className="case-section__header">
+        <h4>Patch verification</h4>
+        <p className="case-fix__gate-total mono" data-passed={passed === GATE_ORDER.length}>{passed} of {GATE_ORDER.length} gates passed</p>
+      </div>
+      <ol className="case-gate-strip" role="list">
+        {GATE_ORDER.map((name, index) => {
+          const passed = outcomes.get(name);
+          return (
+            <li key={name} data-state={passed === true ? "pass" : passed === false ? "fail" : "skip"}>
+              <span className="case-gate-strip__mark" aria-hidden="true">{passed === true ? "✓" : passed === false ? "×" : "–"}</span>
+              <span className="visually-hidden">{passed === true ? "Passed. " : passed === false ? "Failed. " : "Not checked. "}</span>
+              <span>{GATE_SHORT[index]}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 function BugFix({ bug, invId, onChanged, attempts, notes }: {
   readonly bug: Bug;
   readonly invId: string;
@@ -481,14 +555,14 @@ function BugFix({ bug, invId, onChanged, attempts, notes }: {
   else if (verified && bug.fix.user_decision === "accepted") portraitState = "approved";
   const accepted = verified ? bug.fix.attempts.findLast((attempt) => attempt.accepted_by_gates) : undefined;
   const featured = accepted ?? latest;
+  const earlier = [...attempts].reverse().filter((attempt) => attempt !== featured);
   const files = featured ? parseUnifiedDiff(featured.diff) : [];
-  const change = shortNote(featured?.summary) ?? (files.length > 0
+  const change = shortNote(featured?.summary, 260) ?? (files.length > 0
     ? `The patch changes ${files.length} ${files.length === 1 ? "file" : "files"}.`
     : null);
-  const reason = shortNote(featured?.root_cause, 180);
-  const results = new Map(featured?.gates.map((gate) => [gate.gate, gate.passed]));
-  const passed = GATE_ORDER.every((gate) => results.get(gate) === true);
-  const failed = featured?.gates.find((gate) => !gate.passed);
+  const reason = shortNote(featured?.root_cause, 180) ?? shortNote(bug.violation.detail, 180);
+  const [title, impact] = bug.title.split(/;\s+/, 2);
+  const scenario = bug.violation.zone.replaceAll("_", " ");
   const decide = async (accept: boolean) => {
     if (!api) return;
     setBusy(true);
@@ -502,60 +576,61 @@ function BugFix({ bug, invId, onChanged, attempts, notes }: {
     }
   };
   return (
-    <li className="case-card case-fix" data-fix-state={bug.fix.state}>
-      <div className="case-card__head case-fix__header">
-        <h4>{bug.title}</h4>
-        <span className={`tag${verified && bug.fix.user_decision === "accepted" ? " tag--good" : ""}`}>{fixStatus(bug)}</span>
-      </div>
-      <div className="case-fix__portrait" aria-hidden="true">
-        <DoctorStitch key={portraitState} state={portraitState} />
-      </div>
-      <div className="case-fix__content">
-      {featured && <dl className="case-fix__brief">
-        {change && <div><dt>{verified ? "What changed" : "What the Crew tried"}</dt><dd>{change}</dd></div>}
-        {reason && <div><dt>Why it was needed</dt><dd>{reason}</dd></div>}
-        {verified ? (
-          <div><dt>Verification</dt><dd>{passed
-            ? "The patch passed all eight verification checks."
-            : "The Crew marked this patch verified."}</dd></div>
-        ) : failed ? (
-          <div><dt>What stopped it</dt><dd>Did not pass “{label(GATE_LABELS, failed.gate)}”.</dd></div>
-        ) : null}
-      </dl>}
-      {verified && (bug.fix.user_decision === "pending" || (bug.fix.user_decision === "accepted" && api)) ? (
-        <div className="actions">
-          {bug.fix.user_decision === "pending" ? (
-            <>
-              <button type="button" className="btn btn--primary" disabled={busy || !api} onClick={() => void decide(true)}>
-                {INV_ACCEPT_FIX}
-              </button>
-              <button type="button" className="btn" disabled={busy || !api} onClick={() => void decide(false)}>
-                {INV_REJECT_FIX}
-              </button>
-            </>
-          ) : bug.fix.user_decision === "accepted" && api ? (
-            <a className="btn" href={api.patchUrl(invId, bug.id)} download>{INV_DOWNLOAD_PATCH}</a>
-          ) : null}
+    <article className="case-card case-fix" data-fix-state={bug.fix.state} aria-labelledby="case-fix-title">
+      <div className="case-fix__hero">
+        <div className="case-fix__intro">
+          <h3 id="case-fix-title" tabIndex={-1}>{title}</h3>
+          {(impact || scenario) && <p>{impact ? impact.charAt(0).toUpperCase() + impact.slice(1) : scenario}</p>}
+          <a href={caseHref(invId, "findings")}>Read the finding <span aria-hidden="true">↗</span></a>
         </div>
-      ) : null}
+        <div className="case-fix__portrait" aria-hidden="true">
+          <DoctorStitch key={portraitState} state={portraitState} />
+        </div>
       </div>
-      {featured && (
-        <div className="case-fix__details">
-          {[...attempts].reverse().map((attempt) => (
-            <CaseDisclosure key={attempt.attempt} label={INV_ATTEMPT(attempt.attempt)} initiallyOpen={attempt === featured}>
-              <AttemptDetails attempt={attempt} />
-            </CaseDisclosure>
-          ))}
+      {(change || reason) && <dl className="case-fix__brief">
+        {change && <div><dt>{verified ? "What changed" : "What the Crew tried"}</dt><dd>{change}</dd></div>}
+        {reason && <div><dt>Why it mattered</dt><dd>{reason}</dd></div>}
+      </dl>}
+      {verified && bug.fix.user_decision === "pending" && (
+        <div className="actions">
+          <button type="button" className="btn btn--primary" disabled={busy || !api} onClick={() => void decide(true)}>
+            {INV_ACCEPT_FIX}
+          </button>
+          <button type="button" className="btn" disabled={busy || !api} onClick={() => void decide(false)}>
+            {INV_REJECT_FIX}
+          </button>
         </div>
       )}
-      {verified && bug.fix.user_decision === "accepted" && <FixBranchPanel bug={bug} invId={invId} notes={notes} onChanged={onChanged} />}
-      <BugRetest bug={bug} invId={invId} onChanged={onChanged} />
+      {featured && <GateStrip attempt={featured} />}
+      <div className="case-fix__details">
+        {featured && (files.length > 0 || featured.summary || featured.root_cause) && (
+          <CaseDisclosure label={files.length ? `View fix details · ${files.length} ${files.length === 1 ? "file" : "files"}` : "View fix details"}>
+            {files.map((file) => <DiffView key={file.file} caption={FIX_CHANGE_CAPTION} file={file.file} lines={file.lines} />)}
+            {featured.summary && <p>{featured.summary}</p>}
+            {featured.root_cause && <p><strong>{INV_ROOT_CAUSE}.</strong> {featured.root_cause}</p>}
+          </CaseDisclosure>
+        )}
+        {featured && <CaseDisclosure label="View verification"><GateList attempt={featured} /></CaseDisclosure>}
+        {earlier.length > 0 && (
+          <CaseDisclosure label={`Earlier attempts (${earlier.length})`}>
+            {earlier.map((attempt) => <CaseDisclosure key={attempt.attempt} label={INV_ATTEMPT(attempt.attempt)}>
+              <AttemptDetails attempt={attempt} />
+            </CaseDisclosure>)}
+          </CaseDisclosure>
+        )}
+        <CaseDisclosure label={verified && bug.fix.user_decision === "accepted" ? "Retest and share" : "Retest"}>
+          {verified && bug.fix.user_decision === "accepted" && (
+            <FixBranchPanel bug={bug} invId={invId} notes={notes} onChanged={onChanged} />
+          )}
+          <BugRetest bug={bug} invId={invId} onChanged={onChanged} />
+        </CaseDisclosure>
+      </div>
       {err ? (
         <p className="alert" role="alert">
           {err}
         </p>
       ) : null}
-    </li>
+    </article>
   );
 }
 
@@ -564,13 +639,52 @@ export function FixesTab({ inv, events = [], onChanged }: {
   readonly events?: readonly ReplayEventMsg[];
   readonly onChanged: () => Promise<void>;
 }) {
-  if (inv.bugs.length === 0) return <p className="case-card">{CASE_PAGE.fixesNone}</p>;
+  const [selectedId, setSelectedId] = useState(() =>
+    inv.bugs.find((bug) => bug.fix.state === "in-progress")?.id ?? inv.bugs[0]?.id);
+  const selected = inv.bugs.find((bug) => bug.id === selectedId) ?? inv.bugs[0];
+  if (!selected) return <p className="case-card">{CASE_PAGE.fixesNone}</p>;
+  const attempts = visibleAttempts(selected, events);
+  const selectFix = (id: string) => {
+    setSelectedId(id);
+    if (id === selected.id) return;
+    requestAnimationFrame(() => document.getElementById("case-fix-title")?.focus());
+  };
   return (
-    <Panel id="case-fixes" title="Suggested fixes">
-      <ol role="list" className="case-card-list">
-        {inv.bugs.map((b) => <BugFix key={b.id} bug={b} invId={inv.id} onChanged={onChanged} attempts={visibleAttempts(b, events)} notes={inv.notes} />)}
-      </ol>
-    </Panel>
+    <section className="case-fixes" aria-label="Suggested fixes">
+      <BugFix key={selected.id} bug={selected} invId={inv.id} onChanged={onChanged} attempts={attempts} notes={inv.notes} />
+      <aside className="case-fix-rail" aria-label="Fix index and patch history">
+        <section className="case-card case-fix-index" aria-labelledby="case-fix-index">
+          <h3 id="case-fix-index" className="case-label">Fix index</h3>
+          <ul role="list">
+            {inv.bugs.map((bug) => (
+              <li key={bug.id}>
+                <button type="button" aria-pressed={selected.id === bug.id} aria-label={bug.title} onClick={() => selectFix(bug.id)}>
+                  <span className={`tag${bug.fix.user_decision === "accepted" ? " tag--good" : ""}`}>{fixStatus(bug)}</span>
+                  <span>{bug.title.split(/;\s+/, 1)[0]}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {attempts.length > 0 && (
+          <section className="case-card case-fix-history" aria-labelledby="case-fix-history">
+            <h3 id="case-fix-history" className="case-label">Patch attempts</h3>
+            <ol role="list" reversed>
+              {[...attempts].reverse().map((attempt) => {
+                const failed = attempt.gates.find((gate) => !gate.passed);
+                const outcome = attempt.accepted_by_gates
+                  ? selected.fix.user_decision === "accepted" ? "Verified and approved" : "Verified"
+                  : failed ? `Stopped at ${label(GATE_LABELS, failed.gate).toLowerCase()}`
+                    : selected.fix.state === "in-progress" && attempt === attempts.at(-1) ? "In progress" : "Attempt recorded";
+                return <li key={attempt.attempt} data-verified={attempt.accepted_by_gates}>
+                  <span>{INV_ATTEMPT(attempt.attempt)}</span><small>{outcome}</small>
+                </li>;
+              })}
+            </ol>
+          </section>
+        )}
+      </aside>
+    </section>
   );
 }
 
@@ -674,8 +788,11 @@ export function ActivityTab({ inv, events }: { readonly inv: Investigation; read
         {milestones.length > 0 ? (
           <ol role="list" className="case-card-list case-milestones">
             {milestones.map(({ event, text }) => <li key={event.seq}>
-              <CrewSigil id={event.actor} />
-              <div><p>{text}</p><p className="case-note">{agentName(event.actor)} · {FLOW_STEPS.find((step) => step.id === event.phase)?.sign ?? event.phase}</p></div>
+              <div className="case-milestones__phase">
+                <CrewSigil id={event.actor} />
+                <span className="case-label">{FLOW_STEPS.find((step) => step.id === event.phase)?.sign ?? event.phase}</span>
+              </div>
+              <div><p>{text}</p><p className="case-note">{agentName(event.actor)}</p></div>
             </li>)}
           </ol>
         ) : <p className="case-card">{shown.length > 0 ? "Open the event log to see this phase’s activity." : CASE_PAGE.noEvents}</p>}

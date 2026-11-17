@@ -358,6 +358,40 @@
       "title": "CapabilityReport",
       "type": "object"
     },
+    "CheckResult": {
+      "description": "One of the repository's own checks (its tests, lint, format) run on the contribution in the sandbox.",
+      "properties": {
+        "command": {
+          "title": "Command",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "preexisting": {
+          "default": false,
+          "title": "Preexisting",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "command",
+        "passed"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
     "ClockConfig": {
       "properties": {
         "instant": {
@@ -418,6 +452,65 @@
         "exported"
       ],
       "title": "CodeUnit",
+      "type": "object"
+    },
+    "Contribution": {
+      "description": "The fix shaped to the repository's rules: rebased, placed, formatted, checked, with its PR text.",
+      "properties": {
+        "base": {
+          "title": "Base",
+          "type": "string"
+        },
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "checks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CheckResult"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "prepared_at": {
+          "title": "Prepared At",
+          "type": "string"
+        },
+        "rebased": {
+          "title": "Rebased",
+          "type": "boolean"
+        },
+        "rules": {
+          "$ref": "#/$defs/RuleSummary"
+        },
+        "test_path": {
+          "title": "Test Path",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prepared_at",
+        "rules",
+        "base",
+        "rebased",
+        "title",
+        "body",
+        "test_path"
+      ],
+      "title": "Contribution",
       "type": "object"
     },
     "CoverageRow": {
@@ -1017,6 +1110,17 @@
           "title": "Commit",
           "type": "string"
         },
+        "contribution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Contribution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "created_at": {
           "title": "Created At",
           "type": "string"
@@ -1316,6 +1420,47 @@
         "pushed_at": {
           "title": "Pushed At",
           "type": "string"
+        },
+        "source_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Commit"
+        },
+        "update_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Update Note"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Updated At"
+        },
+        "updates": {
+          "default": 0,
+          "title": "Updates",
+          "type": "integer"
         }
       },
       "required": [
@@ -1372,6 +1517,95 @@
         "detail"
       ],
       "title": "Retest",
+      "type": "object"
+    },
+    "RuleSummary": {
+      "description": "What the repository asks of contributors, read from its own files on its default branch.",
+      "properties": {
+        "ai_policy": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Ai Policy",
+          "type": "array"
+        },
+        "archived": {
+          "default": false,
+          "title": "Archived",
+          "type": "boolean"
+        },
+        "cla": {
+          "default": false,
+          "title": "Cla",
+          "type": "boolean"
+        },
+        "contributing_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contributing Url"
+        },
+        "conventional_commits": {
+          "default": false,
+          "title": "Conventional Commits",
+          "type": "boolean"
+        },
+        "dco": {
+          "default": false,
+          "title": "Dco",
+          "type": "boolean"
+        },
+        "default_branch": {
+          "default": "",
+          "title": "Default Branch",
+          "type": "string"
+        },
+        "scripts": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Scripts",
+          "type": "array"
+        },
+        "template_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template Path"
+        },
+        "test_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Test Dir"
+        },
+        "test_pattern": {
+          "default": ".test.ts",
+          "title": "Test Pattern",
+          "type": "string"
+        }
+      },
+      "title": "RuleSummary",
       "type": "object"
     },
     "Signal": {

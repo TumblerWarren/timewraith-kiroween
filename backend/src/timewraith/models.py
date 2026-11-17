@@ -343,6 +343,46 @@ class FixAttempt(BaseModel):
     test_runs: int = 0
 
 
+class CheckResult(BaseModel):
+    """One of the repository's own checks (its tests, lint, format) run on the contribution in the sandbox."""
+
+    name: str
+    command: str
+    passed: bool
+    preexisting: bool = False  # it fails on the upstream commit too, so the fix did not cause it
+    detail: str = ""
+
+
+class RuleSummary(BaseModel):
+    """What the repository asks of contributors, read from its own files on its default branch."""
+
+    default_branch: str = ""
+    archived: bool = False
+    contributing_url: str | None = None
+    template_path: str | None = None
+    conventional_commits: bool = False
+    dco: bool = False
+    cla: bool = False
+    ai_policy: list[str] = []  # lines of CONTRIBUTING that mention AI or generated code
+    test_dir: str | None = None
+    test_pattern: str = ".test.ts"
+    scripts: list[str] = []  # the package scripts used as checks
+
+
+class Contribution(BaseModel):
+    """The fix shaped to the repository's rules: rebased, placed, formatted, checked, with its PR text."""
+
+    prepared_at: str
+    rules: RuleSummary
+    base: str  # the upstream commit the contribution sits on
+    rebased: bool  # the upstream moved on since the pinned commit and the fix was carried over
+    notes: list[str] = []
+    checks: list[CheckResult] = []
+    title: str
+    body: str
+    test_path: str
+
+
 class FixBranch(BaseModel):
     """A local git branch holding the accepted fix: one commit on the pinned revision, made by code, never pushed."""
 
@@ -354,6 +394,7 @@ class FixBranch(BaseModel):
     created_at: str
     patch_file: str  # git format-patch file, applied with `git am`
     upstream_url: str  # `origin` of the clone, so the branch can be pushed to your own fork
+    contribution: Contribution | None = None  # set by "check against the repository's rules" (contribute.py)
 
 
 class Publish(BaseModel):
@@ -366,6 +407,10 @@ class Publish(BaseModel):
     pr_url: str | None = None
     pr_number: int | None = None
     pr_opened_at: str | None = None
+    source_commit: str | None = None  # the local branch commit this was built from; a newer one means an update is due
+    updated_at: str | None = None
+    updates: int = 0  # how many follow-up commits were added on top of the first push
+    update_note: str | None = None  # set when the branch was updated but the pull request text could not be changed
 
 
 class Fix(BaseModel):

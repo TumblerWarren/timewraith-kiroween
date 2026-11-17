@@ -75,7 +75,6 @@ export const INV_ATTEMPT = (n: number) => `Attempt ${n}`;
 export const INV_ROOT_CAUSE = "Root cause";
 export const INV_ACCEPT_FIX = "Accept the fix";
 export const INV_REJECT_FIX = "Reject the fix";
-export const INV_DOWNLOAD_PATCH = "Download the patch";
 export const INV_FIX_ACCEPTED = "Fix accepted";
 export const INV_FIX_REJECTED = "Fix rejected";
 export const INV_DECISIONS_TITLE = "Why the Crew decided";

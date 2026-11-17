@@ -1,0 +1,29 @@
+.case-path-ghost {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: 1;
+  width: 64px;
+  height: 50px;
+  visibility: hidden;
+  pointer-events: none;
+  transform-origin: 50% 60%;
+}
+.case-path-ghost[data-moving="true"] { will-change: transform; }
+.case-path-ghost__float { display: block; animation: case-path-levitate 4s ease-in-out infinite; }
+.case-path-ghost img { display: block; width: 100%; height: 50px; object-fit: contain; }
+.case-path-ghost[data-paused="true"] .case-path-ghost__float { animation-play-state: paused; }
+.case-path-ghost[data-reduced="true"] .case-path-ghost__float { animation: none; }
+
+@keyframes case-path-levitate {
+  0%, 100% { transform: translate3d(0, 1px, 0); }
+  50% { transform: translate3d(0, -3px, 0); }
+}
+
+@media (max-width: 760px) {
+  .case-path-ghost { width: 54px; height: 44px; }
+  .case-path-ghost img { height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-reduce-motion="false"]) .case-path-ghost__float { animation: none; }
+}

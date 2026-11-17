@@ -163,6 +163,40 @@ export interface FixAttempt {
   readonly test_runs?: number;
 }
 
+export interface ContributionCheck {
+  readonly name: string;
+  readonly command: string;
+  readonly passed: boolean;
+  readonly preexisting: boolean;
+  readonly detail: string;
+}
+
+export interface ContributionRules {
+  readonly default_branch: string;
+  readonly archived: boolean;
+  readonly contributing_url: string | null;
+  readonly template_path: string | null;
+  readonly conventional_commits: boolean;
+  readonly dco: boolean;
+  readonly cla: boolean;
+  readonly ai_policy: readonly string[];
+  readonly test_dir: string | null;
+  readonly test_pattern: string;
+  readonly scripts: readonly string[];
+}
+
+export interface Contribution {
+  readonly prepared_at: string;
+  readonly rules: ContributionRules;
+  readonly base: string;
+  readonly rebased: boolean;
+  readonly notes: readonly string[];
+  readonly checks: readonly ContributionCheck[];
+  readonly title: string;
+  readonly body: string;
+  readonly test_path: string;
+}
+
 export interface FixBranch {
   readonly name: string;
   readonly path: string;
@@ -172,6 +206,7 @@ export interface FixBranch {
   readonly created_at: string;
   readonly patch_file: string;
   readonly upstream_url: string;
+  readonly contribution?: Contribution | null;
 }
 
 export interface Publish {
@@ -182,6 +217,9 @@ export interface Publish {
   readonly pr_url: string | null;
   readonly pr_number: number | null;
   readonly pr_opened_at: string | null;
+  readonly updates?: number;
+  readonly updated_at?: string | null;
+  readonly update_note?: string | null;
 }
 
 export interface GitHubPreview {
@@ -196,6 +234,9 @@ export interface GitHubPreview {
   readonly duplicates: readonly { readonly number: number; readonly title: string; readonly url: string; readonly state: string }[];
   readonly published: Publish | null;
   readonly problems: readonly string[];
+  readonly contribution?: Contribution | null;
+  readonly warnings?: readonly string[];
+  readonly update?: { readonly available: boolean; readonly reason: string };
 }
 
 export interface Fix {

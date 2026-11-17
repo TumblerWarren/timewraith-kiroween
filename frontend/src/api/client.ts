@@ -1,4 +1,5 @@
 import type {
+  Contribution,
   CreateInvestigation,
   FlowStep,
   FixBranch,
@@ -38,8 +39,10 @@ export interface Api {
   makeBranch(id: string, bugId: string): Promise<FixBranch>;
   branchPatchUrl(id: string, bugId: string): string;
   githubPreview(id: string, bugId: string): Promise<GitHubPreview>;
-  githubPush(id: string, bugId: string, confirmBranch: string): Promise<Publish>;
-  githubPullRequest(id: string, bugId: string, title: string, body: string, confirmBranch: string): Promise<Publish>;
+  prepareContribution(id: string, bugId: string): Promise<Contribution>;
+  githubPush(id: string, bugId: string, confirmBranch: string, acknowledgeDuplicates: boolean): Promise<Publish>;
+  githubPullRequest(id: string, bugId: string, title: string, body: string, confirmBranch: string, acknowledgeDuplicates: boolean): Promise<Publish>;
+  githubUpdate(id: string, bugId: string, title: string, body: string, confirmBranch: string): Promise<Publish>;
   retest(id: string, bugId: string, ref: string): Promise<Retest>;
   patchUrl(id: string, bugId: string): string;
   setup(): Promise<SetupStatus>;
@@ -103,9 +106,14 @@ export function createApi(base: string = import.meta.env.VITE_TW_API_BASE ?? "/a
     makeBranch: (id, bugId) => post<FixBranch>(`${bugPath(id, bugId)}/branch`),
     branchPatchUrl: (id, bugId) => `${base}${bugPath(id, bugId)}/branch.patch`,
     githubPreview: (id, bugId) => call<GitHubPreview>(`${bugPath(id, bugId)}/github`),
-    githubPush: (id, bugId, confirmBranch) => post<Publish>(`${bugPath(id, bugId)}/github/push`, { confirm_branch: confirmBranch }),
-    githubPullRequest: (id, bugId, title, body, confirmBranch) =>
-      post<Publish>(`${bugPath(id, bugId)}/github/pull-request`, { title, body, confirm_branch: confirmBranch }),
+    prepareContribution: (id, bugId) => post<Contribution>(`${bugPath(id, bugId)}/contribution`),
+    githubPush: (id, bugId, confirmBranch, acknowledgeDuplicates) => post<Publish>(`${bugPath(id, bugId)}/github/push`, {
+      confirm_branch: confirmBranch, acknowledge_duplicates: acknowledgeDuplicates,
+    }),
+    githubPullRequest: (id, bugId, title, body, confirmBranch, acknowledgeDuplicates) =>
+      post<Publish>(`${bugPath(id, bugId)}/github/pull-request`, { title, body, confirm_branch: confirmBranch, acknowledge_duplicates: acknowledgeDuplicates }),
+    githubUpdate: (id, bugId, title, body, confirmBranch) =>
+      post<Publish>(`${bugPath(id, bugId)}/github/update`, { title, body, confirm_branch: confirmBranch }),
     patchUrl: (id, bugId) => `${base}/investigations/${enc(id)}/bugs/${enc(bugId)}/patch`,
     setup: () => call<SetupStatus>("/system/setup"),
     startDocker: () => post<SetupStatus>("/system/docker/start"),

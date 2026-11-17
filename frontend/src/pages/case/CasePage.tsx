@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useApi } from "../../api/ApiProvider";
 import { ApiError } from "../../api/client";
 import { FINAL_STAGES, type Investigation } from "../../api/types";
-import { caseHref, href, navigate, type CaseTab } from "../../app/router";
+import { caseHref, href, navigate, type CaseTab, type PlanView } from "../../app/router";
 import { caseState, pendingFixes, suggestedRef } from "../../app/status";
 import { liveFromSummary, liveTitle, targetLine, type DraftCase, type LiveCase } from "../../cases/model";
 import { useCaseStore } from "../../cases/store";
@@ -10,12 +10,10 @@ import { DeleteCaseButton } from "../../cases/DeleteCaseButton";
 import { summaryOf, useInvestigation } from "../../cases/useInvestigation";
 import { DraftCaseView } from "../../cases/view/DraftCaseView";
 import { CASE_PAGE } from "../../content/app";
-import { FLOW_STEPS } from "../../content/flow";
 import { CASE_MODE_BY_ID } from "../../content/modes";
 import { ModeShape } from "../../cases/library/ModeShape";
-import { CaseTabs, Counters, StatusBanner, Stepper, stepStates } from "./parts";
+import { CaseTabs, Counters, RunGraph, RunStatus, StatusBanner, stepStates } from "./parts";
 import { ActivityTab, FindingsTab, FixesTab, OverviewTab, PlanTab } from "./tabs";
-import { CaseDisclosure } from "./CaseDisclosure";
 import { KiroAccountBanner, NowStrip } from "./LiveCaseDetails";
 
 function Back() {
@@ -64,7 +62,12 @@ function DraftCasePage({ d }: { readonly d: DraftCase }) {
   );
 }
 
-function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: CaseTab; readonly known: LiveCase | null }) {
+function LiveCasePage({ id, tab, planView, known }: {
+  readonly id: string;
+  readonly tab: CaseTab;
+  readonly planView?: PlanView;
+  readonly known: LiveCase | null;
+}) {
   const { api, health } = useApi();
   const { upsertLive } = useCaseStore();
   // Loads at once, without waiting for the health check; an unreachable backend shows as an error.
@@ -89,7 +92,7 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
   const state = caseState(c, inv, maxAttempts, events);
   const stage = inv?.stage ?? c.summary.stage;
   const running = !FINAL_STAGES.includes(stage);
-  const currentStep = FLOW_STEPS.find((step) => step.id === (inv?.phase ?? c.summary.phase));
+  const phase = inv?.phase ?? c.summary.phase;
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -116,6 +119,7 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
   const message = inv?.notes[inv.notes.length - 1] ?? c.summary.message;
   const nextRef = stage === "failed" ? suggestedRef(message) : null;
   const pending = pendingFixes(inv);
+  const approved = inv?.bugs.filter((bug) => bug.fix.state === "verified" && bug.fix.user_decision === "accepted").length ?? 0;
   const bannerState = state.id === "waiting" && stage === "completed" && pending > 0
     ? { ...state, detail: pending === 1 ? "One verified fix is ready for your decision." : `${pending} verified fixes are ready for your decision.` }
     : state;
@@ -152,17 +156,21 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
   );
 
   return (
-    <article className="page page--case" aria-labelledby="page-title" data-case={id}>
-      <Back />
-      <header className="page__head">
-        <h1 id="page-title" className="page__title mono-title" tabIndex={-1}>
-          {liveTitle(c)}
-        </h1>
+    <article className="page page--case page--live-case" aria-labelledby="page-title" data-case={id}>
+      <header className="case-heading">
+        <div className="case-heading__title">
+          <a href={href({ page: "cases" })}>Cases</a><span aria-hidden="true">/</span>
+          <h1 id="page-title" className="page__title" tabIndex={-1}>{liveTitle(c)}</h1>
+        </div>
         <Meta c={c} inv={inv} />
       </header>
 
-      <StatusBanner state={bannerState}>{actions}</StatusBanner>
-      {running && <NowStrip events={events} fallback={bannerState.detail} />}
+      <RunStatus state={bannerState} inv={inv} openedAt={c.summary.created_at} running={running}
+        activity={state.id === "running" ? <NowStrip events={events} /> : undefined}>
+        {actions}
+      </RunStatus>
+      <RunGraph id={id} tab={tab}
+        states={stepStates(phase, stage, inv?.bugs.length ?? c.summary.bug_count)} inv={inv} />
       <KiroAccountBanner notes={inv?.notes ?? []} events={events} />
       {actionError ? (
         <p className="alert" role="alert">
@@ -182,10 +190,14 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
         }}
       />
       <div className="tab-panel">
+        <div className="case-tab-heading">
+          <h2>{CASE_PAGE.tabs[tab]}</h2>
+          {tab === "fixes" && approved > 0 && <span className="case-note">{approved} approved {approved === 1 ? "fix" : "fixes"}</span>}
+        </div>
         {!inv ? (
           <p className="muted-note">{error ?? CASE_PAGE.loading}</p>
         ) : tab === "plan" ? (
-          <PlanTab inv={inv} busy={busy} onApprove={() => api && void act(() => api.approvePlan(id))} />
+          <PlanTab inv={inv} view={planView} busy={busy} onApprove={() => api && void act(() => api.approvePlan(id))} />
         ) : tab === "findings" ? (
           <FindingsTab inv={inv} events={events} />
         ) : tab === "fixes" ? (
@@ -193,13 +205,7 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
         ) : tab === "activity" ? (
           <ActivityTab inv={inv} events={events} />
         ) : (
-          <div className="tab-stack">
-            <OverviewTab inv={inv} />
-            <CaseDisclosure label={running && currentStep ? `Run details · ${currentStep.sign} (${currentStep.index} of ${FLOW_STEPS.length})` : "Run details"}>
-              <Stepper states={stepStates(inv.phase, stage, inv.bugs.length)} inv={inv} />
-              <Counters inv={inv} running={running} limits={health?.limits ?? null} />
-            </CaseDisclosure>
-          </div>
+          <OverviewTab inv={inv} runDetails={<Counters inv={inv} running={running} limits={health?.limits ?? null} />} />
         )}
       </div>
       <DeleteCaseButton c={c} leavePage />
@@ -208,9 +214,9 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
 }
 
 /** `#/cases/:id[/tab]`: a draft from this browser, or a live investigation from the backend. */
-export function CasePage({ id, tab }: { readonly id: string; readonly tab: CaseTab }) {
+export function CasePage({ id, tab, planView }: { readonly id: string; readonly tab: CaseTab; readonly planView?: PlanView }) {
   const { drafts, live } = useCaseStore();
   const draft = drafts.find((d) => d.id === id);
   if (draft) return <DraftCasePage d={draft} />;
-  return <LiveCasePage key={id} id={id} tab={tab} known={live.find((c) => c.id === id) ?? null} />;
+  return <LiveCasePage key={id} id={id} tab={tab} planView={planView} known={live.find((c) => c.id === id) ?? null} />;
 }

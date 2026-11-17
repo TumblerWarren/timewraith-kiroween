@@ -5,13 +5,13 @@ import { CASE_LIVE as copy } from "../../content/copy";
 import { CREW_BY_ID } from "../../content/crew";
 import { callProgress } from "./liveCase";
 
-export function NowStrip({ events, fallback }: { readonly events: readonly ReplayEventMsg[]; readonly fallback: string }) {
+export function NowStrip({ events }: { readonly events: readonly ReplayEventMsg[] }) {
   const latest = events.findLast((event) => event.kind === "dispatch" || event.kind === "tool" || event.kind === "stage");
   const progress = latest ? callProgress(latest) : null;
   return (
     <section className="case-now" aria-label={copy.now}>
       <p className="case-now__label"><strong>{copy.now}</strong><span className="tag tag--good">{copy.live}</span></p>
-      <p className="case-now__event">{latest ? <><strong>{CREW_BY_ID[latest.actor]?.name ?? latest.actor}</strong> · {latest.text}</> : fallback || copy.waiting}</p>
+      <p className="case-now__event">{latest ? <><strong>{CREW_BY_ID[latest.actor]?.name ?? latest.actor}</strong> · {latest.text}</> : copy.waiting}</p>
       {progress && <div className="case-now__progress">
         <progress value={progress.calls} max={progress.max} aria-label={copy.progress(progress.calls, progress.max)} />
         <span className="case-note">{copy.progress(progress.calls, progress.max)}</span>

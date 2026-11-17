@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useReadiness } from "../app/SetupProvider";
 import { GITHUB_SETUP as copy } from "../content/copy";
 
+const MARK = { done: "✓", busy: "…", todo: "○", blocked: "–" } as const;
+
 export function GitHubSetup() {
   const { status, busyAction, act } = useReadiness();
   const [confirming, setConfirming] = useState(false);
@@ -16,6 +18,7 @@ export function GitHubSetup() {
   return (
     <li className="crew-setup__step" data-state={state}>
       <p className="crew-setup__name">
+        <span className="crew-setup__mark" aria-hidden="true">{MARK[state]}</span>
         {copy.title}
         {!blocked && building && <span className="crew-setup__state" role="status"> {copy.building}</span>}
       </p>

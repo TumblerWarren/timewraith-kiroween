@@ -16,8 +16,10 @@ describe("Fix branch and GitHub API", () => {
     expect(api.branchPatchUrl("case/1", "bug/1")).toBe(`${bug}/branch.patch`);
     await api.makeBranch("case/1", "bug/1");
     await api.githubPreview("case/1", "bug/1");
-    await api.githubPush("case/1", "bug/1", branch);
-    await api.githubPullRequest("case/1", "bug/1", "Subject", "Description", branch);
+    await api.prepareContribution("case/1", "bug/1");
+    await api.githubPush("case/1", "bug/1", branch, true);
+    await api.githubPullRequest("case/1", "bug/1", "Subject", "Description", branch, false);
+    await api.githubUpdate("case/1", "bug/1", "Edited subject", "Edited description", branch);
     await api.githubStart();
     await api.githubLogin();
     await api.githubCancel();
@@ -25,8 +27,10 @@ describe("Fix branch and GitHub API", () => {
     expect(fetch.mock.calls).toEqual([
       [`${bug}/branch`, { method: "POST", headers }],
       [`${bug}/github`, { headers: {} }],
-      [`${bug}/github/push`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ confirm_branch: branch }) }],
-      [`${bug}/github/pull-request`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ title: "Subject", body: "Description", confirm_branch: branch }) }],
+      [`${bug}/contribution`, { method: "POST", headers }],
+      [`${bug}/github/push`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ confirm_branch: branch, acknowledge_duplicates: true }) }],
+      [`${bug}/github/pull-request`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ title: "Subject", body: "Description", confirm_branch: branch, acknowledge_duplicates: false }) }],
+      [`${bug}/github/update`, { method: "POST", headers: jsonHeaders, body: JSON.stringify({ title: "Edited subject", body: "Edited description", confirm_branch: branch }) }],
       ...["start", "login", "login/cancel", "logout"].map((path) => [`/api/v1/system/github/${path}`, { method: "POST", headers }]),
     ]);
   });

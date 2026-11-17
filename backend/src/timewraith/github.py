@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
@@ -36,6 +38,36 @@ def get_issue(owner: str, repo: str, number: int, token: str) -> dict[str, str]:
 
 # Labels of threads that ask or discuss rather than report a defect; such a thread is never a "known issue".
 NOT_A_REPORT = {"question", "discussion", "support", "help wanted", "invalid", "wontfix", "duplicate"}
+
+
+_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+_REF = re.compile(r"^[A-Za-z0-9._/-]{1,200}$")
+_PATH = re.compile(r"^[A-Za-z0-9._/-]{1,200}$")
+
+
+def raw(owner: str, repo: str, ref: str, path: str, limit: int = 200_000) -> str | None:
+    """One public file of a repository at a ref, or None when it is not there. Fixed host, no credentials."""
+    if not (_NAME.match(owner) and _NAME.match(repo) and _REF.match(ref) and _PATH.match(path)) or ".." in path:
+        return None
+    url = f"https://raw.githubusercontent.com/{owner}/{repo}/{urllib.parse.quote(ref)}/{path}"
+    req = urllib.request.Request(url, headers={"User-Agent": "timewraith"})  # noqa: S310 (fixed https host)
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:  # noqa: S310 (fixed https host)
+            text: str = r.read(limit).decode("utf-8", errors="replace")
+            return text
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise OSError(f"GitHub answered {e.code} for {path}") from e
+
+
+def repo_info(owner: str, repo: str, token: str) -> dict[str, Any]:
+    return _get(f"/repos/{owner}/{repo}", token)  # type: ignore[no-any-return]
+
+
+def root_names(owner: str, repo: str, ref: str, token: str) -> list[str]:
+    items = _get(f"/repos/{owner}/{repo}/contents/?ref={urllib.parse.quote(ref)}", token)
+    return [str(i.get("name", "")) for i in items] if isinstance(items, list) else []
 
 
 def search_issues(owner: str, repo: str, terms: list[str], token: str, exclude: int | None) -> list[dict[str, object]]:

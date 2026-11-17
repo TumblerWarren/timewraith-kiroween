@@ -47,7 +47,7 @@ describe("stored case additions", () => {
   });
 
   it("makes wrap-up notes visible instead of hiding them in saved notes", () => {
-    render(<OverviewTab inv={caseFixture} />);
+    render(<OverviewTab inv={caseFixture} runDetails={null} />);
     const warning = screen.getByRole("note");
     expect(warning).toHaveTextContent(CASE_ADDITIONS.wrapUp.title);
     expect(within(warning).getByText(caseFixture.notes[0]!)).toBeVisible();

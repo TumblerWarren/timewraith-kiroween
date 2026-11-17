@@ -70,6 +70,13 @@ export function visibleAttempts(bug: Bug, events: readonly ReplayEventMsg[]): re
       accepted_by_gates: false,
     });
   }
+  // Show gate progress as it arrives, then replace it with the saved attempt.
+  for (const [number, results] of gates) {
+    if (attempts.has(number)) continue;
+    attempts.set(number, {
+      attempt: number, summary: "", root_cause: "", diff: "", gates: results, accepted_by_gates: false,
+    });
+  }
   return [...attempts.values()].sort((a, b) => a.attempt - b.attempt);
 }
 

@@ -23,4 +23,13 @@ describe("hash routes", () => {
     expect(href({ page: "landing" })).toBe("#/");
     expect(href({ page: "home" })).toBe("#/home");
   });
+
+  it("links from the run graph to each Plan stage", () => {
+    for (const view of ["discovery", "execution"] as const) {
+      const url = caseHref("a b", "plan", view);
+      expect(url).toBe(`#/cases/a%20b/plan/${view}`);
+      expect(parseHash(url)).toEqual({ page: "case", id: "a b", tab: "plan", planView: view });
+    }
+    expect(parseHash("#/cases/abc/plan/unknown")).toEqual({ page: "not-found", path: "cases/abc/plan/unknown" });
+  });
 });

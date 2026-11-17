@@ -17,6 +17,7 @@ import difflib
 import hashlib
 import json
 import re
+import shlex
 import shutil
 import stat
 import threading
@@ -29,7 +30,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from . import agents as A
-from . import designsession, github, installfix, intent, publish, sandbox, verifysession
+from . import contribute, designsession, github, installfix, intent, publish, sandbox, verifysession
 from . import sweep as S
 from .analyze import analyze, is_test_file
 from .config import Settings
@@ -43,7 +44,9 @@ from .models import (
     Bug,
     BugCategory,
     Candidate,
+    CheckResult,
     ClockConfig,
+    Contribution,
     CoverageRow,
     CreateInvestigation,
     DecisionRecord,
@@ -222,17 +225,280 @@ class Engine:
                 self._publishing.discard(key)
         return bug
 
-    def github_push(self, inv_id: str, bug_id: str, confirm_branch: str) -> Publish:
-        bug = self._publish_step(inv_id, bug_id, "Pushed to your fork",
-                                 lambda inv, b: publish.push(inv, b, confirm_branch))  # fmt: skip
+    def github_push(
+        self, inv_id: str, bug_id: str, confirm_branch: str, acknowledge_duplicates: bool = False
+    ) -> Publish:
+        def step(inv: Investigation, b: Bug) -> Publish:
+            return publish.push(inv, b, confirm_branch, acknowledge_duplicates)
+
+        bug = self._publish_step(inv_id, bug_id, "Pushed to your fork", step)
         assert bug.fix.publish
         return bug.fix.publish
 
-    def github_pull_request(self, inv_id: str, bug_id: str, title: str, body: str, confirm_branch: str) -> Publish:
-        bug = self._publish_step(inv_id, bug_id, "Pull request opened",
-                                 lambda inv, b: publish.pull_request(inv, b, title, body, confirm_branch))  # fmt: skip
+    def github_update(self, inv_id: str, bug_id: str, title: str, body: str, confirm_branch: str) -> Publish:
+        def step(inv: Investigation, b: Bug) -> Publish:
+            return publish.update(inv, b, title, body, confirm_branch)
+
+        bug = self._publish_step(inv_id, bug_id, "Updated the branch on your fork", step)
         assert bug.fix.publish
         return bug.fix.publish
+
+    def github_pull_request(
+        self,
+        inv_id: str,
+        bug_id: str,
+        title: str,
+        body: str,
+        confirm_branch: str,
+        acknowledge_duplicates: bool = False,
+    ) -> Publish:
+        def step(inv: Investigation, b: Bug) -> Publish:
+            return publish.pull_request(inv, b, title, body, confirm_branch, acknowledge_duplicates)
+
+        bug = self._publish_step(inv_id, bug_id, "Pull request opened", step)
+        assert bug.fix.publish
+        return bug.fix.publish
+
+    def prepare_contribution(self, inv_id: str, bug_id: str) -> Contribution:
+        """Check the accepted fix against the repository's own rules and rebuild its branch to follow them: rebased on
+        the upstream's latest default branch, the test in the repository's test folder and style, formatted and linted
+        with its own tools, its tests run, and a pull request text written in its own template. Nothing leaves the
+        machine here; a fix that fails the repository's checks is not ready to share (publish.py enforces that)."""
+        inv, bug = self._bug(inv_id, bug_id)
+        if bug.fix.state != "verified" or bug.fix.user_decision != "accepted":
+            raise Stop("fix_not_accepted", "Check a fix against the repository's rules after you accepted it")
+        if bug.fix.branch is None:
+            raise Stop("branch_missing", "The fix has no branch yet; make the branch first")
+        ok, why = sandbox.docker_available()
+        if not ok:
+            raise Stop("sandbox_unavailable", f"The checks run in Docker: {why}")
+        with self._lock:
+            if inv_id in self._working or f"{inv_id}/{bug_id}" in self._publishing:
+                raise Stop("busy", "The case is busy; wait for it to finish")
+            self._working.add(inv_id)
+        try:
+            try:
+                contribution = self._shape(inv, bug)
+            except (IngestError, OSError, ValueError) as e:
+                raise Stop("contribution_failed", f"The fix could not be checked against the repository: {e}") from e
+            assert bug.fix.branch
+            bug.fix.branch.contribution = contribution
+            failed = [c.name for c in contribution.checks if not c.passed and not c.preexisting]
+            self._event(inv, "doctor-stitch", "fix", f"Checked against {inv.target.owner}/{inv.target.repo}'s rules: "
+                        + ("all checks pass" if not failed else f"{len(failed)} check(s) fail"), phase="fix",
+                        data={"bug_id": bug.id, "failed": failed, "base": contribution.base})  # fmt: skip
+            with self._lock:
+                self.store.save(inv)
+        finally:
+            with self._lock:
+                self._working.discard(inv_id)
+        return contribution
+
+    def _shape(self, inv: Investigation, bug: Bug) -> Contribution:
+        caps, fm, br = inv.capabilities, inv.feature_map, bug.fix.branch
+        assert caps and fm and br
+        attempt = next((a for a in reversed(bug.fix.attempts) if a.accepted_by_gates and a.diff.strip()), None)
+        cand = next((c for c in fm.candidates if c.id == bug.candidate_id), None)
+        if attempt is None or cand is None:
+            raise ValueError("there is no verified patch to check")
+        owner, repo = publish.upstream_of(inv)
+        rules = contribute.read_rules(owner, repo, self.s.github_token)
+        rs = rules.summary
+        if rs.archived:
+            raise Stop("repo_archived", f"{owner}/{repo} is archived or disabled: it takes no pull requests")
+        ws, dest = self._ws(inv), Path(br.path)
+        pinned = inv.target.revision or br.base
+        tracked = [p for p in git(ws, ["ls-files", "-z"]).split("\0") if p]
+        test_path = contribute.test_location(tracked, cand.unit.path, bug.title, is_test_file)
+        clock = ClockConfig(instant=bug.clock.instant, time_zone=contribute.ci_timezone(rules.scripts),
+                            label="the repository's own test zone")  # fmt: skip
+        # The install was made in Linux, so `.bin` links do not resolve on a Windows host: look for the packages.
+        have = {t: (ws / "node_modules" / pkg / "package.json").exists()
+                for t, pkg in (("prettier", "prettier"), ("eslint", "eslint"), ("tsc", "typescript"))}  # fmt: skip
+        checks: list[CheckResult] = []
+        notes: list[str] = []
+        final: dict[str, bytes] = {}
+        experiments = inv.test_plan.experiments if inv.test_plan else []
+        folders = [".tw", *sorted({Path(e.adapter_path).parent.as_posix() for e in experiments if e.adapter_path})]
+
+        def sh(cmd: str) -> sandbox.Exec:
+            return sandbox.run(self.s, ws, caps.node_version, cmd, network=False, timeout=self.s.test_timeout_s * 3)
+
+        def tail(text: str) -> str:
+            lines = [ln for ln in text.strip().splitlines() if ln.strip()]
+            return "\n".join(lines[-6:])[:600]
+
+        def write_test(relaxed: bool) -> None:
+            (ws / test_path).parent.mkdir(parents=True, exist_ok=True)
+            code = contribute.native_test(bug.regression_test, test_path, relaxed=relaxed)
+            (ws / test_path).write_bytes(code.encode("utf-8"))
+
+        with _aside(ws, folders):
+            try:
+                git(ws, ["fetch", "-q", "--depth", "1", "origin", rs.default_branch], timeout=self.s.clone_timeout_s)
+                tip = git(ws, ["rev-parse", "FETCH_HEAD"]).strip()
+                git(ws, ["checkout", "-q", "FETCH_HEAD", "--", "."])  # the upstream's latest code, our install kept
+                if tip != pinned:
+                    notes.append(
+                        f"{rs.default_branch} moved on since the pinned commit; the fix was carried over to {tip[:12]}"
+                    )
+                if (ws / "package-lock.json").exists() and git(ws, ["diff", "--name-only", pinned, tip]).count(
+                    "package"
+                ):
+                    notes.append("Dependencies changed upstream; the checks ran on the install of the pinned commit")
+                numstat = git(ws, ["apply", "--numstat", "-"], stdin=attempt.diff)
+                src_paths = [ln.split("\t", 2)[2] for ln in numstat.splitlines() if ln.count("\t") >= 2]
+                base_suite = sandbox.run_suite(self.s, ws, caps)
+                base_tsc = sh("node_modules/.bin/tsc --noEmit -p tsconfig.json").code if have["tsc"] else 0
+                src_formatted = (
+                    have["prettier"] and sh(f"node_modules/.bin/prettier --check {q_all(src_paths)}").code == 0
+                )
+                # 1. the new test must fail on the upstream's latest code without the fix
+                relaxed = False
+                write_test(relaxed)
+                before = sandbox.run_test_file(self.s, ws, caps, test_path, [clock])[0]
+                if before.outcome == "error":
+                    relaxed = True
+                    write_test(relaxed)
+                    before = sandbox.run_test_file(self.s, ws, caps, test_path, [clock])[0]
+                if before.outcome == "passed":
+                    raise Stop(
+                        "already_fixed_upstream",
+                        f"The test already passes on {owner}/{repo}'s {rs.default_branch} ({tip[:12]}): "
+                        "the bug seems to be fixed upstream. Nothing to send",
+                    )
+                checks.append(
+                    CheckResult(
+                        name=f"The new test fails on {rs.default_branch} without the fix",
+                        command=f"jest {test_path}",
+                        passed=before.outcome == "assertion_failed",
+                        detail=tail(before.failure or before.outcome),
+                    )
+                )
+                # 2. the fix must still apply
+                try:
+                    git(ws, ["apply", "--whitespace=nowarn", "-"], stdin=attempt.diff)
+                except IngestError as e:
+                    raise Stop("rebase_conflict", f"The fix no longer applies to {rs.default_branch}: {e}") from e
+                # 3. format and lint with the repository's own tools; the strict typing of the test may need relaxing
+                owned = [test_path, *(src_paths if src_formatted else [])]
+                for attempt_no in (1, 2):
+                    if have["prettier"]:
+                        sh(f"node_modules/.bin/prettier --write {q_all(owned)}")
+                    fmt = sh(f"node_modules/.bin/prettier --check {q_all(owned)}") if have["prettier"] else None
+                    lint = sh(f"node_modules/.bin/eslint {q_all([test_path, *src_paths])}") if have["eslint"] else None
+                    tsc = sh("node_modules/.bin/tsc --noEmit -p tsconfig.json") if have["tsc"] else None
+                    good = all(r is None or r.code == 0 for r in (fmt, lint)) and (
+                        tsc is None or tsc.code == 0 or base_tsc != 0
+                    )
+                    if good or relaxed or attempt_no == 2:
+                        break
+                    relaxed = True
+                    write_test(relaxed)
+                    notes.append("The test needed relaxed typing to pass the repository's strict TypeScript and ESLint")
+                if relaxed and not any("relaxed" in n for n in notes):
+                    notes.append("The test uses relaxed typing: the repository's strict TypeScript did not accept it")
+                if not src_formatted and have["prettier"]:
+                    notes.append(
+                        "The source files are not Prettier-formatted upstream either, so only the test was formatted"
+                    )
+                for name, tool, res, base_ok in (
+                    ("Prettier (the repository's formatter)", f"prettier --check {', '.join(owned)}", fmt, True),
+                    ("ESLint (the repository's linter)", f"eslint {', '.join([test_path, *src_paths])}", lint, True),
+                    ("TypeScript (type check)", "tsc --noEmit", tsc, base_tsc == 0),
+                ):
+                    if res is None:
+                        notes.append(f"The repository has no {name.split(' ')[0]}; that check was skipped")
+                        continue
+                    checks.append(CheckResult(name=name, command=tool, passed=res.code == 0, detail=tail(res.out),
+                                              preexisting=res.code != 0 and not base_ok))  # fmt: skip
+                # 4. the tests, as the repository runs them
+                after = sandbox.run_test_file(self.s, ws, caps, test_path, [clock])[0]
+                checks.append(
+                    CheckResult(
+                        name="The new test passes with the fix",
+                        command=f"jest {test_path}",
+                        passed=after.outcome == "passed",
+                        detail=tail(after.failure or after.outcome),
+                    )
+                )
+                suite = sandbox.run_suite(self.s, ws, caps)
+                new = sorted(suite.failed_names - base_suite.failed_names)
+                summary = f"New failures: {', '.join(new[:4])}" if new else f"{suite.total} tests, no new failures"
+                checks.append(
+                    CheckResult(
+                        name="The repository's own test suite",
+                        command="jest",
+                        passed=not new and suite.total > 0,
+                        detail=summary,
+                    )
+                )
+                for path in [*src_paths, test_path]:
+                    final[path] = (ws / path).read_bytes()
+            finally:
+                git(ws, ["reset", "-q", "--hard", "HEAD"])
+                (ws / test_path).unlink(missing_ok=True)
+        # The branch: one commit on the upstream's latest code, in the repository's own commit style.
+        title = contribute.conventional_title(bug.title, rs)
+        related = [f"#{bug.issue_match['number']}"] if bug.issue_match else []
+        source_ref = next((e.ref for e in bug.evidence if e.kind == "source"), None)
+
+        def describe(level: int, with_diff: bool = True) -> str:
+            return contribute.describe(
+                level=level, summary=attempt.summary, root_cause=attempt.root_cause, diff=attempt.diff,
+                sources=src_paths, zone=bug.violation.zone, instant=bug.violation.instant,
+                local=bug.violation.local, detail=bug.violation.detail, count=bug.violation.count,
+                reproduction=(bug.reproduction or {}).get("code", ""), source_ref=source_ref,
+                checks=[(c.name, c.command, c.passed or c.preexisting) for c in checks], test_path=test_path,
+                related=related, with_diff=with_diff,
+            )  # fmt: skip
+
+        changes = [f"`{p}`: {'the fix' if p in src_paths else 'regression test'}" for p in final]
+        passed = {c.name: c.passed for c in checks}
+        verified = {
+            "bug fix": True,
+            "added tests": True,
+            "test improvement": True,
+            "rebased": True,  # the branch is one commit on the upstream tip fetched above
+            "tests pass": all(v for k, v in passed.items() if "test" in k.lower()),
+            "eslint": passed.get("ESLint (the repository's linter)", False),
+            "prettier": passed.get("Prettier (the repository's formatter)", False),
+        }
+
+        def compose(with_diff: bool) -> str:
+            if not rules.template:
+                return describe(2, with_diff) + contribute.DISCLOSURE
+            return (
+                contribute.fill_template(
+                    rules.template,
+                    description=describe(3, with_diff),
+                    changes=changes,
+                    related=related,
+                    verified=verified,
+                )
+                + contribute.DISCLOSURE
+            )
+
+        body = compose(True)
+        if len(body) > publish.MAX_BODY - 200:  # GitHub text is capped at MAX_BODY: drop the diff before the rest
+            body = compose(False)
+            notes.append("The pull request text was too long to include the patch; it lists the files instead")
+        git(dest, ["fetch", "-q", "--depth", "1", "origin", tip], timeout=self.s.clone_timeout_s)
+        git(dest, ["checkout", "-q", "-B", br.name, tip])
+        for path, data in final.items():
+            (dest / path).parent.mkdir(parents=True, exist_ok=True)
+            (dest / path).write_bytes(data)
+        git(dest, ["add", "-A", "--", *final])
+        message = contribute.commit_message(title, attempt.summary, attempt.root_cause, test_path, related)
+        git(dest, ["-c", "user.name=TimeWraith", "-c", "user.email=timewraith@localhost", "-c", "commit.gpgsign=false",
+                   "commit", "-q", "-m", message])  # fmt: skip
+        commit = git(dest, ["rev-parse", "HEAD"]).strip()
+        patch_file = Path(br.patch_file)
+        patch_file.write_bytes(git(dest, ["format-patch", "-1", "--stdout", commit]).encode("utf-8", "surrogateescape"))
+        br.base, br.commit = tip, commit
+        br.files = git(dest, ["diff", "--name-only", f"{tip}..{commit}"]).split()
+        return Contribution(prepared_at=now_iso(), rules=rs, base=tip, rebased=tip != pinned, notes=notes,
+                            checks=checks, title=title, body=body, test_path=test_path)  # fmt: skip
 
     def _make_branch(self, inv: Investigation, bug: Bug) -> FixBranch:
         """One commit on the pinned revision, in a clone of its own: the source change the gates tested plus the
@@ -2653,6 +2919,11 @@ def _edge_kind(v: Violation) -> str:
         return near
     day = v.local[8:10]
     return "month end" if day in {"01", "28", "29", "30", "31"} else "other"
+
+
+def q_all(paths: list[str]) -> str:
+    """File paths quoted for the sandbox's shell."""
+    return " ".join(shlex.quote(p) for p in paths)
 
 
 def _force_rmtree(path: Path) -> None:

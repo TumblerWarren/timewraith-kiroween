@@ -251,11 +251,39 @@ def github_preview(inv_id: str, bug_id: str) -> dict[str, Any]:
     return engine.github_preview(inv_id, bug_id)
 
 
+@app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/contribution")
+def prepare_contribution(inv_id: str, bug_id: str, request: Request) -> dict[str, Any]:
+    """Check the accepted fix against the repository's own rules and rebuild the branch to follow them.
+
+    Reads the repository's CONTRIBUTING, PR template and commit convention; rebases the fix on the upstream's latest
+    default branch; places and formats the test the way the repository does; runs its own formatter, linter, type check
+    and tests in the sandbox; and writes the pull request text in its template. It can take a few minutes and sends
+    nothing to GitHub."""
+    _local_action(request)
+    return engine.prepare_contribution(inv_id, bug_id).model_dump()
+
+
 @app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/github/push")
 def github_push(inv_id: str, bug_id: str, request: Request, body: dict[str, Any]) -> dict[str, Any]:
     """Push the fix branch to your fork. Body `{"confirm_branch": "<the branch name>"}`."""
     _local_action(request)
-    return engine.github_push(inv_id, bug_id, str(body.get("confirm_branch", ""))).model_dump()
+    return engine.github_push(
+        inv_id, bug_id, str(body.get("confirm_branch", "")), bool(body.get("acknowledge_duplicates", False))
+    ).model_dump()
+
+
+@app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/github/update")
+def github_update(inv_id: str, bug_id: str, request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    """Add a commit with the rebuilt fix to the branch already on your fork and refresh the open pull request's text.
+    Body `{"title", "body", "confirm_branch"}`. A normal fast-forward push; never a force-push."""
+    _local_action(request)
+    return engine.github_update(
+        inv_id,
+        bug_id,
+        str(body.get("title", "")),
+        str(body.get("body", "")),
+        str(body.get("confirm_branch", "")),
+    ).model_dump()
 
 
 @app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/github/pull-request")
@@ -263,7 +291,12 @@ def github_pull_request(inv_id: str, bug_id: str, request: Request, body: dict[s
     """Open the pull request on the original repository. Body `{"title", "body", "confirm_branch"}`."""
     _local_action(request)
     return engine.github_pull_request(
-        inv_id, bug_id, str(body.get("title", "")), str(body.get("body", "")), str(body.get("confirm_branch", ""))
+        inv_id,
+        bug_id,
+        str(body.get("title", "")),
+        str(body.get("body", "")),
+        str(body.get("confirm_branch", "")),
+        bool(body.get("acknowledge_duplicates", False)),
     ).model_dump()
 
 
