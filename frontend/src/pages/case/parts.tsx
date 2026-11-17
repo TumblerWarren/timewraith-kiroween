@@ -3,23 +3,27 @@ import type { Investigation, Stage } from "../../api/types";
 import { caseHref } from "../../app/router";
 import type { CaseState } from "../../app/status";
 import { StatusPill } from "../../app/StatusPill";
-import { CASE_PAGE, FIG } from "../../content/app";
+import { CASE_PAGE } from "../../content/app";
 import { CREW_BY_ID } from "../../content/crew";
 import { FLOW_STEPS, type FlowStepId } from "../../content/flow";
-import { Mascot } from "../../mascots/Mascot";
+import { CrewSigil } from "./CrewSigil";
+import { DoctorStitch } from "../../animation/react/DoctorStitch";
 
 /** The status banner at the top of a case: state, what is happening, who is on it, and the one next action. */
 export function StatusBanner({ state, children }: { readonly state: CaseState; readonly children?: ReactNode }) {
   return (
-    <section className="banner" data-state={state.id} aria-labelledby="case-status" aria-live="polite">
+    <section className="banner case-brief" data-state={state.id} aria-labelledby="case-status" aria-live="polite">
       <div className="banner__figure" aria-hidden="true">
-        <Mascot id={state.mascot} width={FIG.badge} decorative idle={state.id === "running"} />
+        {state.mascot === "doctor-stitch"
+          ? <DoctorStitch state={state.id === "running" ? "working" : "verified"} />
+          : <CrewSigil key={state.mascot} id={state.mascot} active={state.id === "running"} />}
       </div>
       <div className="banner__text">
         <h2 id="case-status" className="banner__title">
           <StatusPill state={state.id} label={state.label} />
         </h2>
         <p className="banner__detail">{state.detail}</p>
+        {state.id === "running" && <p className="case-note">{CREW_BY_ID[state.mascot].name}</p>}
       </div>
       {children ? <div className="banner__actions">{children}</div> : null}
     </section>
@@ -91,9 +95,7 @@ export function Stepper({ states, inv }: { readonly states: Readonly<Record<Flow
             <span className="stepper__mark" aria-hidden="true">
               {MARK[st]}
             </span>
-            <span className="stepper__fig" aria-hidden="true">
-              <Mascot id={step.lead} width={FIG.avatar} decorative idle={false} />
-            </span>
+            <span className="stepper__fig"><CrewSigil id={step.lead} /></span>
             <span className="stepper__title">{step.sign}</span>
             <span className="stepper__state">
               {CASE_PAGE.stepState[st]}

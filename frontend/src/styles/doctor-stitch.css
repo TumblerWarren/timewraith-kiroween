@@ -1,0 +1,119 @@
+.doctor-stitch {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--midnight-violet);
+}
+
+.doctor-stitch__head { transform-origin: 270px 283px; }
+.doctor-stitch__needle { transform-origin: 185px 352px; }
+.doctor-stitch__spool { transform-origin: 320px 352px; }
+.doctor-stitch__patch { transform-origin: 452px 350px; }
+.doctor-stitch__thread { transform-origin: 452px 350px; }
+.doctor-stitch__seam { stroke-dasharray: 48; }
+.doctor-stitch__upper { transform-origin: 260px 480px; }
+.doctor-stitch__leg-left { transform-origin: 220px 715px; }
+.doctor-stitch__leg-right { transform-origin: 340px 715px; }
+.doctor-stitch[data-state="working"] .doctor-stitch__leg-left,
+.doctor-stitch[data-state="approved"] .doctor-stitch__leg-left { animation: stitch-foot 4.2s ease-in-out infinite; }
+.doctor-stitch[data-state="working"] .doctor-stitch__upper,
+.doctor-stitch[data-state="verified"] .doctor-stitch__upper,
+.doctor-stitch[data-state="approved"] .doctor-stitch__upper { animation: stitch-stance 4.2s ease-in-out infinite; }
+.doctor-stitch[data-state="working"] .doctor-stitch__head { animation: stitch-focus 3.6s ease-in-out infinite; }
+.doctor-stitch[data-state="working"] .doctor-stitch__needle { animation: stitch-pull 3.6s ease-in-out infinite; }
+.doctor-stitch[data-state="working"] .doctor-stitch__spool { animation: stitch-feed 3.6s ease-in-out infinite; }
+.doctor-stitch[data-state="working"] .doctor-stitch__seam { animation: stitch-seam 3.6s ease-in-out infinite; }
+.doctor-stitch[data-state="verified"] .doctor-stitch__head { animation: stitch-inspect 5s ease-in-out infinite; }
+.doctor-stitch[data-state="verified"] .doctor-stitch__spool { animation: stitch-inspect-patch 5s ease-in-out infinite; }
+.doctor-stitch[data-state="verified"] .doctor-stitch__needle { transform: rotate(-12deg); }
+.doctor-stitch[data-state="verified"] .doctor-stitch__thread { opacity: 0; }
+.doctor-stitch[data-state="approved"] .doctor-stitch__needle { animation: stitch-tie 1.6s ease-in-out both, stitch-show-needle 4.2s 1.6s ease-in-out infinite; }
+.doctor-stitch[data-state="approved"] .doctor-stitch__thread { animation: stitch-tie-thread 1.6s ease-in-out both; }
+.doctor-stitch[data-state="approved"] .doctor-stitch__head { animation: stitch-nod 1.6s ease-in-out both, stitch-proud 4.2s 1.6s ease-in-out infinite; }
+.doctor-stitch[data-state="approved"] .doctor-stitch__spool { animation: stitch-finished-patch 4.2s 1.6s ease-in-out infinite; }
+.doctor-stitch[data-state="rest"] .doctor-stitch__thread { opacity: 0; }
+.doctor-stitch[data-paused="true"] * { animation-play-state: paused !important; }
+
+@keyframes stitch-pull {
+  0%, 12%, 100% { transform: rotate(-8deg); }
+  32% { transform: rotate(16deg); }
+  53%, 72% { transform: rotate(-22deg); }
+}
+
+@keyframes stitch-feed {
+  0%, 12%, 100% { transform: rotate(0); }
+  32% { transform: rotate(-8deg); }
+  53%, 72% { transform: rotate(7deg); }
+}
+
+@keyframes stitch-focus {
+  0%, 12%, 100% { transform: rotate(-2deg); }
+  32%, 53% { transform: rotate(3deg); }
+}
+
+@keyframes stitch-seam {
+  0%, 12% { stroke-dashoffset: 48; }
+  53%, 100% { stroke-dashoffset: 0; }
+}
+
+@keyframes stitch-inspect {
+  0%, 100% { transform: rotate(-5deg); }
+  45%, 65% { transform: rotate(7deg); }
+}
+
+@keyframes stitch-inspect-patch {
+  0%, 30%, 100% { transform: translateY(0) rotate(0); }
+  48%, 65% { transform: translateY(-10px) rotate(-7deg); }
+}
+
+@keyframes stitch-tie {
+  0% { transform: rotate(12deg); }
+  40% { transform: rotate(-17deg); }
+  70% { transform: rotate(5deg); }
+  100% { transform: rotate(-12deg); }
+}
+
+@keyframes stitch-tie-thread {
+  0% { opacity: 1; }
+  65% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes stitch-nod {
+  0%, 100% { transform: rotate(0); }
+  65% { transform: rotate(5deg); }
+}
+
+@keyframes stitch-finished-patch {
+  0%, 100% { transform: rotate(-5deg); }
+  45%, 60% { transform: translateY(-6px) rotate(9deg); }
+}
+
+@keyframes stitch-stance {
+  0%, 100% { transform: translateY(0) rotate(-1.6deg); }
+  50% { transform: translateY(-5px) rotate(1.6deg); }
+}
+
+@keyframes stitch-foot {
+  0%, 100% { transform: rotate(-1deg); }
+  45%, 60% { transform: rotate(3deg); }
+}
+
+@keyframes stitch-show-needle {
+  0%, 100% { transform: rotate(-12deg); }
+  42%, 60% { transform: rotate(9deg); }
+}
+
+@keyframes stitch-proud {
+  0%, 100% { transform: rotate(-4deg); }
+  45%, 60% { transform: rotate(5deg); }
+}
+
+.doctor-stitch[data-reduced="true"] * { animation: none !important; }
+.doctor-stitch[data-reduced="true"] .doctor-stitch__thread { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .doctor-stitch:not([data-reduced="false"]) * { animation: none !important; }
+  .doctor-stitch:not([data-reduced="false"]) .doctor-stitch__thread { opacity: 0; }
+}

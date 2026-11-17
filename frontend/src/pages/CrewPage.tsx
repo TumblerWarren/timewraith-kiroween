@@ -2,13 +2,14 @@ import { useApi } from "../api/ApiProvider";
 import { useReadiness } from "../app/SetupProvider";
 import { StatusPill } from "../app/StatusPill";
 import { CrewSetup } from "../components/CrewSetup";
+import { CrewRemoval } from "../components/CrewRemoval";
 import { CrewAwakening, UmbrellaGhost } from "../components/cinematic/CrewAwakening";
 import { SETUP_STATES, setupChecks } from "../data/setup-checklist";
 
 /** `#/crew`: the three setup steps with their actions, then what the backend reports about this machine. */
 export function CrewPage() {
   const { health } = useApi();
-  const { status, ready, busyAction, docker, crew, login } = useReadiness();
+  const { ready, busyAction, docker, crew, login } = useReadiness();
   const limits = health?.limits;
   const busy = busyAction !== null || docker === "busy" || crew === "busy" || login === "busy";
   return (
@@ -82,16 +83,7 @@ export function CrewPage() {
               </dl>
             </section>
           ) : null}
-          {status ? (
-            <section className="panel" aria-labelledby="cleanup-title">
-              <h2 id="cleanup-title" className="panel__title">
-                Remove the Crew later
-              </h2>
-              <p>Run these in a terminal to delete the container and its sign-in:</p>
-              <pre className="code mono">{`docker rm -f timewraith-crew\ndocker volume rm timewraith-crew-home`}</pre>
-              <p className="row__meta mono">{status.crew.image}</p>
-            </section>
-          ) : null}
+          <CrewRemoval />
         </aside>
       </div>
     </article>

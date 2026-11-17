@@ -34,21 +34,31 @@ def get_issue(owner: str, repo: str, number: int, token: str) -> dict[str, str]:
     }
 
 
+# Labels of threads that ask or discuss rather than report a defect; such a thread is never a "known issue".
+NOT_A_REPORT = {"question", "discussion", "support", "help wanted", "invalid", "wontfix", "duplicate"}
+
+
 def search_issues(owner: str, repo: str, terms: list[str], token: str, exclude: int | None) -> list[dict[str, object]]:
+    """Issues and pull requests that mention the terms. A pull request often holds the only report of a bug."""
     words = " ".join(t for t in terms if t and len(t) < 40)[:200]
-    q = urllib.parse.quote(f"repo:{owner}/{repo} is:issue {words}")
+    q = urllib.parse.quote(f"repo:{owner}/{repo} {words}")
     d = _get(f"/search/issues?q={q}&per_page=10", token)
     out: list[dict[str, object]] = []
     for it in d.get("items", []):
         if exclude is not None and it.get("number") == exclude:
             continue  # Blind hunt: the hidden issue never reaches the Crew before the reveal
+        labels = {str(lb.get("name", "")).lower() for lb in it.get("labels") or [] if isinstance(lb, dict)}
+        if labels & NOT_A_REPORT:
+            continue
         out.append(
             {
                 "number": it["number"],
                 "title": it.get("title", ""),
                 "url": it.get("html_url", ""),
                 "state": it.get("state", ""),
-                "body": (it.get("body") or "")[:800],
+                "kind": "pull request" if it.get("pull_request") else "issue",
+                "created_at": it.get("created_at", ""),
+                "body": (it.get("body") or "")[:1500],
             }
         )
     return out

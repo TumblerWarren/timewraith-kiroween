@@ -56,7 +56,9 @@
           "$ref": "#/$defs/Fix",
           "default": {
             "attempts": [],
+            "branch": null,
             "label": "Fix not started",
+            "publish": null,
             "state": "not-started",
             "user_decision": "pending"
           }
@@ -104,6 +106,29 @@
         "regression_test_path": {
           "title": "Regression Test Path",
           "type": "string"
+        },
+        "reproduction": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reproduction"
+        },
+        "retests": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Retest"
+          },
+          "title": "Retests",
+          "type": "array"
         },
         "status": {
           "enum": [
@@ -393,6 +418,71 @@
         "exported"
       ],
       "title": "CodeUnit",
+      "type": "object"
+    },
+    "CoverageRow": {
+      "description": "What the Crew tested for one candidate, computed by code from experiments, sweeps and verdicts.",
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "edges": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "experiments": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Experiments",
+          "type": "array"
+        },
+        "outcome": {
+          "default": "",
+          "title": "Outcome",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "rules": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Rules",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "not_selected",
+            "not_designed",
+            "adapter_invalid",
+            "clean",
+            "violations"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "unit",
+        "path",
+        "status"
+      ],
+      "title": "CoverageRow",
       "type": "object"
     },
     "CreateInvestigation": {
@@ -812,10 +902,32 @@
           "title": "Attempts",
           "type": "array"
         },
+        "branch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FixBranch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "label": {
           "default": "Fix not started",
           "title": "Label",
           "type": "string"
+        },
+        "publish": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Publish"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "state": {
           "default": "not-started",
@@ -892,6 +1004,58 @@
         "diff"
       ],
       "title": "FixAttempt",
+      "type": "object"
+    },
+    "FixBranch": {
+      "description": "A local git branch holding the accepted fix: one commit on the pinned revision, made by code, never pushed.",
+      "properties": {
+        "base": {
+          "title": "Base",
+          "type": "string"
+        },
+        "commit": {
+          "title": "Commit",
+          "type": "string"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "files": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "patch_file": {
+          "title": "Patch File",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "upstream_url": {
+          "title": "Upstream Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "base",
+        "commit",
+        "created_at",
+        "patch_file",
+        "upstream_url"
+      ],
+      "title": "FixBranch",
       "type": "object"
     },
     "GateResult": {
@@ -994,6 +1158,70 @@
       "title": "IntendedFinding",
       "type": "object"
     },
+    "Intent": {
+      "description": "One direction the planner (Wraith Director) sent the Crew in after a round of findings.",
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "experiment_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Experiment Id"
+        },
+        "focus": {
+          "maxLength": 300,
+          "title": "Focus",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 400,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "status": {
+          "default": "queued",
+          "enum": [
+            "queued",
+            "designed",
+            "swept",
+            "rejected"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "round",
+        "candidate_id",
+        "focus",
+        "rationale"
+      ],
+      "title": "Intent",
+      "type": "object"
+    },
     "InvariantUse": {
       "properties": {
         "id": {
@@ -1032,6 +1260,118 @@
         "reason"
       ],
       "title": "InvariantUse",
+      "type": "object"
+    },
+    "Publish": {
+      "description": "What was sent to GitHub for an accepted fix, each step only after the user confirmed it.",
+      "properties": {
+        "branch": {
+          "title": "Branch",
+          "type": "string"
+        },
+        "commit": {
+          "title": "Commit",
+          "type": "string"
+        },
+        "fork": {
+          "title": "Fork",
+          "type": "string"
+        },
+        "pr_number": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pr Number"
+        },
+        "pr_opened_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pr Opened At"
+        },
+        "pr_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pr Url"
+        },
+        "pushed_at": {
+          "title": "Pushed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fork",
+        "branch",
+        "commit",
+        "pushed_at"
+      ],
+      "title": "Publish",
+      "type": "object"
+    },
+    "Retest": {
+      "description": "The bug's regression test rerun on another revision of the repository (a newer commit or a fix PR).",
+      "properties": {
+        "at": {
+          "title": "At",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "still_reproducible",
+            "fixed",
+            "cannot_confirm"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "ref": {
+          "title": "Ref",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "string"
+        },
+        "runs": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Runs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "at",
+        "ref",
+        "revision",
+        "outcome",
+        "detail"
+      ],
+      "title": "Retest",
       "type": "object"
     },
     "Signal": {
@@ -1333,6 +1673,14 @@
       ],
       "default": null
     },
+    "coverage": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CoverageRow"
+      },
+      "title": "Coverage",
+      "type": "array"
+    },
     "created_at": {
       "title": "Created At",
       "type": "string"
@@ -1378,6 +1726,14 @@
         "$ref": "#/$defs/IntendedFinding"
       },
       "title": "Intended",
+      "type": "array"
+    },
+    "intents": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Intent"
+      },
+      "title": "Intents",
       "type": "array"
     },
     "notes": {

@@ -4,7 +4,6 @@ import { ApiError } from "../api/client";
 import { FINAL_STAGES, type Investigation, type InvestigationSummary, type ReplayEventMsg } from "../api/types";
 import { useCaseStore } from "./store";
 
-const MAX_EVENTS = 300;
 const REFRESH_DELAY_MS = 700;
 const POLL_MS = 5000;
 
@@ -47,17 +46,24 @@ export function useInvestigation(id: string, enabled = true): InvestigationState
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const pending = useRef<number | null>(null);
+  const appliedRequest = useRef(0);
+  const nextRequest = useRef(0);
 
   const refresh = useCallback((): Promise<void> => {
     if (!api || !enabled) return Promise.resolve();
+    const request = ++nextRequest.current;
     return api.get(id).then(
       (full) => {
+        if (request < appliedRequest.current) return;
+        appliedRequest.current = request;
         setInv(full);
         setError(null);
         setNotFound(false);
         upsertLive(summaryOf(full));
       },
       (e: unknown) => {
+        if (request < appliedRequest.current) return;
+        appliedRequest.current = request;
         if (e instanceof ApiError && e.code === "not_found") setNotFound(true);
         setError(e instanceof ApiError ? e.message : "The backend could not be reached.");
       },
@@ -80,7 +86,7 @@ export function useInvestigation(id: string, enabled = true): InvestigationState
     const stop = api.events(
       id,
       (e) => {
-        setEvents((list) => (list.some((x) => x.seq === e.seq) ? list : [...list, e].slice(-MAX_EVENTS)));
+        setEvents((list) => (list.some((x) => x.seq === e.seq) ? list : [...list, e].sort((a, b) => a.seq - b.seq)));
         schedule();
       },
       schedule,

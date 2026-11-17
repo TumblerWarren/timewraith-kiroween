@@ -1,5 +1,5 @@
 import type { Investigation, ReplayEventMsg, Stage } from "../api/types";
-import { NO_ANOMALY } from "../content/copy";
+import { FIX_SHARING, NO_ANOMALY } from "../content/copy";
 import type { MascotId } from "../mascots/ids";
 import type { Case } from "../cases/model";
 
@@ -47,6 +47,13 @@ export const STAGE_TEXT: Readonly<Record<Stage, { readonly text: string; readonl
 
 /** The backend's note when the Kiro account is out of usage (agents.QUOTA_MESSAGE). */
 const QUOTA = /usage limit reached/i;
+
+export const isKiroAccountNote = (note: string) => QUOTA.test(note) || /Kiro rejected .*sign-in/i.test(note);
+
+export function sharingError(code: string, message: string): string {
+  const errors: Readonly<Record<string, string>> = FIX_SHARING.errors;
+  return errors[code] ?? message;
+}
 
 const RUNNING: readonly Stage[] = ["cloning", "analyzing", "discovering", "designing", "installing", "experimenting", "verifying", "fixing"];
 

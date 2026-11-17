@@ -17,7 +17,19 @@ Kiro agents propose. Plain code decides.
 
 The full flow, the agents, the tools and the gates are in [docs/agent-flow.md](docs/agent-flow.md).
 
-## Run it
+## Run it with Docker (one command)
+
+Requirement: Docker (Docker Desktop 4.29 or later, or Docker Engine 26 or later). Nothing else is installed on your machine.
+
+```
+docker compose up -d --build
+```
+
+Open <http://localhost:8787>. On the Crew setup page, sign in to Kiro once: pick Google, GitHub or Builder ID, then approve the code in your browser. The cloned repositories, the edits, the fix branches, the patches and the case database all live in the `timewraith-data` Docker volume, and the Kiro sign-in lives in `timewraith-crew-home`. `docker compose down` keeps both; `docker compose down -v` deletes them.
+
+The API has no login and listens on `127.0.0.1` only. On Linux, pass the group of the Docker socket: `DOCKER_GID=$(stat -c %g /var/run/docker.sock) docker compose up -d --build`. The settings you can override are in [.env.example](.env.example).
+
+## Run it from source
 
 Requirements: Python 3.14 with [uv](https://docs.astral.sh/uv/), Node 20 or 22 with pnpm, and Docker Desktop.
 
@@ -36,12 +48,17 @@ Without Kiro sign-in the backend runs the stub runtime. It never invents output,
 
 | Address | Page |
 |---|---|
-| `#/` | Home: what it does, readiness, latest cases |
-| `#/new` | Open a case |
+| `#/` | Clock intro. Skip or the lantern opens Home |
+| `#/home` | Home: the repository field, how the crew works, the time bugs |
+| `#/new` | Open a case (`#/new?repo=<url>` pre-fills the repository) |
 | `#/cases` | Every case with its status |
 | `#/cases/:id` | Case detail: status, steps, counters, Plan, Findings, Fixes, Activity |
 | `#/crew` | Crew setup: Docker, container, sign-in and sign-out |
 | `#/about` | How it works |
+
+## Design
+
+The interface uses the Violet Midnight theme: a dark violet ground, IM Fell English for body text, Barlow Condensed for headings and JetBrains Mono for code and timestamps. The colour tokens, type scale, motion rules and the banned-style list are in [docs/design-system.md](docs/design-system.md). The earlier parchment and clocktower direction in `TimeWraith_Product_UIUX_Design_Specification.docx` is superseded for visual identity.
 
 ## Checks
 
@@ -52,15 +69,17 @@ uv --directory backend run mypy src
 pnpm --dir frontend verify
 ```
 
-`pnpm --dir frontend verify` runs typecheck, lint, the style guard, the unit tests and the build.
+`pnpm --dir frontend verify` runs typecheck, lint, the style guard, the unit tests (including the colour contrast test) and the build.
 
 ## Documentation
 
 | Document | What it covers |
 |---|---|
 | [docs/agent-flow.md](docs/agent-flow.md) | The flow, agents, fix tools, gates, outcomes and limits |
+| [docs/design-system.md](docs/design-system.md) | Colours, type, spacing, motion, Reduce Motion and the style guard rules |
+| [docs/landing-motion.md](docs/landing-motion.md) | The clock intro, the home page lantern and the repository field |
 | [backend/README.md](backend/README.md) | Backend setup, invariants, fix gates, configuration, limits of the MVP |
-| [docs/integration-contract.md](docs/integration-contract.md) | API contract between backend and frontend |
+| [docs/integration-contract.md](docs/integration-contract.md) | API contract between backend and frontend, and the frontend routes |
 | [docs/kiro-usage.md](docs/kiro-usage.md) | How Kiro features were used, with dated evidence |
 
 ## Status and limits

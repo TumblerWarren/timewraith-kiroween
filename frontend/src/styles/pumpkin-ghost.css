@@ -1,0 +1,108 @@
+.case-section__intro { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.plan-empty { grid-template-columns: minmax(0, 1fr) 150px; align-items: center; width: 100%; }
+
+.pumpkin-ghost { display: block; width: 150px; pointer-events: none; }
+.pumpkin-ghost > svg { display: block; width: 100%; height: auto; overflow: visible; }
+.pumpkin-ghost__float { transform-origin: 300px 350px; animation: pumpkin-float 4.8s ease-in-out infinite; }
+.pumpkin-ghost__head { transform-origin: 300px 280px; animation: pumpkin-study 5.4s ease-in-out infinite; }
+.pumpkin-ghost__arm-left { transform-origin: 200px 310px; animation: pumpkin-conduct-left 4.2s ease-in-out infinite; }
+.pumpkin-ghost__arm-right { transform-origin: 400px 310px; animation: pumpkin-conduct-right 4.2s ease-in-out infinite; }
+.pumpkin-ghost__hem-left { transform-origin: 300px 510px; animation: pumpkin-hem-left 4.8s ease-in-out infinite; }
+.pumpkin-ghost__hem-right { transform-origin: 330px 510px; animation: pumpkin-hem-right 4.8s ease-in-out infinite; }
+.pumpkin-ghost[data-paused="true"] *, .pumpkin-ghost[data-reduced="true"] * { animation-play-state: paused !important; }
+.plan-stage:not([data-phase="ready"]) .pumpkin-ghost * { animation: none !important; }
+.plan-stage[data-phase="ready"] .pumpkin-ghost__float,
+.plan-stage[data-phase="ready"] .pumpkin-ghost__arm-left,
+.plan-stage[data-phase="ready"] .pumpkin-ghost__arm-right,
+.plan-stage[data-phase="ready"] .pumpkin-ghost__hem-left,
+.plan-stage[data-phase="ready"] .pumpkin-ghost__hem-right { animation: none; }
+.plan-stage[data-phase="ready"] .pumpkin-ghost__arm-left { transform: rotate(-6deg); }
+.plan-stage[data-phase="ready"] .pumpkin-ghost__arm-right { transform: rotate(6deg); }
+.plan-stage[data-phase="ready"] .pumpkin-ghost__head { animation: pumpkin-watch 5.8s ease-in-out infinite; }
+
+.plan-stage {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.plan-stage__head { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.plan-stage__controls { display: flex; gap: var(--space-3); }
+.plan-stage__control {
+  border: 0;
+  padding: var(--space-2) 0;
+  min-height: var(--target-min);
+  background: none;
+  color: var(--midnight-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: .25em;
+  cursor: pointer;
+}
+.plan-stage__control:hover { color: var(--midnight-violet); }
+.plan-stage__art {
+  position: absolute;
+  grid-area: 2 / 1;
+  z-index: 0;
+  inset-block-start: var(--space-2);
+  justify-self: center;
+  width: min(78%, 32rem);
+  pointer-events: none;
+}
+.plan-stage__art .pumpkin-ghost { width: 100%; }
+.plan-stage__cards {
+  grid-area: 2 / 1;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding-block-start: clamp(7rem, 40%, 14rem);
+}
+.plan-stage__cards > .case-card-grid { position: relative; }
+.plan-stage__cards .case-card { position: relative; }
+.plan-stage[data-phase="ready"] .plan-stage__skip,
+.plan-stage:not([data-phase="ready"]) .plan-stage__replay,
+.plan-stage[data-reduced="true"] .plan-stage__controls { display: none; }
+
+@keyframes pumpkin-float {
+  0%, 100% { transform: translateY(3px) rotate(-1deg); }
+  50% { transform: translateY(-11px) rotate(1deg); }
+}
+@keyframes pumpkin-study {
+  0%, 15%, 100% { transform: rotate(-4deg); }
+  35%, 60% { transform: rotate(4deg); }
+  76% { transform: rotate(-1deg); }
+}
+@keyframes pumpkin-watch {
+  0%, 12%, 100% { transform: rotate(0); }
+  35%, 45% { transform: rotate(4deg); }
+  70%, 80% { transform: rotate(-3deg); }
+}
+@keyframes pumpkin-conduct-left {
+  0%, 100% { transform: rotate(-6deg); }
+  35% { transform: rotate(9deg); }
+  55%, 70% { transform: rotate(-2deg); }
+}
+@keyframes pumpkin-conduct-right {
+  0%, 100% { transform: rotate(6deg); }
+  35% { transform: rotate(-9deg); }
+  60%, 75% { transform: rotate(3deg); }
+}
+@keyframes pumpkin-hem-left {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(5deg); }
+}
+@keyframes pumpkin-hem-right {
+  0%, 100% { transform: rotate(4deg); }
+  55% { transform: rotate(-5deg); }
+}
+
+@media (max-width: 620px) {
+  .plan-empty { grid-template-columns: minmax(0, 1fr) 115px; }
+  .pumpkin-ghost { width: 115px; }
+  .plan-stage__art { width: min(90%, 25rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-reduce-motion="false"]) .pumpkin-ghost * { animation-play-state: paused !important; }
+}

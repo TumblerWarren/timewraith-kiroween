@@ -51,7 +51,9 @@ INVARIANTS: dict[str, tuple[OutputField | None, str, str]] = {
     "instant_zone_independent": (
         "instant",
         "For the same `now`, `instant` is identical in every process time zone.",
-        "Values defined in local wall-clock time, such as 'next local 09:00'.",
+        "Values defined in local wall-clock time, such as 'next local 09:00'. An adapter that passes `ctx.tz` into "
+        "the code makes the zone an input, so a zone-dependent instant is expected; code drops this invariant then. "
+        "To test it, pass a fixed zone literal or none, and let only the process zone vary.",
     ),
     "flag_monotonic": (
         "flag",
@@ -69,6 +71,20 @@ INVARIANTS: dict[str, tuple[OutputField | None, str, str]] = {
     ),
 }
 ALWAYS = ["well_formed", "deterministic"]
+
+# `ctx.tz`, `ctx["tz"]`, or `tz` destructured from ctx (in the parameter list or a declaration).
+_ZONE_INPUT = re.compile(
+    r"\bctx\s*(?:\?\.|\.)\s*tz\b|\bctx\s*\[\s*['\"]tz['\"]\s*\]"
+    r"|\brun\s*\(\s*\{[^}]*\btz\b[^}]*\}|\{[^{}]*\btz\b[^{}]*\}\s*=\s*ctx\b"
+)
+
+
+def passes_zone(adapter_code: str) -> bool:
+    """True when the adapter hands the sweep zone to the code under test. Then the zone is an input, and an
+    instant that depends on it is expected, so `instant_zone_independent` cannot tell a bug from intended output."""
+    return bool(_ZONE_INPUT.search(adapter_code))
+
+
 ORDER = list(INVARIANTS)
 
 
@@ -245,6 +261,105 @@ test('timewraith sweep ' + TW_ID, async () => {{
     )
 
 
+PROBE_OUT = ".tw/probe/out.json"
+PROBE_TEST = "__tw__/probe.tw.test"  # + .ts or .js
+
+
+def probe_code(runner: str, body: str) -> str:
+    """A probe: an agent's short script, run as a test file so the repository's TypeScript transform applies.
+    `load('src/x')` loads a repository file (path from the repository root), `print(...)` records output and
+    `check(cond, msg)` marks the bug as present. The clock is frozen at TW_NOW in zone TZ. Only the result file
+    is writable: the sandbox mounts the repository read-only for probes."""
+    t = _timers(runner)
+    # The probe file is PROBE_TEST at the repository root, so '../' + path reaches a repository file.
+    if runner == "vitest":
+        head = "import { test, vi } from 'vitest';\nimport * as twFs from 'node:fs';\n"
+        load = "return await import('../' + String(p).replace(/^\\/+/, ''));"
+    else:
+        head = "const twFs = require('node:fs');\n"
+        load = "return require('../' + String(p).replace(/^\\/+/, ''));"
+    return (
+        "// @ts-nocheck\n// TimeWraith probe (agent-written body, generated wrapper).\n"
+        + head
+        + f"""
+const twOut = [];
+let twStatus = 'passed';
+class TwCheck extends Error {{}}
+function twShow(x) {{
+  if (typeof x === 'string') return x;
+  if (x instanceof Date) return Number.isNaN(x.getTime()) ? 'Invalid Date' : x.toISOString() + ' (' + x.getTime() + ')';
+  try {{ return JSON.stringify(x, (k, v) => (v instanceof Date ? v.toISOString() : v)); }}
+  catch (e) {{ return String(x); }}
+}}
+function print(...a) {{ if (twOut.length < 200) twOut.push(a.map(twShow).join(' ').slice(0, 500)); }}
+function check(cond, msg) {{ if (!cond) throw new TwCheck(String(msg || 'check failed')); }}
+async function load(p) {{ {load} }}
+test('timewraith probe', async () => {{
+  const now = process.env.TW_NOW ? new Date(Number(process.env.TW_NOW)) : null;
+  if (now) {{ {t}.useFakeTimers(); {t}.setSystemTime(now); }}
+  try {{
+    await (async () => {{
+{body}
+    }})();
+  }} catch (e) {{
+    twStatus = e instanceof TwCheck ? 'check_failed' : 'error';
+    const text = e instanceof TwCheck ? e.message : String((e && e.stack) || e).split('\\n').slice(0, 6).join('\\n');
+    print((e instanceof TwCheck ? 'CHECK FAILED: ' : 'ERROR: ') + text);
+  }} finally {{
+    if (now) {t}.useRealTimers();
+    twFs.writeFileSync('/work/{PROBE_OUT}', JSON.stringify({{ status: twStatus, out: twOut }}));
+  }}
+}}, 60000);
+"""
+    )
+
+
+def reproduction_test_code(
+    *, runner: str, cases: list[tuple[str, str, int]], zone: str, target: str, prefix: str
+) -> str:
+    """Raven's reproduction (and her user-level check) as a normal regression test: one test per (title, body,
+    frozen instant), with `check` as an assertion, so it fails with an assertion on the original code and passes
+    only once every case is fixed. `prefix` leads from the test file's folder to the repository root."""
+    t = _timers(runner)
+    if runner == "vitest":
+        head = "import { test, expect, vi } from 'vitest';\n"
+        load = f"return await import({json.dumps(prefix)} + String(p).replace(/^\\/+/, ''));"
+    else:
+        head = ""
+        load = f"return require({json.dumps(prefix)} + String(p).replace(/^\\/+/, ''));"
+    tests = "".join(
+        f"""
+test({json.dumps(title[:100])}, async () => {{
+  {t}.useFakeTimers();
+  {t}.setSystemTime(new Date({int(ms)}));
+  const now = new Date({int(ms)});  // the same `now` the probe had
+  try {{
+{body}
+  }} finally {{
+    {t}.useRealTimers();
+  }}
+}}, 60000);
+"""
+        for title, body, ms in cases
+    )
+    when = ", ".join(iso(ms) for _, _, ms in cases)
+    return (
+        "// @ts-nocheck\n"
+        "// TimeWraith regression test: Raven Archivist's reproduction, rerun by code before it was accepted.\n"
+        f"// Failed on {target} at {when}. Run with TZ={zone}.\n"
+        + head
+        + f"""
+function print() {{}}
+function check(cond, msg) {{
+  const rule = String(msg || 'check');
+  expect({{ rule, holds: Boolean(cond) }}).toEqual({{ rule, holds: true }});
+}}
+async function load(p) {{ {load} }}
+"""
+        + tests
+    )
+
+
 def regression_code(*, exp_id: str, runner: str, v: Violation, title: str, target: str) -> str:
     """A normal failing test for one violation, generated from the invariant (no LLM)."""
     t = _timers(runner)
@@ -326,6 +441,17 @@ def baseline_problems(outputs: Outputs, fields: list[OutputField]) -> list[str]:
     if not any(outputs.values()):
         problems.append("No output: the runner did not collect or could not load the harness")
     return sorted(set(problems))[:8]
+
+
+def baseline_violations(outputs: Outputs, invs: list[InvariantUse]) -> dict[str, str]:
+    """Rules broken at ordinary baseline instants (no DST change, no month end, mid-day): invariant id -> detail.
+    A rule that fails there almost always means the adapter's field does not mean what the rule says (such as
+    `date` set to the result of addDay instead of today's date); real time bugs live at the edges."""
+    out: dict[str, str] = {}
+    for v in check(outputs, invs):
+        if v.invariant not in ALWAYS and v.invariant not in out:
+            out[v.invariant] = f"{v.zone} {v.local}: {v.detail}"
+    return out
 
 
 def check(outputs: Outputs, invs: list[InvariantUse]) -> list[Violation]:

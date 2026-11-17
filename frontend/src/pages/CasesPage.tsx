@@ -9,7 +9,7 @@ const FILTERS: readonly CaseStateId[] = ["running", "waiting", "failed", "done",
 
 /** `#/cases`: every case with its status, filterable by state. */
 export function CasesPage() {
-  const { store, removeDraft } = useCaseActions();
+  const { store } = useCaseActions();
   const [filter, setFilter] = useState<CaseStateId | "all">("all");
   const shown = filter === "all" ? store.cases : store.cases.filter((c) => caseState(c).id === filter);
   const count = (id: CaseStateId) => store.cases.filter((c) => caseState(c).id === id).length;
@@ -46,7 +46,7 @@ export function CasesPage() {
               </button>
             ))}
           </div>
-          <CaseRows cases={shown} onRemove={removeDraft} />
+          <CaseRows cases={shown} />
         </>
       )}
     </article>

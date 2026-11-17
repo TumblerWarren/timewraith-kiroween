@@ -28,7 +28,9 @@ flowchart TD
     P -- cancel --> X([Cancelled])
 
     subgraph S4["4 Execution · code, Docker, no network"]
-        I[Install dependencies<br/>network only here] --> W[Sweep about 2,600 clock points per experiment<br/>13 zones, DST, month ends, leap days]
+        I[Install dependencies<br/>network only here, TimeWraith files moved aside] -- fails --> IH{{Retry with one fixed action<br/>code matches the log, else Pumpkin Mechanic picks<br/>up to 3 retries}}
+        IH -- retry --> I
+        I --> W[Sweep about 2,600 clock points per experiment<br/>13 zones, DST, month ends, leap days]
         W --> O[Fixed invariant oracles mark violations]
     end
 
@@ -65,13 +67,13 @@ flowchart TD
     AV -- accept --> DL([Download patch and regression test<br/>nothing is written to GitHub])
     AV -- reject --> RJ([Fix rejected, bug kept])
 
-    classDef agent fill:#b79557,stroke:#292720,color:#292720
-    classDef you fill:#f8f0de,stroke:#913e33,color:#292720
-    class D2,E1,V2,F1 agent
+    classDef agent fill:#c4a0f5,stroke:#382b49,color:#100d17
+    classDef you fill:#f4eefb,stroke:#c4a0f5,color:#100d17
+    class D2,E1,IH,V2,F1 agent
     class P,AV,U you
 ```
 
-Gold boxes with hexagons are Kiro agent steps. Plain boxes are code. Cream boxes are your decisions.
+Violet boxes are Kiro agent steps. Plain boxes are code. Light boxes are your decisions. The colours are the Violet Midnight tokens in [design-system.md](design-system.md).
 
 ## The agents
 
@@ -79,6 +81,7 @@ Gold boxes with hexagons are Kiro agent steps. Plain boxes are code. Cream boxes
 |---|---|---|---|---|---|
 | Bat Scout | Bat Scout | 2 Discovery | Scan candidates and quoted source | Keep or drop per candidate, with cited signals | Invent candidates or lines |
 | Pumpkin Mechanic | Pumpkin Mechanic | 3 Design | Candidate source, invariant catalog | An adapter, output fields, invariants, anchor instants | Choose pass or fail, or write assertions |
+| Pumpkin Mechanic (install repair) | Pumpkin Mechanic | 4 Execution | A failed install log that matches no known failure, and the untried actions | One action from the fixed list, quoting a log line | Run a command, or pick an action outside the list |
 | Raven Archivist | Raven Archivist | 5 Verification | Violation, outputs at its clock points, adapter, source, the repository's own tests and docs | Verdict: defect, intended behaviour, allowed exception or adapter error, with cited evidence | Declare a bug without a failing regression test |
 | Doctor Stitch | Doctor Stitch | + Fix | Finding, failing test output, and in a session only TimeWraith's tools | A patch through `submit`, with root cause and source citations | Touch tests, config, manifests, lockfiles, CI or generated files |
 | Raven Archivist (review) | Raven Archivist | Fix gate 8 | The diff and the regression test only, never Doctor Stitch's reasoning | Approve or reject, with a reason | See the author's reasoning |
@@ -91,6 +94,77 @@ Agents in steps 2, 3 and 5 have no tools. Their source and evidence arrive as qu
 Every claim cites evidence: a signal, a source line, an invariant, a clock point, an issue, a repository test, or a repository doc. Code resolves each citation against real data before the claim counts. Unresolved citations are dropped and counted in the decision record. A verdict left without resolvable evidence is rejected.
 
 Each agent decision is written as a `DecisionRecord`: the claim, the evidence kept, how many were dropped, the checks, the decision and the code rule that decided. `GET /api/v1/investigations/{id}/decisions` lists them.
+
+## The planner loop and the coverage ledger
+
+After the first sweep and verification, the hunt does not end. Code builds a **coverage ledger**: for each reviewed candidate, whether it was tested, which rules its experiments checked, which clock situations broke a rule (fall-back, spring-forward, month end, other), and what verification concluded. Wraith Director (profile `wraith-director.md`, no tools) reads it and proposes up to 3 **intents**, each a candidate plus a focus such as "next() with currentDate = now at 30-minute DST gaps". Code rejects unknown candidates and repeated directions, Pumpkin Mechanic designs an experiment for each accepted intent, and the new experiments go through the baseline check, the sweep and Raven's verification. The loop runs up to 2 rounds (`TW_MAX_PLAN_ROUNDS`), and ends earlier when the planner finds no new direction, the agent budget is short, or the time left cannot cover another round plus the fix step. The ledger and the intents are saved on the case (`coverage`, `intents`).
+
+## Time budget: preflight and wrap-up
+
+Before each long step (an adapter repair, a verification session, a planning round, a fix attempt with its gates) code checks that the time left covers it. If not, the step is skipped, the case notes "Wrap-up: … not started", and the run continues to its end instead of failing halfway. Findings and regression tests are kept.
+
+## The fix as a branch
+
+When you accept a fix that passed all 8 gates, code makes a local git branch in `TW_DATA_DIR/branches/<case id>/<repo>`: a clone of the pinned revision, with `origin` set to the upstream repository, and one commit on a branch named `timewraith/<bug id>-<title words>`. The commit holds exactly what the gates tested (the source change and the regression test, plus the adapter only if the test needs it), under the author `TimeWraith`, with the root cause, the gate results and the public report in the message. Nothing is pushed anywhere: to share it, add your own fork as a remote and push the branch yourself. `GET .../bugs/{bug_id}/branch.patch` downloads the same commit as a `git format-patch` file, and `git am` rebuilds an identical tree from it. `POST .../bugs/{bug_id}/branch` makes the branch again if it failed or was deleted; a failure never undoes your acceptance. The regression test sits where TimeWraith generated it (`__tw__/` next to the source); moving it into the repository's own test folder is a step for the maintainers.
+
+## Sharing a fix on GitHub (optional)
+
+A third container, `timewraith-git` (git and GitHub's `gh`, built from `backend/docker/git.Dockerfile`), holds the GitHub sign-in in its own volume. It is separate from the Kiro Crew, so the Kiro agents never see the token, and no TimeWraith folder is mounted into it: the backend sends in only the branch's patch and validated names.
+
+- **Sign-in:** `POST /system/github/start`, then `/login` returns a one-time code and the `https://github.com/login/device` link, as the Kiro sign-in does. `/login/cancel` and `/logout` undo it. The status is part of `GET /system/setup` under `github`. The scope is `public_repo`, so the token can write to all of your public repositories; `gh` keeps it in a plain file in the container's volume.
+- **Preview:** `GET .../bugs/{bug}/github` lists what would be sent (the original repo, your fork, the branch, the files, a title and description from the commit) and the open pull requests that look like the same bug. It sends nothing.
+- **Push:** `POST .../github/push` with `{"confirm_branch": "<the branch name>"}` forks the original repo if needed, rebuilds the fix commit on the pinned revision from the patch, and pushes the branch to your fork. Never to the original repository.
+- **Pull request:** `POST .../github/pull-request` with `{"title", "body", "confirm_branch"}` opens it on the original repository from your fork branch. It refuses a second pull request from the same branch.
+- **Rules in code:** only branches named `timewraith/...`, only after you accepted a verified fix, only when the confirmation repeats the branch name, and only to a fork owned by the signed-in user (a same-named repository that is not a fork of the original is refused). Anything that looks like a token is removed from every error before it is shown. The result is saved on the bug as `fix.publish`.
+
+## Retest
+
+`POST /api/v1/investigations/{id}/bugs/{bug_id}/retest` with `{"ref": "master" | "<sha>" | "pull/453"}` reruns the bug's regression test 3 times on that revision of the repository, with the case's pinned install, and records Fixed, Still reproducible or Cannot confirm on the bug (`retests`). The workspace goes back to the pinned commit afterwards. On cron-parser, PR #453 retests as Fixed and `master` as Still reproducible.
+
+## Untrusted data markers
+
+Repository content in prompts is framed as `<data-TAG name="…">…</data-TAG>`, where TAG is random for every block, so text in the repository cannot close the block early.
+
+## Baseline check and adapter repair (Pumpkin with tools)
+
+After install, each adapter runs at ordinary instants (mid-day, no DST change, no month end) in UTC and America/New_York. Besides running cleanly and returning its fields, every rule its fields feed must hold there. A rule that breaks at an ordinary instant means the field does not mean what the rule says (for example `date` set to the result of `addDay` instead of today's date), so a violation at the edges would show nothing about time bugs.
+
+With the Kiro Crew container runtime, an adapter that fails this check goes to Pumpkin's workshop (`designsession.py`, profile `tw-pumpkin-mechanic`), and only such adapters, to keep the credit cost down:
+
+| Tool | Does | Limit per session |
+|---|---|---|
+| `list_files`, `search`, `read_file` | Read git-tracked files, the adapter and the harness | As for Doctor Stitch |
+| `write_adapter` | Replace the adapter (must define `run`) | |
+| `run_adapter` | Run the adapter once with the clock frozen at a point he picks, and show what `run()` returned | 8 runs |
+| `check_baseline` | The same check code runs on submit | 3 checks |
+| `submit_adapter` | Final fields and claim; code reruns the baseline check and sends problems back (up to 2 times) | |
+
+The session has 25 tool calls and 8 minutes. If a rule still breaks at ordinary instants after the repair, code drops that rule and keeps the experiment for the rules that hold. Without the container runtime, the single-reply redesign runs instead. On run 7's adapters, the check caught three of the four that Raven had to dismiss as adapter errors, and left the experiment with the real Lord Howe bug untouched.
+
+## Agentic verification (Raven with tools)
+
+With the Kiro Crew container runtime, Raven verifies each repeated violation in her own tool session (`verifysession.py`, profile `tw-raven-archivist`, the same MCP proxy and token-gated endpoint as Doctor Stitch). She does not rule from the adapter's output alone: the adapter was written by another agent and may be wrong.
+
+| Tool | Does | Limit per session |
+|---|---|---|
+| `list_files`, `search`, `read_file` | Read git-tracked files and the adapter | As for Doctor Stitch |
+| `run_probe` | Runs her short script against the real code (`load('src/x')`, `print`, `check`) with the clock frozen at a point she picks and the process zone set; the repository is mounted read-only | 12 probes |
+| `run_tests` | Runs one repository test file as written | 4 runs |
+| `search_issues` | Searches public issues and pull requests; threads labelled question, discussion and similar are skipped | 3 searches |
+| `submit_verdict` | Her verdict with evidence and, where needed, a reproduction | |
+
+The session has 30 tool calls and 10 minutes. Code checks the verdict before it counts, and a rejected verdict goes back to her with the reason (up to 2 times):
+
+| Verdict | Code requires |
+|---|---|
+| `defect` | A reproduction that loads repository code, whose check fails 3/3 at the failing point (in the violation's zone or within 36 hours of it) and passes at a control point; a user check, the same symptom through the API the package's users call, that fails 3/3 in the same zone; a cited source line that exists; and the regression test made from both fails with an assertion. That test becomes the bug's regression test, so the `fixed` gate needs users' calls to work, not only the internal helper |
+| `adapter_error` | Her reproduction's check passes at the violation's own point: the code is right when called correctly |
+| `intended_behavior` | A cited repository test or doc line; code then runs the cited test as before |
+| `allowed_exception` | A cited invariant |
+
+An issue match counts only if it is one of her search results and names the code under test. With other runtimes, verification uses the single-reply verdict described below.
+
+Design also changed: code adds every invariant the adapter's returned fields can feed, and drops `instant_zone_independent` when the adapter passes `ctx.tz` into the code.
 
 ## Verification in detail
 

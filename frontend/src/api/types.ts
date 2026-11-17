@@ -163,15 +163,53 @@ export interface FixAttempt {
   readonly test_runs?: number;
 }
 
+export interface FixBranch {
+  readonly name: string;
+  readonly path: string;
+  readonly base: string;
+  readonly commit: string;
+  readonly files: readonly string[];
+  readonly created_at: string;
+  readonly patch_file: string;
+  readonly upstream_url: string;
+}
+
+export interface Publish {
+  readonly fork: string;
+  readonly branch: string;
+  readonly commit: string;
+  readonly pushed_at: string;
+  readonly pr_url: string | null;
+  readonly pr_number: number | null;
+  readonly pr_opened_at: string | null;
+}
+
+export interface GitHubPreview {
+  readonly ready: boolean;
+  readonly upstream: string;
+  readonly fork: string | null;
+  readonly user: string | null;
+  readonly branch: string;
+  readonly title: string;
+  readonly body: string;
+  readonly files: readonly string[];
+  readonly duplicates: readonly { readonly number: number; readonly title: string; readonly url: string; readonly state: string }[];
+  readonly published: Publish | null;
+  readonly problems: readonly string[];
+}
+
 export interface Fix {
   readonly state: "not-started" | "in-progress" | "verified" | "no-safe-fix" | "skipped";
   readonly label: string;
   readonly attempts: readonly FixAttempt[];
   readonly user_decision: "pending" | "accepted" | "rejected";
+  readonly branch?: FixBranch | null;
+  readonly publish?: Publish | null;
 }
 
 export interface Bug {
   readonly id: string;
+  readonly experiment_id?: string;
   readonly title: string;
   readonly category: string;
   readonly invariant: string;
@@ -183,11 +221,53 @@ export interface Bug {
   readonly issue_match: { readonly number: string; readonly title: string; readonly url: string } | null;
   readonly issue_match_label: string;
   readonly fix: Fix;
+  /** The regression test rerun on other revisions, such as the upstream fix PR. */
+  readonly retests?: readonly Retest[];
+  /** Raven's reproduction through the code's own API (code, failing and control points), when she verified with tools. */
+  readonly reproduction?: {
+    readonly code: string;
+    readonly failing: string;
+    readonly control: string;
+    readonly user_check?: string;
+    readonly user_failing?: string;
+  } | null;
+}
+
+export interface Retest {
+  readonly at: string;
+  readonly ref: string;
+  readonly revision: string;
+  readonly outcome: "still_reproducible" | "fixed" | "cannot_confirm";
+  readonly detail: string;
+  readonly runs?: readonly string[];
+}
+
+export interface CoverageRow {
+  readonly candidate_id: string;
+  readonly unit: string;
+  readonly path: string;
+  readonly status: "not_selected" | "not_designed" | "adapter_invalid" | "clean" | "violations";
+  readonly experiments: readonly string[];
+  readonly rules: readonly string[];
+  readonly edges: readonly string[];
+  readonly outcome: string;
+}
+
+export interface Intent {
+  readonly id: string;
+  readonly round: number;
+  readonly candidate_id: string;
+  readonly focus: string;
+  readonly rationale: string;
+  readonly status: "queued" | "designed" | "swept" | "rejected";
+  readonly experiment_id: string | null;
+  readonly reason: string;
 }
 
 /** A repeated rule break that the repository's own passing test or docs say is deliberate: not a bug, not fixed. */
 export interface IntendedFinding {
   readonly id: string;
+  readonly experiment_id?: string;
   readonly title: string;
   readonly invariant: string;
   readonly violation: Violation;
@@ -223,6 +303,8 @@ export interface Investigation {
   readonly decisions: readonly DecisionRecord[];
   readonly budget: { readonly agent_calls: number; readonly active_seconds: number };
   readonly notes: readonly string[];
+  readonly coverage?: readonly CoverageRow[];
+  readonly intents?: readonly Intent[];
 }
 
 export interface ReplayEventMsg {
@@ -233,6 +315,7 @@ export interface ReplayEventMsg {
   readonly phase: Phase;
   readonly text: string;
   readonly status: EvidenceStatusId;
+  readonly serverClock?: "not controlled" | { readonly label: string; readonly tz: string; readonly dateUnderTest: string };
   /** Tool events (kind "tool") and attempt starts carry { bug_id, attempt, calls, max_calls }. */
   readonly data?: Readonly<Record<string, unknown>> | null;
 }
@@ -246,7 +329,27 @@ export interface Health {
 }
 
 /** GET /system/setup: Docker Desktop, the Kiro Crew container and the Kiro sign-in. */
+/** How the Kiro Crew container signs in to Kiro. Different methods can be different Kiro accounts, with separate credits. */
+export type LoginMethod = "builder_id" | "google" | "github";
+
+export interface GitHubSetupStatus {
+  readonly container: "missing" | "stopped" | "running";
+  readonly install: "idle" | "building" | "starting" | "failed";
+  readonly install_error: string | null;
+  readonly connected: boolean;
+  readonly user: string | null;
+  readonly scopes: string;
+  readonly login: {
+    readonly state: "idle" | "pending" | "done" | "failed";
+    readonly code: string | null;
+    readonly url: string | null;
+    readonly error: string | null;
+  };
+}
+
 export interface SetupStatus {
+  /** Optional for backends that predate the GitHub container. */
+  readonly github?: GitHubSetupStatus;
   readonly docker: { readonly installed: boolean; readonly running: boolean; readonly starting: boolean; readonly can_start: boolean };
   readonly crew: {
     readonly image: string;
@@ -257,7 +360,14 @@ export interface SetupStatus {
     /** Who is signed in, such as "Builder ID · name@example.com". */
     readonly account?: string | null;
   };
-  readonly login: { readonly state: "idle" | "pending" | "done" | "failed"; readonly code: string | null; readonly url: string | null; readonly error: string | null };
+  readonly login: {
+    readonly state: "idle" | "pending" | "done" | "failed";
+    readonly code: string | null;
+    readonly url: string | null;
+    readonly error: string | null;
+    /** The sign-in method in progress or last tried. */
+    readonly method?: LoginMethod;
+  };
 }
 
 export interface ApiErrorBody {

@@ -4,6 +4,8 @@ For the frontend session. Types come from the backend: the JSON Schemas in `back
 
 Base URL: `http://127.0.0.1:8787/api/v1`. CORS allows `http://localhost:5173` by default (`TW_CORS_ORIGINS`).
 
+Note: sections below that say "Case Board" describe the one-page board that the R4 redesign replaced. The current pages are listed under "Current frontend routes".
+
 ## User decisions this contract implements (2026-11-11)
 
 | Topic | Decision |
@@ -112,16 +114,32 @@ The board ships no bundled or sample cases. The library lists live investigation
 - `frontend/src/api/`: `types.ts` (the fields the board reads), `client.ts` (fetch and EventSource), `ApiProvider.tsx` (health every 30 s). `api/__tests__/contract.test.ts` fails when a field the board reads is missing from `backend/schemas/`.
 - Vite proxies `/api` to `http://127.0.0.1:8787` in `dev` and `preview` (`TW_BACKEND_URL` overrides it), so no CORS is needed.
 - Live cases: `cases/model.ts` (`LiveCase`), `cases/store.tsx` (list refresh every 15 s). Case page: `frontend/src/pages/case/CasePage.tsx` with the status banner (`app/status.ts`), the six-step tracker, counters and the tabs Overview, Plan, Findings (including intended behaviour), Fixes (the 8 gates, diff, accept or reject, patch download) and Activity (event log and decisions). The earlier single-page `LiveCaseView` was removed in redesign R4.
-- `components/FlowStrip.tsx` is the five-step strip at the top of the Open-a-case region, and the Flow region uses the same steps.
+- `components/FlowStrip.tsx` (the five-step strip above the case form) has since been removed. The step copy is in `content/flow.ts`.
 - Removed: the decorative clock stamps (nav, thread nodes, "Filed 06:58"), the local-app target, the simulated setup statuses and demo-mode badge (both now follow `/health`), the placeholder links and hash, and the two sample cases (FullCalendar #7998, Cal.com #30021) with their replay scrubber, version timeline milestones and illustrative suggested-fix panel.
 
-## Redesign R4: five pages (2026-11-11)
+## Current frontend routes
 
-The one-page Case Board with seven regions is replaced by hash-routed pages (`frontend/src/app/router.ts`):
+The routes are defined in `frontend/src/app/router.ts`. The table below is current. The R4 table after it is the 2026-11-11 record and is kept as history.
 
 | Route | Page | Shows |
 |---|---|---|
-| `#/` | Home | Short hero, Crew readiness, the three latest cases |
+| `#/` | Clock intro | Animated clock and lantern. Skip or the lantern opens `#/home`. See [landing-motion.md](landing-motion.md) |
+| `#/home` | Home | Hero with the repository field, the workflow tabs, the time bugs, and a footer with sound, Pause ghost, Reduce motion and intro replay |
+| `#/new` | New case | The form, pre-filled by `#/new?repo=<url>` |
+| `#/cases` | Cases | Every case as a row with a status pill |
+| `#/cases/:id[/tab]` | Case | Status banner, six-step tracker, counters, tabs: overview, plan, findings, fixes, activity |
+| `#/crew` | Crew setup | Docker, Kiro Crew container, sign-in, machine checks, limits, cleanup |
+| `#/about` | How it works | Lost hour, the six steps, the Crew, the evidence ladder |
+
+Visual rules are in [design-system.md](design-system.md).
+
+## Redesign R4: five pages (2026-11-11, historical)
+
+The one-page Case Board with seven regions was replaced by hash-routed pages. At that time `#/` was the Home page. The clock intro now sits at `#/` and Home moved to `#/home`:
+
+| Route | Page | Shows |
+|---|---|---|
+| `#/` | Home (at R4) | Short hero, Crew readiness, the three latest cases |
 | `#/new` | New case | The form, readiness, what each mode does |
 | `#/cases` | Cases | Every case as a row with a status pill, filter by state |
 | `#/cases/:id[/tab]` | Case | Status banner with the next action, six-step tracker, counters, tabs: overview, plan, findings, fixes, activity |

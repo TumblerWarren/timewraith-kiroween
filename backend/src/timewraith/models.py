@@ -343,11 +343,49 @@ class FixAttempt(BaseModel):
     test_runs: int = 0
 
 
+class FixBranch(BaseModel):
+    """A local git branch holding the accepted fix: one commit on the pinned revision, made by code, never pushed."""
+
+    name: str
+    path: str  # folder of the clone on this machine
+    base: str  # the pinned commit the branch starts from
+    commit: str
+    files: list[str] = []
+    created_at: str
+    patch_file: str  # git format-patch file, applied with `git am`
+    upstream_url: str  # `origin` of the clone, so the branch can be pushed to your own fork
+
+
+class Publish(BaseModel):
+    """What was sent to GitHub for an accepted fix, each step only after the user confirmed it."""
+
+    fork: str  # "you/repo": your fork of the original repository
+    branch: str
+    commit: str
+    pushed_at: str
+    pr_url: str | None = None
+    pr_number: int | None = None
+    pr_opened_at: str | None = None
+
+
 class Fix(BaseModel):
     state: Literal["not-started", "in-progress", "verified", "no-safe-fix", "skipped"] = "not-started"
     label: str = "Fix not started"
     attempts: list[FixAttempt] = []
     user_decision: Literal["pending", "accepted", "rejected"] = "pending"
+    branch: FixBranch | None = None
+    publish: Publish | None = None
+
+
+class Retest(BaseModel):
+    """The bug's regression test rerun on another revision of the repository (a newer commit or a fix PR)."""
+
+    at: str
+    ref: str
+    revision: str
+    outcome: Literal["still_reproducible", "fixed", "cannot_confirm"]
+    detail: str
+    runs: list[str] = []
 
 
 class Bug(BaseModel):
@@ -367,6 +405,10 @@ class Bug(BaseModel):
     issue_match: dict[str, str] | None = None
     issue_match_label: str = "No matching public issue found"
     fix: Fix = Fix()
+    # Raven's reproduction through the code's own API, when she verified with tools: code, failing and control
+    # points (zone and ISO instant). Code reran it before the bug was accepted.
+    reproduction: dict[str, str] | None = None
+    retests: list[Retest] = []
 
 
 class IntendedFinding(BaseModel):
@@ -425,6 +467,32 @@ class Budget(BaseModel):
     active_seconds: float = 0.0
 
 
+class CoverageRow(BaseModel):
+    """What the Crew tested for one candidate, computed by code from experiments, sweeps and verdicts."""
+
+    candidate_id: str
+    unit: str
+    path: str
+    status: Literal["not_selected", "not_designed", "adapter_invalid", "clean", "violations"]
+    experiments: list[str] = []
+    rules: list[str] = []
+    edges: list[str] = []  # violations as "rule @ zone (fall-back | spring-forward | month end | other)"
+    outcome: str = ""
+
+
+class Intent(BaseModel):
+    """One direction the planner (Wraith Director) sent the Crew in after a round of findings."""
+
+    id: str
+    round: int
+    candidate_id: str
+    focus: str = Field(max_length=300)
+    rationale: str = Field(max_length=400)
+    status: Literal["queued", "designed", "swept", "rejected"] = "queued"
+    experiment_id: str | None = None
+    reason: str = ""
+
+
 class Investigation(BaseModel):
     id: str
     created_at: str
@@ -448,6 +516,8 @@ class Investigation(BaseModel):
     budget: Budget = Budget()
     revealed: bool = False
     notes: list[str] = []
+    coverage: list[CoverageRow] = []
+    intents: list[Intent] = []
 
 
 class InvestigationSummary(BaseModel):

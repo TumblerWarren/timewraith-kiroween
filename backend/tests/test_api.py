@@ -57,7 +57,9 @@ def test_local_actions_need_the_custom_header() -> None:
         "/api/v1/system/docker/start",
         "/api/v1/system/crew/start",
         "/api/v1/system/crew/login",
+        "/api/v1/system/crew/login/cancel",
         "/api/v1/system/crew/logout",
+        "/api/v1/system/crew/delete",
     ):
         r = client.post(path)
         assert r.status_code == 403
@@ -74,6 +76,20 @@ def test_device_flow_output_is_parsed_and_only_trusted_urls_pass() -> None:
     assert parse_device_output(out) == ("XQFX-WDVN", "https://view.awsapps.com/start/#/device?user_code=XQFX-WDVN")
     assert parse_device_output("Code: ABCD-EFGH\nOpen this URL: https://evil.example/device") == ("ABCD-EFGH", None)
     assert parse_device_output("Logging in...") == (None, None)
+    google = (
+        "\x1b[?25h\r\nTo sign in with Google, visit:\r\n"
+        "  https://app.kiro.dev/account/device?user_code=JSNZ-NGGR&login_provider=Google\r\n\r\n"
+        "And confirm the code: JSNZ-NGGR\r\n"
+    )
+    assert parse_device_output(google) == (
+        "JSNZ-NGGR",
+        "https://app.kiro.dev/account/device?user_code=JSNZ-NGGR&login_provider=Google",
+    )
+
+
+def test_sign_in_method_must_be_known() -> None:
+    r = client.post("/api/v1/system/crew/login", headers={"X-TimeWraith": "1"}, json={"method": "facebook"})
+    assert r.status_code >= 400 and r.json()["error"]["code"] == "invalid_method"
 
 
 def test_kiro_container_calls_approve_no_tools() -> None:

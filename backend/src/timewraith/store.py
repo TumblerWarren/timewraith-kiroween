@@ -10,6 +10,7 @@ from .models import Investigation, ReplayEvent
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS investigations (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, doc TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS deleted_investigations (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS events (
   investigation_id TEXT NOT NULL, seq INTEGER NOT NULL, doc TEXT NOT NULL, PRIMARY KEY (investigation_id, seq)
 );
@@ -36,15 +37,24 @@ class Store:
     def save(self, inv: Investigation) -> None:
         with self._lock, self._conn() as c:
             c.execute(
-                "INSERT INTO investigations (id, created_at, doc) VALUES (?, ?, ?) "
+                "INSERT INTO investigations (id, created_at, doc) SELECT ?, ?, ? "
+                "WHERE NOT EXISTS (SELECT 1 FROM deleted_investigations WHERE id = ?) "
                 "ON CONFLICT(id) DO UPDATE SET doc = excluded.doc",
-                (inv.id, inv.created_at, inv.model_dump_json()),
+                (inv.id, inv.created_at, inv.model_dump_json(), inv.id),
             )
 
     def get(self, inv_id: str) -> Investigation | None:
         with self._conn() as c:
             row = c.execute("SELECT doc FROM investigations WHERE id = ?", (inv_id,)).fetchone()
         return Investigation.model_validate_json(row[0]) if row else None
+
+    def delete(self, inv_id: str) -> None:
+        """Delete a case and its history atomically; ignore any stale saves afterwards."""
+        with self._lock, self._conn() as c:
+            c.execute("INSERT OR IGNORE INTO deleted_investigations (id) VALUES (?)", (inv_id,))
+            c.execute("DELETE FROM events WHERE investigation_id = ?", (inv_id,))
+            c.execute("DELETE FROM audit WHERE investigation_id = ?", (inv_id,))
+            c.execute("DELETE FROM investigations WHERE id = ?", (inv_id,))
 
     def recent(self, limit: int = 50) -> list[Investigation]:
         with self._conn() as c:

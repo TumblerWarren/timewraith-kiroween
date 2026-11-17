@@ -14,13 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .config import Settings
+from .installfix import InstallOptions, command
 from .models import CapabilityReport, ClockConfig
-
-INSTALL = {
-    "npm": "npm ci --no-audit --no-fund",
-    "pnpm": "corepack enable --install-directory /tmp/bin && /tmp/bin/pnpm install --frozen-lockfile",
-    "yarn": "corepack enable --install-directory /tmp/bin && /tmp/bin/yarn install --frozen-lockfile",
-}
 
 
 @dataclass
@@ -42,9 +37,42 @@ def docker_available() -> tuple[bool, str]:
     return True, "Docker Linux engine available"
 
 
+def _mount(s: Settings, path: Path, target: str, readonly: bool) -> str:
+    """The `--mount` value that gives a sandbox container a folder of the data directory.
+
+    On a PC the data directory is a normal folder, so it is bind-mounted. When the backend itself runs in Docker
+    (`TW_DATA_VOLUME`), its data directory is a named volume: the host path of a folder is not known here, so the
+    sibling container mounts that volume, narrowed to the one folder with `volume-subpath`."""
+    ro = ",readonly" if readonly else ""
+    if not s.data_volume:
+        return f"type=bind,source={path},target={target}{ro}"
+    sub = path.resolve().relative_to(s.data_dir.resolve()).as_posix()
+    return f"type=volume,source={s.data_volume},target={target},volume-subpath={sub}{ro}"
+
+
 def run(
-    s: Settings, ws: Path, node: str, script: str, *, network: bool, timeout: int, env: dict[str, str] | None = None
+    s: Settings,
+    ws: Path,
+    node: str,
+    script: str,
+    *,
+    network: bool,
+    timeout: int,
+    env: dict[str, str] | None = None,
+    readonly: bool = False,
+    writable: tuple[str, ...] = (),
+    scratch: tuple[str, ...] = (),
 ) -> Exec:
+    """`readonly` mounts the workspace read-only; `writable` are workspace subfolders mounted back read-write,
+    `scratch` are workspace subfolders replaced by an empty in-memory folder (runner caches)."""
+    work = _mount(s, ws, "/work", readonly)
+    extra: list[str] = []
+    for rel in writable:
+        (ws / rel).mkdir(parents=True, exist_ok=True)
+        extra += ["--mount", _mount(s, ws / rel, f"/work/{rel}", False)]
+    for rel in scratch:
+        (ws / rel).mkdir(parents=True, exist_ok=True)
+        extra += ["--tmpfs", f"/work/{rel}:rw,size=256m"]
     args = [
         "docker",
         "run",
@@ -66,7 +94,8 @@ def run(
         "--tmpfs",
         "/tmp:rw,exec,size=1g",  # noqa: S108 (tmpfs inside the container, not a host temp file)
         "--mount",
-        f"type=bind,source={ws},target=/work",
+        work,
+        *extra,
         "-w",
         "/work",
         "--user",
@@ -93,9 +122,19 @@ def run(
     return Exec(code=r.returncode, out=(r.stdout + r.stderr)[-8000:])
 
 
-def install(s: Settings, ws: Path, caps: CapabilityReport) -> Exec:
+def install(s: Settings, ws: Path, caps: CapabilityReport, opts: InstallOptions | None = None) -> Exec:
+    """Install dependencies with network. `opts` are the fixed retry options of installfix.py."""
     assert caps.package_manager
-    return run(s, ws, caps.node_version, INSTALL[caps.package_manager], network=True, timeout=s.install_timeout_s)
+    o = opts or InstallOptions(node=caps.node_version)
+    return run(s, ws, o.node, command(caps.package_manager, o), network=True, timeout=s.install_timeout_s)
+
+
+def _own_match(paths: list[str]) -> str:
+    """Jest applies the repository's `testMatch` even to `--runTestsByPath`, so a config such as
+    `**/tests/**/*.test.ts` skips TimeWraith's generated files. When every file run is TimeWraith's own
+    (`__tw__/`), widen the match to them; the repository's own test runs keep its config."""
+    own = bool(paths) and all("/__tw__/" in f"/{p}" for p in paths)
+    return " --testMatch '**/__tw__/**'" if own else ""
 
 
 def _runner_cmd(caps: CapabilityReport, test_path: str | None, out: str) -> str:
@@ -104,7 +143,8 @@ def _runner_cmd(caps: CapabilityReport, test_path: str | None, out: str) -> str:
         target = f" {q(test_path)}" if test_path else ""
         return f"node_modules/.bin/vitest run{target} --reporter=json --outputFile={q(out)}"
     target = f" --runTestsByPath {q(test_path)}" if test_path else ""
-    return f"node_modules/.bin/jest{target} --json --outputFile={q(out)} --ci"
+    match = _own_match([test_path] if test_path else [])
+    return f"node_modules/.bin/jest{target}{match} --json --outputFile={q(out)} --ci"
 
 
 @dataclass
@@ -164,7 +204,7 @@ def _files_cmd(caps: CapabilityReport, paths: list[str]) -> str:
     files = " ".join(shlex.quote(p) for p in paths)
     if caps.test_runner == "vitest":
         return f"node_modules/.bin/vitest run {files}"
-    return f"node_modules/.bin/jest --ci --runTestsByPath {files}"
+    return f"node_modules/.bin/jest --ci{_own_match(paths)} --runTestsByPath {files}"
 
 
 def sweep(
@@ -191,6 +231,38 @@ def sweep(
         if ex.timed_out and not logs[z]:
             logs[z] = "timed out"
     return logs
+
+
+@dataclass
+class ProbeResult:
+    status: str  # passed | check_failed | error | timeout
+    out: list[str]
+
+
+PROBE_DIR = ".tw/probe"
+
+
+def probe(s: Settings, ws: Path, caps: CapabilityReport, test_rel: str, zone: str, now_ms: int) -> ProbeResult:
+    """Run one probe file (sweep.probe_code) with the clock frozen at `now_ms` in process zone `zone`, no network,
+    the repository read-only: only the probe's result folder is writable."""
+    out = ws / PROBE_DIR / "out.json"
+    out.unlink(missing_ok=True)
+    q = shlex.quote
+    log = f"/work/{PROBE_DIR}/log.txt"
+    script = f"TZ={q(zone)} TW_NOW={int(now_ms)} {_files_cmd(caps, [test_rel])} > {log} 2>&1 || true"
+    caches = ("node_modules/.vite", "node_modules/.vitest") if caps.test_runner == "vitest" else ()
+    ex = run(
+        s, ws, caps.node_version, script, network=False, timeout=s.test_timeout_s,
+        readonly=True, writable=(PROBE_DIR,), scratch=caches,
+    )  # fmt: skip
+    if ex.timed_out:
+        return ProbeResult("timeout", [f"The probe ran longer than {s.test_timeout_s} s"])
+    try:
+        data = json.loads(out.read_text(encoding="utf-8"))
+        return ProbeResult(str(data.get("status", "error")), [str(x) for x in data.get("out", [])][:200])
+    except OSError, ValueError:
+        tail = (ws / PROBE_DIR / "log.txt").read_text(encoding="utf-8", errors="replace")[-1500:]
+        return ProbeResult("error", ["The probe did not run (no result). Runner output:", tail or ex.out[-1500:]])
 
 
 def run_suite(s: Settings, ws: Path, caps: CapabilityReport) -> TestOutcome:

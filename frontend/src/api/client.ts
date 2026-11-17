@@ -1,10 +1,15 @@
 import type {
   CreateInvestigation,
   FlowStep,
+  FixBranch,
+  GitHubPreview,
   Health,
   Investigation,
   InvestigationSummary,
+  LoginMethod,
+  Publish,
   ReplayEventMsg,
+  Retest,
   SetupStatus,
 } from "./types";
 
@@ -28,13 +33,26 @@ export interface Api {
   create(body: CreateInvestigation): Promise<InvestigationSummary>;
   approvePlan(id: string): Promise<InvestigationSummary>;
   cancel(id: string): Promise<InvestigationSummary>;
+  deleteCase(id: string): Promise<{ deleted: string }>;
   decideFix(id: string, bugId: string, accept: boolean): Promise<InvestigationSummary>;
+  makeBranch(id: string, bugId: string): Promise<FixBranch>;
+  branchPatchUrl(id: string, bugId: string): string;
+  githubPreview(id: string, bugId: string): Promise<GitHubPreview>;
+  githubPush(id: string, bugId: string, confirmBranch: string): Promise<Publish>;
+  githubPullRequest(id: string, bugId: string, title: string, body: string, confirmBranch: string): Promise<Publish>;
+  retest(id: string, bugId: string, ref: string): Promise<Retest>;
   patchUrl(id: string, bugId: string): string;
   setup(): Promise<SetupStatus>;
   startDocker(): Promise<SetupStatus>;
   startCrew(): Promise<SetupStatus>;
-  startLogin(): Promise<SetupStatus>;
+  startLogin(method?: LoginMethod): Promise<SetupStatus>;
+  cancelLogin(): Promise<SetupStatus>;
   logout(): Promise<SetupStatus>;
+  deleteCrew(): Promise<SetupStatus>;
+  githubStart(): Promise<SetupStatus>;
+  githubLogin(): Promise<SetupStatus>;
+  githubCancel(): Promise<SetupStatus>;
+  githubLogout(): Promise<SetupStatus>;
   /** Subscribe to the event stream; returns an unsubscribe function. */
   events(id: string, onEvent: (e: ReplayEventMsg) => void, onEnd: () => void): () => void;
 }
@@ -68,6 +86,7 @@ export function createApi(base: string = import.meta.env.VITE_TW_API_BASE ?? "/a
   }
   const post = <T>(path: string, body?: unknown) =>
     call<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
+  const bugPath = (id: string, bugId: string) => `/investigations/${enc(id)}/bugs/${enc(bugId)}`;
 
   return {
     health: () => call<Health>("/health"),
@@ -77,14 +96,28 @@ export function createApi(base: string = import.meta.env.VITE_TW_API_BASE ?? "/a
     create: (body) => post<InvestigationSummary>("/investigations", body),
     approvePlan: (id) => post<InvestigationSummary>(`/investigations/${enc(id)}/approve-plan`),
     cancel: (id) => post<InvestigationSummary>(`/investigations/${enc(id)}/cancel`),
+    deleteCase: (id) => post<{ deleted: string }>(`/investigations/${enc(id)}/delete`),
     decideFix: (id, bugId, accept) =>
       post<InvestigationSummary>(`/investigations/${enc(id)}/bugs/${enc(bugId)}/fix/${accept ? "accept" : "reject"}`),
+    retest: (id, bugId, ref) => post<Retest>(`/investigations/${enc(id)}/bugs/${enc(bugId)}/retest`, { ref }),
+    makeBranch: (id, bugId) => post<FixBranch>(`${bugPath(id, bugId)}/branch`),
+    branchPatchUrl: (id, bugId) => `${base}${bugPath(id, bugId)}/branch.patch`,
+    githubPreview: (id, bugId) => call<GitHubPreview>(`${bugPath(id, bugId)}/github`),
+    githubPush: (id, bugId, confirmBranch) => post<Publish>(`${bugPath(id, bugId)}/github/push`, { confirm_branch: confirmBranch }),
+    githubPullRequest: (id, bugId, title, body, confirmBranch) =>
+      post<Publish>(`${bugPath(id, bugId)}/github/pull-request`, { title, body, confirm_branch: confirmBranch }),
     patchUrl: (id, bugId) => `${base}/investigations/${enc(id)}/bugs/${enc(bugId)}/patch`,
     setup: () => call<SetupStatus>("/system/setup"),
     startDocker: () => post<SetupStatus>("/system/docker/start"),
     startCrew: () => post<SetupStatus>("/system/crew/start"),
-    startLogin: () => post<SetupStatus>("/system/crew/login"),
+    startLogin: (method = "builder_id") => post<SetupStatus>("/system/crew/login", { method }),
+    cancelLogin: () => post<SetupStatus>("/system/crew/login/cancel"),
     logout: () => post<SetupStatus>("/system/crew/logout"),
+    deleteCrew: () => post<SetupStatus>("/system/crew/delete"),
+    githubStart: () => post<SetupStatus>("/system/github/start"),
+    githubLogin: () => post<SetupStatus>("/system/github/login"),
+    githubCancel: () => post<SetupStatus>("/system/github/login/cancel"),
+    githubLogout: () => post<SetupStatus>("/system/github/logout"),
     events(id, onEvent, onEnd) {
       if (typeof EventSource === "undefined") return () => undefined;
       const source = new EventSource(`${base}/investigations/${enc(id)}/events`);

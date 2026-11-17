@@ -48,6 +48,29 @@ Each fix attempt is one Kiro CLI session in the Kiro Crew container, with the ag
 
 Edits are exact text (`replace`) or line ranges (`replace_lines`), keep the file's line endings, and refuse tests, test config, manifests, lockfiles, CI files and generated files. After `submit`, the backend takes `git diff` and applies it to a new clean copy before the gates run, so the patch is judged on its own. If the time budget runs out during the fix step, the case keeps its bugs and regression tests.
 
+## Adapter repair sessions (Pumpkin Mechanic with tools)
+
+After install, an adapter must run at ordinary instants in UTC and New York, return its fields, and keep every rule its fields feed. An adapter that fails gets one Kiro CLI session with the profile `tw-pumpkin-mechanic` (`designsession.py`): read the code, rewrite the adapter, run it at points he picks, recheck, submit. Code reruns the check on submit. A rule that still breaks at ordinary instants is dropped. Limits: `TW_DESIGN_SESSION_S` (480), `TW_MAX_DESIGN_CALLS` (25), `TW_MAX_ADAPTER_RUNS` (8). Details in [docs/agent-flow.md](../docs/agent-flow.md#baseline-check-and-adapter-repair-pumpkin-with-tools).
+
+## Verification sessions (Raven Archivist with tools)
+
+With the Kiro Crew container runtime, each repeated violation gets one Kiro CLI session with the profile `tw-raven-archivist`. Her tools (`verifysession.py`) read the repository, run probes against the real code with a frozen clock in a read-only sandbox, run repository tests, search issues and pull requests, and submit a verdict. A defect is accepted only when code reruns her reproduction: its check fails 3/3 at the failing point, passes at a control point, and the regression test made from it fails with an assertion. The full rules are in [docs/agent-flow.md](../docs/agent-flow.md#agentic-verification-raven-with-tools). Limits: `TW_VERIFY_SESSION_S` (600), `TW_MAX_VERIFY_CALLS` (30), `TW_MAX_PROBES` (12).
+
+## Dependency install and self-healing
+
+The install is the only sandbox step with network. Before it runs, the backend moves TimeWraith's own folders (`__tw__/`, `.tw/`) out of the workspace and puts them back afterwards, so the repository's install scripts (a `prepare` build or a lint) never see agent-written files.
+
+If the install fails, it retries up to `TW_INSTALL_RETRIES` times (default 3), each time adding one action from a fixed list (`installfix.py`):
+
+| Action | Chosen by code when the log shows |
+|---|---|
+| Newer Node (20, then 22, then 24) | `npm error code EBADENGINE`, an incompatible engine, or (after scripts were skipped) an engine warning |
+| Skip install scripts (`--ignore-scripts`) | A failed lifecycle script (`prepare`, `postinstall`, `ELIFECYCLE`) |
+| Allow peer conflicts (`--legacy-peer-deps`) | `ERESOLVE` or a peer dependency conflict |
+| Lockfile not enforced (`npm install`, `--no-frozen-lockfile`) | A lockfile out of sync with `package.json` |
+
+When no pattern matches, Pumpkin Mechanic (profile `install-mechanic.md`) may pick one action from the same list. It must quote a line that code finds in the log, and it cannot run a command of its own. A timed-out install is not retried. If every retry fails, the case stops with `install_failed`, the actions tried and the key log lines. A Node version that worked is kept for the later sandbox runs.
+
 ## Commands (from the repo root)
 
 ```
@@ -64,15 +87,16 @@ Configuration: `backend/.env` (see `.env.example`). Data (SQLite, workspaces, pa
 
 ## Setting up the Crew from the frontend
 
-The readiness board on the Case Board walks through three steps, each with one button. The backend side is `crew.py`, and the endpoints are under `/api/v1/system/`. Every POST needs the `X-TimeWraith: 1` header, which a cross-site form cannot send.
+The readiness board on the Crew setup page (`#/crew`) walks through three steps, each with one button. The backend side is `crew.py`, and the endpoints are under `/api/v1/system/`. Every POST needs the `X-TimeWraith: 1` header, which a cross-site form cannot send.
 
 1. **Start Docker** (`POST /system/docker/start`) launches Docker Desktop on Windows or macOS. It runs only when you press the button.
 2. **Start Kiro Crew** (`POST /system/crew/start`) pulls `ghcr.io/kirodotdev/kirocrew:stable` and runs it as the `timewraith-crew` container:
    - `--cap-drop ALL`, `no-new-privileges`, 2 GB memory and 256 processes;
    - the home directory in the `timewraith-crew-home` volume;
    - no repository and no workspace mounted.
-3. **Sign in to Kiro** (`POST /system/crew/login`) runs `kiro-cli login --license free --use-device-flow` inside the container. The board shows the one-time code and a link to the sign-in page, and you approve in your own browser. The sign-in persists in the volume.
+3. **Sign in with Google, GitHub or Builder ID** (`POST /system/crew/login` with `{"method": "google" | "github" | "builder_id"}`). Builder ID runs `kiro-cli login --license free --use-device-flow`. `kiro-cli` shows its Google and GitHub choices only in a terminal menu, so for those the backend runs `agents/tw_login.py` in the container: it starts `kiro-cli login` in a pseudo-terminal, picks the menu entry by its label, and passes the printed code and `app.kiro.dev` link to the board. Different methods can be different Kiro accounts with separate credits. The board shows the one-time code and a link to the sign-in page, and you approve in your own browser. The sign-in persists in the volume. If the sign-in page shows an error (such as "We were unable to sign you in to your AWS Builder ID"), **Cancel sign-in** (`POST /system/crew/login/cancel`) stops the waiting `kiro-cli login` in the container, and **Sign in to Kiro** starts again with a new code.
 4. **Sign out of Kiro** (`POST /system/crew/logout`) runs `kiro-cli logout` in the container. The setup page asks for confirmation first, because signing out stops real agent calls.
+5. **Delete Crew** (`POST /system/crew/delete`) removes the Crew container and saved-sign-in volume after confirmation. Case history and the downloaded image remain. Setup or sign-in must finish first, and Docker must be running. Failed volume removal can be retried with Delete Crew.
 
 The setup page shows the signed-in account, read from `kiro-cli whoami`.
 
@@ -93,6 +117,7 @@ Settings are read from `TW_*` environment variables or `backend/.env`. The ones 
 | `TW_MAX_FIX_ATTEMPTS` | `3` | Fix attempts per bug |
 | `TW_FIX_SESSION_S` | `720` | Time per fix session |
 | `TW_MAX_TOOL_CALLS` | `40` | Tool calls per fix session |
+| `TW_INSTALL_RETRIES` | `3` | Self-healing retries after a failed dependency install |
 | `TW_CREW_BACKEND_URL` | `http://host.docker.internal:8787` | How the Kiro Crew container reaches this backend's fix tools |
 
 Every setting and its limit is listed in `src/timewraith/config.py`.
@@ -105,7 +130,8 @@ Runtimes:
 
 ## Limits of the MVP
 
-- JavaScript and TypeScript with Vitest or Jest only, run from the repository root. Harness files live in `__tw__/` next to the source, so a runner `include` pattern that excludes them leads to "No output: the runner did not collect the harness".
+- JavaScript and TypeScript with Vitest or Jest only, run from the repository root. Harness files live in `__tw__/` next to the source. With Jest, runs of TimeWraith's own files pass `--testMatch '**/__tw__/**'`, so a narrow `testMatch` does not skip them. With Vitest, an `include` pattern that excludes them still leads to "No output: the runner did not collect the harness".
+- TypeScript adapters get a `// @ts-nocheck` header, so a strict typecheck does not reject agent-written test glue.
 - Regex detectors plus a brace-depth scope finder (Tree-sitter fallback B8).
 - The intent search is plain text. It finds the repository's tests and docs by file name and by mention of the code, so a project that documents its behaviour somewhere else is not found.
 - The Kiro account has a monthly usage limit. When it is reached, agent steps stop and the case says "Agents stopped" with the reason.

@@ -5,17 +5,18 @@ from __future__ import annotations
 import asyncio
 import shutil
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
-from . import ENGINE_VERSION, crew, sandbox
+from . import ENGINE_VERSION, crew, gitbox, sandbox
 from .agents import make_runtime
 from .config import get_settings
-from .fixsession import TOOLS as FIX_TOOLS
-from .fixsession import FixSession, ToolError
+from .fixsession import ToolError, ToolSession
 from .ingest import IngestError
 from .models import (
     FLOW,
@@ -122,6 +123,11 @@ def health() -> dict[str, Any]:
     }
 
 
+def _setup() -> dict[str, Any]:
+    """Docker, the Kiro Crew, the Kiro sign-in and the GitHub container, in one status for the readiness board."""
+    return {**crew.manager.status(), "github": gitbox.manager.status()}
+
+
 def _local_action(request: Request) -> None:
     """Actions that touch this machine need a custom header: a cross-site form cannot send one without passing CORS."""
     if request.headers.get("x-timewraith") != "1":
@@ -131,7 +137,7 @@ def _local_action(request: Request) -> None:
 @app.get("/api/v1/system/setup")
 def system_setup() -> dict[str, Any]:
     """Docker Desktop, the Kiro Crew container and the Kiro sign-in, for the readiness board."""
-    return crew.manager.status()
+    return _setup()
 
 
 @app.post("/api/v1/system/docker/start")
@@ -141,7 +147,7 @@ def system_docker_start(request: Request) -> dict[str, Any]:
         message = crew.manager.start_docker()
     except RuntimeError as e:
         raise Stop("docker_start_failed", str(e)) from e
-    return {"message": message, **crew.manager.status()}
+    return {"message": message, **_setup()}
 
 
 @app.post("/api/v1/system/crew/start")
@@ -149,36 +155,40 @@ def system_crew_start(request: Request) -> dict[str, Any]:
     _local_action(request)
     if not crew.manager.docker_running():
         raise Stop("docker_not_running", "Start Docker first")
-    return {"message": crew.manager.start_crew(), **crew.manager.status()}
+    return {"message": crew.manager.start_crew(), **_setup()}
 
 
 @app.post("/api/v1/system/crew/login")
-def system_crew_login(request: Request) -> dict[str, Any]:
+def system_crew_login(request: Request, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Start the Kiro sign-in. Body `{"method": "builder_id" | "google" | "github"}`; Builder ID when absent."""
     _local_action(request)
+    method = (body or {}).get("method", "builder_id")
+    if method not in ("builder_id", "google", "github"):
+        raise Stop("invalid_method", "Choose builder_id, google or github")
     try:
-        crew.manager.start_login()
+        crew.manager.start_login(method)
     except RuntimeError as e:
         raise Stop("crew_not_running", str(e)) from e
-    return crew.manager.status()
+    return _setup()
 
 
-def _fix_session(request: Request) -> FixSession:
-    """Only a live fix session's token opens the fix tools; there is no other way in."""
+def _fix_session(request: Request) -> ToolSession:
+    """Only a live tool session's token opens the tools; there is no other way in."""
     s = engine.sessions.get(request.headers.get("x-tw-session"))
     if not s:
-        raise Stop("forbidden", "No live fix session for this token")
+        raise Stop("forbidden", "No live tool session for this token")
     return s
 
 
 @app.post("/api/v1/internal/fix-tools/list")
 def fix_tools_list(request: Request) -> dict[str, Any]:
-    _fix_session(request)
-    return {"tools": FIX_TOOLS}
+    """The tools of the session this token belongs to: Doctor Stitch's fix tools or Raven's verification tools."""
+    return {"tools": _fix_session(request).tools}
 
 
 @app.post("/api/v1/internal/fix-tools/call")
 def fix_tools_call(request: Request, body: dict[str, Any]) -> dict[str, Any]:
-    """One tool call from Doctor Stitch, forwarded by the MCP proxy in the Kiro Crew container."""
+    """One tool call from a Kiro agent session, forwarded by the MCP proxy in the Kiro Crew container."""
     s = _fix_session(request)
     name, args = body.get("name"), body.get("arguments")
     if not isinstance(name, str) or not isinstance(args, dict):
@@ -189,6 +199,74 @@ def fix_tools_call(request: Request, body: dict[str, Any]) -> dict[str, Any]:
         return {"error": str(e)}
 
 
+@app.post("/api/v1/system/crew/login/cancel")
+def system_crew_login_cancel(request: Request) -> dict[str, Any]:
+    """Stop a pending Kiro sign-in, so the user can start again with a new code."""
+    _local_action(request)
+    crew.manager.cancel_login()
+    return _setup()
+
+
+@app.post("/api/v1/system/github/start")
+def system_github_start(request: Request) -> dict[str, Any]:
+    """Build (if needed) and start the GitHub container."""
+    _local_action(request)
+    if not crew.manager.docker_running():
+        raise Stop("docker_not_running", "Start Docker first")
+    return {"message": gitbox.manager.start(), **_setup()}
+
+
+@app.post("/api/v1/system/github/login")
+def system_github_login(request: Request) -> dict[str, Any]:
+    """Start the GitHub sign-in: the status then carries the one-time code and the github.com link."""
+    _local_action(request)
+    try:
+        gitbox.manager.start_login()
+    except RuntimeError as e:
+        raise Stop("github_not_running", str(e)) from e
+    return _setup()
+
+
+@app.post("/api/v1/system/github/login/cancel")
+def system_github_login_cancel(request: Request) -> dict[str, Any]:
+    _local_action(request)
+    gitbox.manager.cancel_login()
+    return _setup()
+
+
+@app.post("/api/v1/system/github/logout")
+def system_github_logout(request: Request) -> dict[str, Any]:
+    """Remove the GitHub token from the container."""
+    _local_action(request)
+    try:
+        gitbox.manager.logout()
+    except RuntimeError as e:
+        raise Stop("github_logout_failed", str(e)) from e
+    return _setup()
+
+
+@app.get("/api/v1/investigations/{inv_id}/bugs/{bug_id}/github")
+def github_preview(inv_id: str, bug_id: str) -> dict[str, Any]:
+    """What sharing this fix on GitHub would send, and what stands in the way. Sends nothing."""
+    return engine.github_preview(inv_id, bug_id)
+
+
+@app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/github/push")
+def github_push(inv_id: str, bug_id: str, request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    """Push the fix branch to your fork. Body `{"confirm_branch": "<the branch name>"}`."""
+    _local_action(request)
+    return engine.github_push(inv_id, bug_id, str(body.get("confirm_branch", ""))).model_dump()
+
+
+@app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/github/pull-request")
+def github_pull_request(inv_id: str, bug_id: str, request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    """Open the pull request on the original repository. Body `{"title", "body", "confirm_branch"}`."""
+    _local_action(request)
+    return engine.github_pull_request(
+        inv_id, bug_id, str(body.get("title", "")), str(body.get("body", "")), str(body.get("confirm_branch", ""))
+    ).model_dump()
+
+
 @app.post("/api/v1/system/crew/logout")
 def system_crew_logout(request: Request) -> dict[str, Any]:
     """Sign the Kiro Crew container out of Kiro. Running investigations keep the runtime they started with."""
@@ -197,13 +275,24 @@ def system_crew_logout(request: Request) -> dict[str, Any]:
         crew.manager.logout()
     except RuntimeError as e:
         raise Stop("logout_failed", str(e)) from e
-    return crew.manager.status()
+    return _setup()
 
 
 @app.get("/api/v1/flow")
 def flow() -> list[FlowStep]:
     """The five-step flow for the top of the Case Board (plus the follow-on fix step), with owners."""
     return FLOW
+
+
+@app.post("/api/v1/system/crew/delete")
+def system_crew_delete(request: Request) -> dict[str, Any]:
+    """Delete the local Crew and saved sign-in; keep the image and case history."""
+    _local_action(request)
+    try:
+        crew.manager.remove_crew()
+    except RuntimeError as e:
+        raise Stop("crew_delete_failed", str(e)) from e
+    return _setup()
 
 
 @app.get("/api/v1/investigations/{inv_id}/decisions")
@@ -262,6 +351,13 @@ def cancel(inv_id: str) -> InvestigationSummary:
     return _summary(_inv(inv_id))
 
 
+@app.post("/api/v1/investigations/{inv_id}/delete")
+def delete_investigation(inv_id: str, request: Request) -> dict[str, str]:
+    _local_action(request)
+    engine.delete(inv_id)
+    return {"deleted": inv_id}
+
+
 @app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/fix/{decision}")
 def decide_fix(inv_id: str, bug_id: str, decision: str) -> InvestigationSummary:
     if decision not in {"accept", "reject"}:
@@ -273,6 +369,32 @@ def decide_fix(inv_id: str, bug_id: str, decision: str) -> InvestigationSummary:
 def patch(inv_id: str, bug_id: str) -> FileResponse:
     path = engine.patch_file(inv_id, bug_id)
     return FileResponse(path, media_type="text/x-diff", filename=f"timewraith-{bug_id}.patch")
+
+
+@app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/branch")
+def make_branch(inv_id: str, bug_id: str, request: Request) -> dict[str, Any]:
+    """(Re)make the local git branch of an accepted fix. It is also made when you accept the fix."""
+    _local_action(request)  # writes a folder on this machine
+    return engine.make_branch(inv_id, bug_id).model_dump()
+
+
+@app.get("/api/v1/investigations/{inv_id}/bugs/{bug_id}/branch.patch")
+def branch_patch(inv_id: str, bug_id: str) -> FileResponse:
+    """The branch's commit as a `git format-patch` file: `git am` applies it with message and author."""
+    path = engine.branch_patch(inv_id, bug_id)
+    return FileResponse(path, media_type="text/x-diff", filename=f"timewraith-{bug_id}.branch.patch")
+
+
+@app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/retest")
+def retest(inv_id: str, bug_id: str, request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    """Rerun the bug's regression test on another revision. Body `{"ref": "main" | "<sha>" | "pull/453"}`."""
+    _local_action(request)  # fetches from GitHub and runs the repository's code in the sandbox
+    ref = body.get("ref")
+    if not isinstance(ref, str) or not ref.strip():
+        raise Stop("invalid_ref", "Give a ref: a branch, tag, commit SHA or pull request such as pull/453")
+    inv = engine.retest(inv_id, bug_id, ref)
+    bug = next(b for b in inv.bugs if b.id == bug_id)
+    return bug.retests[-1].model_dump()
 
 
 @app.get("/api/v1/investigations/{inv_id}/audit")
@@ -298,8 +420,9 @@ async def events(inv_id: str, request: Request) -> StreamingResponse:
                 after = ev.seq
                 yield f"id: {ev.seq}\nevent: replay\ndata: {ev.model_dump_json()}\n\n"
             inv = store.get(inv_id)
-            if inv and inv.stage in final and not batch:
-                yield f'event: end\ndata: {{"stage": "{inv.stage}"}}\n\n'
+            if not inv or (inv.stage in final and not batch):
+                stage = inv.stage if inv else "deleted"
+                yield f'event: end\ndata: {{"stage": "{stage}"}}\n\n'
                 return
             idle = 0 if batch else idle + 1
             if idle and idle % 30 == 0:
@@ -307,3 +430,9 @@ async def events(inv_id: str, request: Request) -> StreamingResponse:
             await asyncio.sleep(0.5)
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+# The built frontend (the Docker image sets TW_WEB_DIR). Mounted last, so every /api route above wins. The UI uses hash
+# routes, so plain static serving is enough.
+if settings.web_dir and Path(settings.web_dir).is_dir():
+    app.mount("/", StaticFiles(directory=settings.web_dir, html=True), name="web")

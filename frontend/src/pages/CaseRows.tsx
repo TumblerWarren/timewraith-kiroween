@@ -1,9 +1,9 @@
 import { caseHref } from "../app/router";
+import { DeleteCaseButton } from "../cases/DeleteCaseButton";
 import { caseState } from "../app/status";
 import { StatusPill } from "../app/StatusPill";
 import { ModeShape } from "../cases/library/ModeShape";
 import { targetLine, visibleTitle, type Case } from "../cases/model";
-import { CASES } from "../content/app";
 import { NOT_SAVED } from "../content/copy";
 import { CASE_MODE_BY_ID } from "../content/modes";
 
@@ -19,7 +19,7 @@ function when(iso: string): string {
  * Cases as a list of rows: repository and ref, mode, status pill, what is happening now (or why it stopped), and
  * when it was opened. The whole title is the link to the case page.
  */
-export function CaseRows({ cases, onRemove }: { readonly cases: readonly Case[]; readonly onRemove?: (id: string) => void }) {
+export function CaseRows({ cases }: { readonly cases: readonly Case[] }) {
   return (
     <ol role="list" className="case-rows">
       {cases.map((c) => {
@@ -44,12 +44,7 @@ export function CaseRows({ cases, onRemove }: { readonly cases: readonly Case[];
             <time className="case-row__when" dateTime={opened(c)}>
               {when(opened(c))}
             </time>
-            {c.kind === "draft" && onRemove ? (
-              <button type="button" className="btn btn--small" onClick={() => onRemove(c.id)}>
-                {CASES.remove}
-                <span className="visually-hidden">: {visibleTitle(c)}</span>
-              </button>
-            ) : null}
+            <DeleteCaseButton c={c} />
           </li>
         );
       })}

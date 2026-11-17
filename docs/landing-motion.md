@@ -1,14 +1,48 @@
-# Violet Midnight landing
+# Landing and home motion
 
-The clock cinematic opens at `#/`. Lantern entry, Skip, and Escape open the explanatory home page at `#/home`. Header brand and Home links return to home. Replay opens the clock landing again.
+The site has two entry pages with motion. Both follow the visual rules in [design-system.md](design-system.md).
 
-The supplied consolidated mockup is the visual source for the intro, navigation, repository entry, roaming lantern, workflow, evidence examples, time bug list, and footer. The evidence in the walkthrough is illustrative.
+## The midnight intro (`#/`)
 
-The repository field validates GitHub URLs and prefills the existing case form. The user reviews the investigation settings there. The lantern roams the page and moves toward clicks or taps outside controls. The opening headline and kicker are visible from the start. Other text stays dark until the lantern reaches it, then settles at 70% opacity as the lantern moves away. Keyboard focus and reduced motion reveal controls directly. The footer offers pause, reduced motion, and intro replay.
+The intro is a timed clock sequence built with GSAP. The clock hands turn, the midnight bell strikes, and the lantern wraith appears. The top bar and footer are hidden on this page.
 
-The repository field and error states use [Astryx TextInput](https://astryx.atmeta.com/components/TextInput). Astryx supplies the [Button](https://astryx.atmeta.com/components/Button) and [TabList](https://astryx.atmeta.com/components/TabList) behavior. The submit control adapts [Jitter's Interactive Button Trace](https://jitter.video/template/interactive-button-trace/) with a local SVG path that draws on hover or keyboard focus.
+- The lantern button ("Touch the lantern to enter TimeWraith") is enabled once the intro is ready. Activating it opens `#/home`.
+- The "Skip intro" button also opens `#/home`.
+- A "Sound on / Sound off" button sits beside Skip. It is the same sound setting as the other pages.
+- The Home page footer has a "Replay the midnight intro" link that returns to `#/`.
+- Pressing Escape does nothing. Only the two buttons above leave the intro.
+- The intro pauses while the page is hidden (`document.hidden`).
+- With Reduce Motion on, the clock and the lantern invitation appear at once, and the lantern button is enabled without the timed sequence.
 
-Run these commands from the frontend folder.
+## The home page (`#/home`)
+
+The home page is the explanatory entry point. It has a lantern that moves across the page and text that appears as the lantern passes over it.
+
+### Lantern and reveal
+
+- The lantern (`LanternWraith.tsx`) moves over the page and stops for visible controls. It is driven by `requestAnimationFrame` and pauses while the page is hidden.
+- Elements marked `data-lantern-reveal` start dim. Their opacity follows how close the lantern is. Once the lantern has passed over an element, it stays fully visible.
+- Keyboard focus shows an element at once (`:focus-within`).
+- With Reduce Motion on, the lantern is still, and the reveal is off. Everything is shown directly.
+- The footer's "Pause ghost" button stops the lantern. It is disabled under Reduce Motion.
+
+### Repository field
+
+The hero has a "Repository URL" field. It uses Astryx `TextInput` and `Button`. On submit:
+
+1. A value starting with `github.com/` gets `https://` added.
+2. `validateField("repoUrl")` checks the value. An invalid value shows an error message and moves focus to the field.
+3. A valid value opens `#/new?repo=<url>`, where the New case form is pre-filled. The investigation settings are reviewed there before a case starts.
+
+The submit button draws an outline on hover or focus. The outline is a local SVG `rect` that CSS animates with `pathLength` (`.midnight-trace` in `midnight-home.css`). It uses no third-party code. The button's look follows Jitter's Interactive Button Trace template, which the project credits as its reference.
+
+### Footer controls
+
+The home page footer has four controls: sound on or off, Pause ghost, Reduce motion, and Replay the midnight intro.
+
+## Checks
+
+Run these from the `frontend` folder:
 
 ```sh
 pnpm dev
@@ -16,4 +50,4 @@ pnpm verify
 node scripts/check-cinematic.mjs
 ```
 
-The browser check uses locally installed Chrome and captures desktop and mobile previews in `docs/reports/cinematic`. Artwork provenance and animation assets are described in `frontend/src/assets/cinematic/README.md`.
+`check-cinematic.mjs` opens the intro in local Chrome at 1440 and 390 px, checks that the minute hand moves, and writes previews to `docs/reports/cinematic`. Artwork sources are in `frontend/src/assets/cinematic/README.md`.

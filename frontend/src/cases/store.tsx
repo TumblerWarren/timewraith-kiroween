@@ -28,6 +28,7 @@ export interface CaseStoreValue {
   readonly limitReached: boolean;
   readonly createDraft: (input: DraftInput) => CreateResult;
   readonly removeDraft: (id: string) => void;
+  readonly removeLive: (id: string) => void;
   readonly upsertLive: (summary: InvestigationSummary, area?: string | null) => void;
   /** Returns false (and changes nothing) for an unknown id. */
   readonly select: (id: string) => boolean;
@@ -56,6 +57,7 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
   const liveRef = useRef(live);
   // Areas typed by the visitor; the summary does not carry them.
   const areas = useRef(new Map<string, string>());
+  const removedIds = useRef(new Set<string>());
 
   const commit = useCallback(
     (next: readonly DraftCase[], createdId?: string) => {
@@ -79,6 +81,7 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
 
   const upsertLive = useCallback(
     (summary: InvestigationSummary, area?: string | null) => {
+      if (removedIds.current.has(summary.id)) return;
       if (area) areas.current.set(summary.id, area);
       const c = liveFromSummary(summary, areas.current.get(summary.id));
       const rest = liveRef.current.filter((x) => x.id !== c.id);
@@ -94,7 +97,7 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
     const load = () =>
       api
         .list()
-        .then((list) => alive && setLiveList(list.map((s) => liveFromSummary(s, areas.current.get(s.id)))))
+        .then((list) => alive && setLiveList(list.filter((s) => !removedIds.current.has(s.id)).map((s) => liveFromSummary(s, areas.current.get(s.id)))))
         .catch(() => undefined);
     void load();
     const timer = window.setInterval(load, LIST_REFRESH_MS);
@@ -130,6 +133,13 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
 
   const cases = useMemo(() => buildCatalog(drafts, live), [drafts, live]);
 
+  const removeLive = useCallback((id: string) => {
+    removedIds.current.add(id);
+    areas.current.delete(id);
+    setLiveList(liveRef.current.filter((c) => c.id !== id));
+    setSelectedId((selected) => selected === id ? null : selected);
+  }, [setLiveList]);
+
   const select = useCallback((id: string) => {
     const known = draftsRef.current.some((d) => d.id === id) || liveRef.current.some((c) => c.id === id);
     if (known) setSelectedId(id);
@@ -147,10 +157,11 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
       limitReached: drafts.length >= MAX_DRAFTS,
       createDraft,
       removeDraft,
+      removeLive,
       upsertLive,
       select,
     };
-  }, [cases, drafts, live, selectedId, createDraft, removeDraft, upsertLive, select]);
+  }, [cases, drafts, live, selectedId, createDraft, removeDraft, removeLive, upsertLive, select]);
 
   return <CaseStoreContext.Provider value={value}>{children}</CaseStoreContext.Provider>;
 }
@@ -168,6 +179,7 @@ const STANDALONE: CaseStoreValue = {
   limitReached: false,
   createDraft: () => ({ ok: false, reason: "limit" }),
   removeDraft: () => undefined,
+  removeLive: () => undefined,
   upsertLive: () => undefined,
   select: () => false,
 };

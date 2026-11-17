@@ -6,13 +6,17 @@ import { caseHref, href, navigate, type CaseTab } from "../../app/router";
 import { caseState, pendingFixes, suggestedRef } from "../../app/status";
 import { liveFromSummary, liveTitle, targetLine, type DraftCase, type LiveCase } from "../../cases/model";
 import { useCaseStore } from "../../cases/store";
+import { DeleteCaseButton } from "../../cases/DeleteCaseButton";
 import { summaryOf, useInvestigation } from "../../cases/useInvestigation";
 import { DraftCaseView } from "../../cases/view/DraftCaseView";
 import { CASE_PAGE } from "../../content/app";
+import { FLOW_STEPS } from "../../content/flow";
 import { CASE_MODE_BY_ID } from "../../content/modes";
 import { ModeShape } from "../../cases/library/ModeShape";
 import { CaseTabs, Counters, StatusBanner, Stepper, stepStates } from "./parts";
 import { ActivityTab, FindingsTab, FixesTab, OverviewTab, PlanTab } from "./tabs";
+import { CaseDisclosure } from "./CaseDisclosure";
+import { KiroAccountBanner, NowStrip } from "./LiveCaseDetails";
 
 function Back() {
   return (
@@ -24,12 +28,16 @@ function Back() {
 
 function Meta({ c, inv }: { readonly c: LiveCase | DraftCase; readonly inv: Investigation | null }) {
   const mode = CASE_MODE_BY_ID[c.mode];
+  const ref = inv?.target.ref ?? c.target.version.value;
+  const revision = inv?.target.revision ?? (c.kind === "live" ? c.summary.target.revision : null);
+  const shortRef = /^[a-f0-9]{40}$/i.test(ref) ? ref.slice(0, 12) : ref;
+  const pin = revision && revision !== ref ? `${shortRef} @ ${revision.slice(0, 12)}` : shortRef;
   return (
     <ul role="list" className="meta">
       <li>
         <ModeShape shape={mode.shape} size={18} /> {mode.label}
       </li>
-      <li className="mono">{inv?.target.revision ? `${inv.target.ref} @ ${inv.target.revision.slice(0, 12)}` : c.target.version.value}</li>
+      <li className="mono" title={revision && revision !== ref ? `${ref} @ ${revision}` : ref}>{pin}</li>
       {c.area ? <li>{c.area}</li> : null}
       {c.kind === "live" ? <li>{inv?.runtime_label ?? c.summary.runtime_label}</li> : null}
     </ul>
@@ -51,6 +59,7 @@ function DraftCasePage({ d }: { readonly d: DraftCase }) {
       <div className="panel">
         <DraftCaseView d={d} />
       </div>
+      <DeleteCaseButton c={d} leavePage />
     </article>
   );
 }
@@ -80,6 +89,7 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
   const state = caseState(c, inv, maxAttempts, events);
   const stage = inv?.stage ?? c.summary.stage;
   const running = !FINAL_STAGES.includes(stage);
+  const currentStep = FLOW_STEPS.find((step) => step.id === (inv?.phase ?? c.summary.phase));
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -106,20 +116,16 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
   const message = inv?.notes[inv.notes.length - 1] ?? c.summary.message;
   const nextRef = stage === "failed" ? suggestedRef(message) : null;
   const pending = pendingFixes(inv);
+  const bannerState = state.id === "waiting" && stage === "completed" && pending > 0
+    ? { ...state, detail: pending === 1 ? "One verified fix is ready for your decision." : `${pending} verified fixes are ready for your decision.` }
+    : state;
 
   const actions = (
     <>
-      {stage === "awaiting-plan-approval" && api ? (
-        <>
-          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => api.approvePlan(id))}>
-            {CASE_PAGE.approve}
-          </button>
-          {tab !== "plan" ? (
-            <a className="btn" href={caseHref(id, "plan")}>
-              {CASE_PAGE.reviewPlan}
-            </a>
-          ) : null}
-        </>
+      {stage === "awaiting-plan-approval" && tab !== "plan" ? (
+        <a className="btn btn--primary" href={caseHref(id, "plan")}>
+          {CASE_PAGE.reviewPlan}
+        </a>
       ) : null}
       {pending > 0 && tab !== "fixes" ? (
         <a className="btn btn--primary" href={caseHref(id, "fixes")}>
@@ -137,7 +143,7 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
           </button>
         )
       ) : null}
-      {running && stage !== "queued" && api ? (
+      {running && api ? (
         <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => void act(() => api.cancel(id))}>
           {CASE_PAGE.cancel}
         </button>
@@ -155,7 +161,9 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
         <Meta c={c} inv={inv} />
       </header>
 
-      <StatusBanner state={state}>{actions}</StatusBanner>
+      <StatusBanner state={bannerState}>{actions}</StatusBanner>
+      {running && <NowStrip events={events} fallback={bannerState.detail} />}
+      <KiroAccountBanner notes={inv?.notes ?? []} events={events} />
       {actionError ? (
         <p className="alert" role="alert">
           {actionError}
@@ -163,15 +171,12 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
       ) : null}
       {error && inv ? <p className="alert">{CASE_PAGE.offline}</p> : null}
 
-      <Stepper states={stepStates(inv?.phase ?? c.summary.phase, stage, inv?.bugs.length ?? c.summary.bug_count)} inv={inv} />
-      <Counters inv={inv} running={running} limits={health?.limits ?? null} />
-
       <CaseTabs
         id={id}
         tab={tab}
         counts={{
           plan: inv?.test_plan?.experiments.length,
-          findings: inv?.bugs.length,
+          findings: inv ? inv.bugs.length + (inv.intended?.length ?? 0) : undefined,
           fixes: pending || undefined,
           activity: events.length || undefined,
         }}
@@ -182,15 +187,22 @@ function LiveCasePage({ id, tab, known }: { readonly id: string; readonly tab: C
         ) : tab === "plan" ? (
           <PlanTab inv={inv} busy={busy} onApprove={() => api && void act(() => api.approvePlan(id))} />
         ) : tab === "findings" ? (
-          <FindingsTab inv={inv} />
+          <FindingsTab inv={inv} events={events} />
         ) : tab === "fixes" ? (
-          <FixesTab inv={inv} onChanged={() => void refresh()} />
+          <FixesTab inv={inv} events={events} onChanged={refresh} />
         ) : tab === "activity" ? (
           <ActivityTab inv={inv} events={events} />
         ) : (
-          <OverviewTab inv={inv} events={events} />
+          <div className="tab-stack">
+            <OverviewTab inv={inv} />
+            <CaseDisclosure label={running && currentStep ? `Run details · ${currentStep.sign} (${currentStep.index} of ${FLOW_STEPS.length})` : "Run details"}>
+              <Stepper states={stepStates(inv.phase, stage, inv.bugs.length)} inv={inv} />
+              <Counters inv={inv} running={running} limits={health?.limits ?? null} />
+            </CaseDisclosure>
+          </div>
         )}
       </div>
+      <DeleteCaseButton c={c} leavePage />
     </article>
   );
 }

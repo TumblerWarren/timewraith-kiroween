@@ -1,0 +1,81 @@
+# TimeWraith: run everything in Docker with one command.
+#
+#   docker compose up -d --build        then open http://localhost:8787
+#
+# On the Crew setup page, sign in to Kiro once (you approve a code in your browser). Everything the Crew works on
+# (cloned repositories, edits, branches, patches, the case database) lives in the `timewraith-data` volume, not on
+# your disk. `docker compose down` keeps the volumes; add `-v` to delete the data and the Kiro sign-in as well.
+#
+# On a Linux host, pass the group that owns /var/run/docker.sock:  DOCKER_GID=$(stat -c %g /var/run/docker.sock)
+# The names below can be overridden to run a second copy side by side (see TW_* in .env.example).
+
+name: ${TW_PROJECT:-timewraith}
+
+services:
+  timewraith:
+    build: .
+    image: timewraith:local
+    ports:
+      - "127.0.0.1:${TW_PORT:-8787}:8787" # localhost only: the API has no login
+    environment:
+      TW_DATA_VOLUME: ${TW_DATA_VOLUME:-timewraith-data}
+      TW_CREW_CONTAINER: ${TW_CREW_CONTAINER:-timewraith-crew}
+      TW_CREW_VOLUME: ${TW_CREW_VOLUME:-timewraith-crew-home}
+      TW_GIT_CONTAINER: ${TW_GIT_CONTAINER:-timewraith-git}
+      TW_GIT_VOLUME: ${TW_GIT_VOLUME:-timewraith-git-home}
+      TW_CREW_NETWORK: ${TW_NETWORK:-timewraith-net}
+      TW_CREW_BACKEND_URL: http://timewraith:8787 # how the Crew reaches the fix tools: by service name
+      TW_AGENT_RUNTIME: ${TW_AGENT_RUNTIME:-auto}
+      TW_INVESTIGATION_BUDGET_S: ${TW_INVESTIGATION_BUDGET_S:-3600}
+    volumes:
+      - timewraith-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-0}"
+    depends_on:
+      crew:
+        condition: service_started
+      git:
+        condition: service_started
+    restart: unless-stopped
+
+  crew:
+    image: ghcr.io/kirodotdev/kirocrew:stable
+    container_name: ${TW_CREW_CONTAINER:-timewraith-crew}
+    entrypoint: ["sleep", "infinity"] # the backend runs kiro-cli in it with `docker exec`
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 2g
+    pids_limit: 256
+    healthcheck:
+      disable: true
+    volumes:
+      - crew-home:/home/kirocrew # the Kiro sign-in lives here
+    restart: unless-stopped
+
+  git:
+    # GitHub sign-in, fork, push and pull request. Separate from the Crew, so the Kiro agents never see the token.
+    build:
+      context: ./backend/docker
+      dockerfile: git.Dockerfile
+    image: timewraith-git:local
+    container_name: ${TW_GIT_CONTAINER:-timewraith-git}
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    pids_limit: 256
+    volumes:
+      - git-home:/home/gh # the GitHub sign-in lives here
+    restart: unless-stopped
+
+volumes:
+  timewraith-data:
+    name: ${TW_DATA_VOLUME:-timewraith-data}
+  crew-home:
+    name: ${TW_CREW_VOLUME:-timewraith-crew-home}
+  git-home:
+    name: ${TW_GIT_VOLUME:-timewraith-git-home}
+
+networks:
+  default:
+    name: ${TW_NETWORK:-timewraith-net}

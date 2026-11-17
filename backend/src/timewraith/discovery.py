@@ -236,12 +236,15 @@ def build_feature_map(root: Path, max_bytes: int, hint_terms: list[str] | None =
         if s.in_test:
             continue
         units = [u for u in units_by_file.get(s.path, []) if u.start <= s.line <= u.end]
-        u = min(units, key=lambda x: x.end - x.start) if units else _Unit("(module)", 1, s.line, False)
+        # Signals outside any function form one module-level candidate per file (end -1: set from its signals).
+        u = min(units, key=lambda x: x.end - x.start) if units else _Unit("(module)", 1, -1, False)
         groups.setdefault((s.path, u.name, u.start, u.end, u.exported), []).append(s)
 
     hints = [t.lower() for t in (hint_terms or []) if len(t) >= 3]
     candidates: list[Candidate] = []
     for (path, name, start, end, exported), sigs in groups.items():
+        if end < 0:
+            end = max(s.line for s in sigs)
         kinds = {s.kind for s in sigs}
         best: dict[str, float] = {}
         for s in sigs:

@@ -14,17 +14,22 @@ const load = (name: string): Schema => JSON.parse(readFileSync(join(SCHEMAS, `${
 const props = (s: { properties?: Record<string, unknown> } | undefined) => Object.keys(s?.properties ?? {});
 
 const USED: Record<string, readonly string[]> = {
-  Investigation: ["id", "created_at", "request", "target", "stage", "phase", "error", "status", "runtime_label", "replay_label", "capabilities", "feature_map", "test_plan", "bugs", "intended", "sweeps", "decisions", "budget", "notes"],
+  Investigation: ["id", "created_at", "request", "target", "stage", "phase", "error", "status", "runtime_label", "replay_label", "capabilities", "feature_map", "test_plan", "bugs", "intended", "sweeps", "decisions", "budget", "notes", "coverage", "intents"],
   InvestigationSummary: ["id", "created_at", "target", "mode", "stage", "phase", "status", "bug_count", "fix_verified_count", "intended_count", "replay_label", "runtime_label", "error", "message"],
   CreateInvestigation: ["repository_url", "ref", "mode", "issue_url", "area", "auto"],
-  ReplayEvent: ["id", "seq", "actor", "kind", "phase", "text", "status", "data"],
+  ReplayEvent: ["id", "seq", "actor", "kind", "phase", "text", "status", "data", "serverClock"],
   DecisionRecord: ["id", "phase", "agent", "step", "runtime", "subject", "claim", "evidence", "dropped_evidence", "checks", "decision", "rule"],
   FlowStep: ["id", "title", "owner", "owner_name", "kind", "does", "decides", "follow_on"],
 };
 
 const DEFS: Record<string, readonly string[]> = {
-  Bug: ["id", "title", "category", "invariant", "status", "violation", "evidence", "regression_test_path", "regression_test", "issue_match", "issue_match_label", "fix"],
-  Fix: ["state", "label", "attempts", "user_decision"],
+  Bug: ["id", "title", "category", "invariant", "status", "violation", "evidence", "regression_test_path", "regression_test", "issue_match", "issue_match_label", "fix", "retests", "reproduction"],
+  Retest: ["at", "ref", "revision", "outcome", "detail", "runs"],
+  CoverageRow: ["candidate_id", "unit", "path", "status", "experiments", "rules", "edges", "outcome"],
+  Intent: ["id", "round", "candidate_id", "focus", "rationale", "status", "experiment_id", "reason"],
+  Fix: ["state", "label", "attempts", "user_decision", "branch", "publish"],
+  FixBranch: ["name", "path", "base", "commit", "files", "created_at", "patch_file", "upstream_url"],
+  Publish: ["fork", "branch", "commit", "pushed_at", "pr_url", "pr_number", "pr_opened_at"],
   FixAttempt: ["attempt", "summary", "root_cause", "diff", "gates", "accepted_by_gates", "tool_calls", "test_runs"],
   GateResult: ["gate", "passed", "detail"],
   Violation: ["invariant", "zone", "instant", "local", "detail", "count"],

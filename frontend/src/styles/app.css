@@ -440,6 +440,15 @@
   font-weight: 600;
 }
 
+.crew-removal { display: grid; gap: var(--space-4); justify-items: start; }
+.crew-removal__delete { color: var(--midnight-error); border-color: var(--midnight-error); }
+.case-delete { display: grid; gap: var(--space-2); justify-items: start; }
+.case-delete__button { color: var(--midnight-error); }
+.case-delete__confirm { display: grid; gap: var(--space-3); max-width: 48ch; }
+.case-row:has(.case-delete__confirm) { align-items: start; }
+.case-row > .case-delete { max-width: 22ch; }
+.case-row > .case-delete:has(.case-delete__confirm) { grid-column: 1 / -1; max-width: none; }
+
 /* ---------------------------------------------------------------- draft sheet (DraftCaseView) */
 
 .draft-view {

@@ -6,11 +6,15 @@ import { App } from "../App";
 
 const renderAt = (hash: string) => {
   window.location.hash = hash;
-  return render(
+  // Shell checks inspect the settled page; entrance choreography is verified in Chrome.
+  if (hash === "#/new") localStorage.setItem("tw.reduceMotion", "on");
+  const result = render(
     <ReduceMotionProvider>
       <App />
     </ReduceMotionProvider>,
   );
+  if (hash === "#/new") localStorage.removeItem("tw.reduceMotion");
+  return result;
 };
 
 afterEach(() => {
@@ -29,7 +33,7 @@ describe("app shell smoke test", () => {
 
   it.each([
     ["#/", "TimeWraith · The midnight hour"],
-    ["#/new", "Open a case"],
+    ["#/new", "Lay the trap"],
     ["#/cases", "Cases"],
     ["#/crew", "Set up the Crew on this machine"],
     ["#/about", "How TimeWraith works"],

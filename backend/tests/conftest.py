@@ -6,6 +6,10 @@ from pathlib import Path
 
 import pytest
 
+# Settings come from TW_* variables, so a shell that ran the Docker stack (TW_DATA_VOLUME, TW_CREW_CONTAINER, ...) would
+# change what the tests see. Start from a clean slate.
+for _name in [n for n in os.environ if n.startswith("TW_")]:
+    del os.environ[_name]
 # The API module reads settings at import time; always point it at a throwaway data dir outside the repo. Never
 # reuse TW_DATA_DIR from the shell: importing the API recovers that store, which would stop its running cases.
 os.environ["TW_DATA_DIR"] = tempfile.mkdtemp(prefix="tw-test-")

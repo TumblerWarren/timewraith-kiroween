@@ -22,18 +22,35 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
+from .config import get_settings
+
 IMAGE = "ghcr.io/kirodotdev/kirocrew:stable"
-CONTAINER = "timewraith-crew"
-VOLUME = "timewraith-crew-home"
+CONTAINER = get_settings().crew_container
+VOLUME = get_settings().crew_volume
+# The Docker network the Crew joins when TimeWraith itself runs in Docker (compose), so it can reach the backend.
+NETWORK = get_settings().crew_network
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
-_CODE = re.compile(r"Code:\s*([A-Z0-9]{4}-[A-Z0-9]{4})")
+# "Code: XQFX-WDVN" (Builder ID) and "And confirm the code: JSNZ-NGGR" (Google, GitHub)
+_CODE = re.compile(r"(?i:code):\s*([A-Z0-9]{4}-[A-Z0-9]{4})")
+LoginMethod = Literal["builder_id", "google", "github"]
+# The helper that picks Google or GitHub in kiro-cli's sign-in menu (it shows the menu only in a terminal).
+LOGIN_HELPER = Path(__file__).resolve().parents[2] / "agents" / "tw_login.py"
+LOGIN_HELPER_IN_CONTAINER = "/home/kirocrew/.tw/tw_login.py"
 _URL = re.compile(r"https://[^\s\"'<>]+")
 # Sign-in pages kiro-cli is known to use; anything else is not shown as a link.
 _LOGIN_HOSTS = ("awsapps.com", "kiro.dev", "aws.amazon.com", "signin.aws", "amazoncognito.com")
 
+REJECTED_MESSAGE = "Kiro rejected the saved sign-in (it expired or was revoked). Sign in again."
 LOGIN_TIMEOUT_S = 15 * 60
 STATUS_TTL_S = 15.0
+# Kill every `kiro-cli login` process and sign-in helper in the container, except this shell itself.
+# `kiro-cli chat` (agent calls) does not match.
+_STOP_LOGIN = (
+    'for p in /proc/[0-9]*; do n="${p#/proc/}"; [ "$n" = "$$" ] && continue; '
+    "c=$(tr '\\000' ' ' < \"$p/cmdline\" 2>/dev/null) || continue; "
+    'case "$c" in *"kiro-cli login"*|*tw_login.py*) kill "$n" 2>/dev/null;; esac; done; true'
+)
 
 
 def strip_ansi(text: str) -> str:
@@ -79,6 +96,7 @@ class LoginState:
     code: str | None = None
     url: str | None = None
     error: str | None = None
+    method: str = "builder_id"
     started: float = 0.0
     proc: subprocess.Popen[bytes] | None = field(default=None, repr=False)
 
@@ -92,6 +110,7 @@ class CrewManager:
         self.login = LoginState()
         self._signed_in: tuple[float, bool] = (0.0, False)
         self._account: str | None = None
+        self._rejected = False  # Kiro refused the saved token (mark_sign_in_rejected)
 
     # ---------- Docker Desktop ----------
 
@@ -156,6 +175,7 @@ class CrewManager:
                         "-d",
                         "--name",
                         CONTAINER,
+                        *(["--network", NETWORK] if NETWORK else []),
                         "--restart",
                         "unless-stopped",
                         "--cap-drop",
@@ -188,7 +208,44 @@ class CrewManager:
 
     # ---------- Kiro sign-in (device flow) ----------
 
+    def remove_crew(self) -> None:
+        """Remove only TimeWraith's fixed Crew container and its saved-sign-in volume."""
+        with self._lock:
+            if self.install in {"pulling", "starting"} or self.login.state == "pending":
+                raise RuntimeError("Wait for Crew setup or sign-in to finish before deleting the Crew")
+            if not self.docker_running():
+                raise RuntimeError("Start Docker before deleting the Crew")
+            result = _docker(["rm", "-f", CONTAINER], timeout=60)
+            if result.returncode != 0 and "no such container" not in result.stderr.lower():
+                raise RuntimeError(_last_line(result.stderr or result.stdout) or "Could not delete the Crew container")
+            # Invalidate credentials even if removing the volume subsequently fails.
+            self._signed_in = (0.0, False)
+            self._account = None
+            self._rejected = False
+            self.login = LoginState()
+            self.install, self.install_error = "idle", None
+            result = _docker(["volume", "rm", VOLUME], timeout=60)
+            missing_volume = (
+                "no such volume" in result.stderr.lower() or f"{VOLUME}: not found" in result.stderr.lower()
+            )
+            if result.returncode != 0 and not missing_volume:
+                raise RuntimeError(
+                    "The Crew container was deleted, but its saved sign-in could not be removed. "
+                    + (_last_line(result.stderr or result.stdout) or "Try Delete Crew again.")
+                )
+
+    def mark_sign_in_rejected(self) -> None:
+        """Kiro refused the saved token in an agent call. `kiro-cli whoami` only reads the local file, so it would
+        keep reporting signed in; until a new sign-in finishes, show the step as signed out with the reason."""
+        self._rejected = True
+        self._signed_in = (time.monotonic(), False)
+        self._account = None
+        if self.login.state != "pending":
+            self.login = LoginState(state="failed", error=REJECTED_MESSAGE)
+
     def signed_in(self, fresh: bool = False) -> bool:
+        if self._rejected:
+            return False
         at, value = self._signed_in
         if not fresh and time.monotonic() - at < STATUS_TTL_S:
             return value
@@ -223,24 +280,58 @@ class CrewManager:
         r = _docker(["exec", "-w", "/home/kirocrew", CONTAINER, "kiro-cli", "logout"], timeout=30)
         self._signed_in = (0.0, False)
         self._account = None
+        self._rejected = False
         self.login = LoginState()
         if r.returncode != 0 and self.signed_in(fresh=True):
             raise RuntimeError(_last_line(r.stderr or r.stdout) or "kiro-cli logout failed")
 
-    def start_login(self, wait_s: float = 20.0) -> LoginState:
+    def _stop_container_login(self) -> None:
+        """Stop any `kiro-cli login` still running in the container. Killing the local `docker exec` does not stop
+        the process inside the container, and the image has no pkill, so the shell finds it in /proc."""
+        _docker(["exec", CONTAINER, "sh", "-c", _STOP_LOGIN], timeout=20)
+
+    def cancel_login(self) -> None:
+        """Stop a pending sign-in so the user can start again with a new code (for example after the browser
+        reported an AWS Builder ID error). Safe to call when nothing is pending."""
+        with self._lock:
+            lg = self.login
+            self.login = LoginState()  # the watcher of the old attempt no longer updates what status() shows
+        if lg.proc and lg.proc.poll() is None:
+            lg.proc.kill()
+        if self.container_state() == "running":
+            self._stop_container_login()
+        self._signed_in = (0.0, False)
+
+    def _login_command(self, method: LoginMethod) -> list[str]:
+        if method == "builder_id":
+            return ["docker", "exec", CONTAINER, "kiro-cli", "login", "--license", "free", "--use-device-flow"]
+        r = subprocess.run(
+            ["docker", "exec", "-i", CONTAINER, "sh", "-c", f'mkdir -p "$(dirname {LOGIN_HELPER_IN_CONTAINER})" '
+             f"&& cat > {LOGIN_HELPER_IN_CONTAINER}"],
+            input=LOGIN_HELPER.read_text(encoding="utf-8"), capture_output=True, text=True, timeout=30, check=False,
+            encoding="utf-8",
+        )  # fmt: skip
+        if r.returncode != 0:
+            raise RuntimeError(f"Could not prepare the sign-in: {_last_line(r.stderr) or 'docker exec failed'}")
+        return ["docker", "exec", CONTAINER, "python3", LOGIN_HELPER_IN_CONTAINER, method]
+
+    def start_login(self, method: LoginMethod = "builder_id", wait_s: float = 20.0) -> LoginState:
+        if method not in ("builder_id", "google", "github"):
+            raise RuntimeError("Choose Builder ID, Google or GitHub")
         if self.container_state() != "running":
             raise RuntimeError("Start Kiro Crew first")
         with self._lock:
             lg = self.login
             if lg.state == "pending" and lg.proc and lg.proc.poll() is None:
                 return lg
+            self._stop_container_login()  # a login left over from an earlier attempt would hold the old code
             proc = subprocess.Popen(
-                ["docker", "exec", CONTAINER, "kiro-cli", "login", "--license", "free", "--use-device-flow"],
+                self._login_command(method),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
             )
-            self.login = LoginState(state="pending", started=time.monotonic(), proc=proc)
+            self.login = LoginState(state="pending", started=time.monotonic(), proc=proc, method=method)
         threading.Thread(target=self._watch_login, args=(self.login,), daemon=True, name="crew-login").start()
         end = time.monotonic() + wait_s
         while time.monotonic() < end and self.login.state == "pending" and not self.login.code:
@@ -263,7 +354,11 @@ class CrewManager:
             rc = lg.proc.wait()
         finally:
             killer.cancel()
+        if self.login is not lg:
+            return  # cancelled: a new attempt (or none) owns the sign-in state now
         self._signed_in = (0.0, False)
+        if rc == 0:
+            self._rejected = False  # a new sign-in replaces the token Kiro refused
         if rc == 0 and self.signed_in(fresh=True):
             lg.state = "done"
         else:
@@ -305,6 +400,7 @@ class CrewManager:
                 "code": lg.code if lg.state == "pending" else None,
                 "url": lg.url if lg.state == "pending" else None,
                 "error": lg.error,
+                "method": lg.method,
             },
         }
 

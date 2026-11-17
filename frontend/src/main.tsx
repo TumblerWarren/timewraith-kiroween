@@ -7,6 +7,7 @@ import { createApi } from "./api/client";
 import { AssetProvider } from "./assets/AssetProvider";
 import { CaseStoreProvider } from "./cases/store";
 import "./styles/index.css";
+import "./styles/case-detail.css";
 
 /** The TimeWraith backend, through the Vite proxy at /api/v1 (see vite.config.ts). */
 const API = createApi();

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useApi } from "../api/ApiProvider";
 import { useReadiness, type StepState } from "../app/SetupProvider";
-import { SETUP } from "../content/copy";
+import { DOCKER_SETUP, SETUP } from "../content/copy";
+import { GitHubSetup } from "./GitHubSetup";
 
 const MARK: Readonly<Record<StepState, string>> = { done: "✓", busy: "…", todo: "○", blocked: "–" };
 
@@ -15,7 +16,7 @@ const MARK: Readonly<Record<StepState, string>> = { done: "✓", busy: "…", to
  */
 export function CrewSetup() {
   const { online } = useApi();
-  const { status: s, docker, crew, login, busyAction, error, act } = useReadiness();
+  const { status: s, docker, crew, login, busyAction, error, act, signIn } = useReadiness();
   const [confirming, setConfirming] = useState(false);
   if (!online || !s) return <p className="crew-setup__hint">The backend is offline, so the Crew cannot be set up from here.</p>;
   const busy = busyAction !== null;
@@ -28,8 +29,9 @@ export function CrewSetup() {
             <span className="crew-setup__mark" aria-hidden="true">
               {MARK[docker]}
             </span>
-            {SETUP.docker}
-            <span className="crew-setup__state"> {SETUP.state.docker[docker]}</span>
+            {s.docker.running && !s.docker.can_start ? <span>{DOCKER_SETUP.running}</span> : (
+              <>{SETUP.docker}<span className="crew-setup__state"> {SETUP.state.docker[docker]}</span></>
+            )}
           </p>
           {docker === "todo" ? (
             s.docker.can_start ? (
@@ -67,9 +69,20 @@ export function CrewSetup() {
             <span className="crew-setup__state"> {SETUP.state.login[login]}</span>
           </p>
           {login === "todo" ? (
-            <button type="button" className="btn btn--primary" disabled={busy} onClick={() => act("login")}>
-              {SETUP.startLogin}
-            </button>
+            <div className="crew-setup__device" role="group" aria-label={SETUP.login}>
+              <p className="crew-setup__hint">{s.login.state === "failed" ? SETUP.retryLead : SETUP.methodHint}</p>
+              <div className="actions">
+                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => signIn("google")}>
+                  {SETUP.signInGoogle}
+                </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => signIn("github")}>
+                  {SETUP.signInGitHub}
+                </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => signIn("builder_id")}>
+                  {SETUP.startLogin}
+                </button>
+              </div>
+            </div>
           ) : null}
           {login === "busy" && s.login.code ? (
             <div className="crew-setup__device" role="status">
@@ -83,6 +96,15 @@ export function CrewSetup() {
                 </a>
               ) : null}
               <p className="crew-setup__hint">{SETUP.deviceWait}</p>
+              <p className="crew-setup__hint">{SETUP.otherAccountHint}</p>
+            </div>
+          ) : null}
+          {login === "busy" ? (
+            <div className="actions">
+              <p className="crew-setup__hint">{SETUP.cancelHint}</p>
+              <button type="button" className="btn btn--small" disabled={busyAction === "cancelLogin"} onClick={() => act("cancelLogin")}>
+                {SETUP.cancelLogin}
+              </button>
             </div>
           ) : null}
           {s.login.state === "failed" && s.login.error && login !== "done" ? <p className="crew-setup__error">{s.login.error}</p> : null}
@@ -114,13 +136,15 @@ export function CrewSetup() {
                   </div>
                 </div>
               ) : (
-                <button type="button" className="btn btn--small" disabled={busy} onClick={() => setConfirming(true)}>
-                  {SETUP.logout}
-                </button>
+                <div className="actions">
+                  <button type="button" className="btn btn--small" disabled={busy} onClick={() => setConfirming(true)}>{SETUP.logout}</button>
+                  <button type="button" className="btn btn--small" disabled={busy} onClick={() => act("logout")}>{SETUP.switchAccount}</button>
+                </div>
               )}
             </>
           ) : null}
         </li>
+        <GitHubSetup />
       </ol>
       {error ? (
         <p className="crew-setup__error" role="alert">

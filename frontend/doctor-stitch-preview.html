@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doctor Stitch · Motion preview</title>
+    <style>
+      body { margin: 0; background: var(--midnight-surface); color: var(--midnight-ink); font-family: var(--font-ui); }
+      main { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+      h1 { font-size: 28px; font-weight: 400; }
+      .preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 24px; }
+      .preview-card { background: var(--midnight-panel); border: 1px solid var(--midnight-line); border-radius: 12px; padding: 24px; }
+      h2 { font-size: 18px; font-weight: 400; }
+      button { padding: 10px 16px; color: var(--midnight-violet); background: var(--midnight-panel); border: 1px solid var(--midnight-line); font: inherit; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Doctor Stitch</h1>
+      <div id="preview"></div>
+    </main>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import { DoctorStitch } from "./src/animation/react/DoctorStitch.tsx";
+      import "./src/styles/tokens.css";
+      import "./src/styles/fonts.css";
+      const h = React.createElement;
+      function Preview() {
+        const [motion, setMotion] = React.useState(true);
+        const [replay, setReplay] = React.useState(0);
+        return h(React.Fragment, null,
+          h("button", { onClick: () => setMotion(!motion) }, motion ? "Pause motion" : "Play motion"),
+          " ",
+          h("button", { onClick: () => setReplay(replay + 1) }, "Replay approval"),
+          h("div", { className: "preview-grid" },
+            ...["working", "verified", "approved"].map(state => h("section", { className: "preview-card", key: state },
+              h("h2", null, { working: "Writing the fix", verified: "Ready for review", approved: "Approved" }[state]),
+              h(DoctorStitch, { key: replay, state: motion ? state : "rest" })
+            ))
+          )
+        );
+      }
+      createRoot(document.getElementById("preview")).render(h(Preview));
+    </script>
+  </body>
+</html>
