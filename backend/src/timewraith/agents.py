@@ -17,12 +17,13 @@ import shlex
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import Literal, NoReturn, Protocol, TypeVar
+from typing import Annotated, Literal, NoReturn, Protocol, TypeVar
 
 from pydantic import BaseModel, Field, ValidationError
 
 from .config import Settings
-from .models import Evidence, InvariantUse, OutputField
+from .models import Evidences, InvariantUse, OutputField
+from .models import keep_first as _keep
 
 PROFILES = Path(__file__).resolve().parents[2] / "agents"
 # Profiles in backend/agents/. `install-mechanic` is Pumpkin Mechanic's install-repair role (installfix.py).
@@ -35,62 +36,56 @@ AGENTS = ("bat-scout", "pumpkin-mechanic", "raven-archivist", "doctor-stitch", "
 class ReviewItem(BaseModel):
     candidate_id: str
     keep: bool
-    claim: str = Field(max_length=300)
-    evidence: list[Evidence] = Field(default_factory=list, max_length=6)
+    claim: str
+    evidence: Evidences = Field(default_factory=list)
     confidence: Literal["high", "medium", "low"] = "medium"
 
 
 class ReviewOut(BaseModel):
-    items: list[ReviewItem] = Field(max_length=20)
+    items: Annotated[list[ReviewItem], _keep(20)]
 
 
 class AdapterOut(BaseModel):
-    claim: str = Field(max_length=300)
-    evidence: list[Evidence] = Field(default_factory=list, max_length=6)
-    adapter_code: str = Field(max_length=12_000)
-    fields: list[OutputField] = Field(min_length=1, max_length=5)
-    invariants: list[InvariantUse] = Field(default_factory=list, max_length=6)
-    anchors: list[str] = Field(default_factory=list, max_length=5)
+    claim: str
+    evidence: Evidences = Field(default_factory=list)
+    adapter_code: str
+    fields: Annotated[list[OutputField], _keep(5)] = Field(min_length=1)
+    invariants: Annotated[list[InvariantUse], _keep(6)] = Field(default_factory=list)
+    anchors: Annotated[list[str], _keep(5)] = Field(default_factory=list)
 
 
 class JudgeOut(BaseModel):
     verdict: Literal["defect", "intended_behavior", "allowed_exception", "adapter_error"]
-    claim: str = Field(max_length=1200)
-    title: str = Field(default="", max_length=120)
-    evidence: list[Evidence] = Field(default_factory=list, max_length=6)
+    claim: str
+    title: str = ""
+    evidence: Evidences = Field(default_factory=list)
 
 
 class IssueMatchOut(BaseModel):
     issue_number: int | None
-    reason: str = Field(max_length=400)
+    reason: str
 
 
 class ReviewFixOut(BaseModel):
     approve: bool
-    reason: str = Field(max_length=600)
-    evidence: list[Evidence] = Field(default_factory=list, max_length=6)
+    reason: str
+    evidence: Evidences = Field(default_factory=list)
 
 
 class RevealOut(BaseModel):
     outcome: Literal["match", "no-match"]
-    reason: str = Field(max_length=600)
+    reason: str
 
 
 class PlanItem(BaseModel):
     candidate_id: str
-    focus: str = Field(max_length=300, description="What the new experiment should exercise")
-    rationale: str = Field(max_length=400, description="Why this direction is not covered yet")
+    focus: str = Field(description="What the new experiment should exercise")
+    rationale: str = Field(description="Why this direction is not covered yet")
 
 
 class PlanOut(BaseModel):
-    intents: list[PlanItem] = Field(default_factory=list, max_length=6)
-    done_reason: str = Field(default="", max_length=400, description="Why there is no new direction, if none")
-
-
-class InstallFixOut(BaseModel):
-    action: Literal["newer_node", "ignore_scripts", "legacy_peer_deps", "relaxed_lockfile", "give_up"]
-    log_line: str = Field(max_length=300, description="One line copied exactly from the install log")
-    reason: str = Field(max_length=400)
+    intents: Annotated[list[PlanItem], _keep(6)] = Field(default_factory=list)
+    done_reason: str = Field(default="", description="Why there is no new direction, if none")
 
 
 class AgentUnavailable(Exception):
@@ -526,6 +521,28 @@ def prompt_plan(*, round_no: int, max_intents: int, ledger: str, candidates: str
     )
 
 
+def prompt_install_session(
+    *, package_manager: str, node: str, runner: str, tried: list[str], log: str, tool_calls: int, commands: int
+) -> str:
+    return "\n\n".join(
+        [
+            f"Task: the dependency install of this repository failed in TimeWraith's sandbox, and code's fixed "
+            f"retries did not heal it. Package manager: {package_manager}. Node: {node}. Test runner: {runner}. "
+            f"Retries already tried: {'; '.join(tried) or 'none'}.",
+            "Get the repository to the state where its test runner starts. Read the failure, look at the repository "
+            "(package.json, the lockfile, .nvmrc, .yarnrc*, .npmrc, the README's setup steps) and run commands with "
+            "run_command to find the cause and fix it: a missing or wrong package manager version, a Node version "
+            "the dependencies do not support (use_node), an install script that needs a tool, a registry or "
+            "lockfile mismatch. Change as little as possible. Do not edit the source files of the repository; "
+            "install-time settings and flags are fine.",
+            f"Use check_install when you think it works, then submit_install. Code runs the same check on submit. "
+            f"You have {tool_calls} tool calls and {commands} commands. If it cannot be done, submit_install "
+            "anyway with what you found: it is reported to the user as it is.",
+            f"The failing install log (end of it):\n{_data('install.log', log)}",
+        ]
+    )
+
+
 def prompt_design_session(
     *,
     unit: str,
@@ -610,19 +627,6 @@ def prompt_review_fix(*, bug: str, diff: str, test_code: str) -> str:
         + "\n"
         + _data("regression-test", test_code)
         + ("\n" + _data("diff", diff))
-    )
-
-
-def prompt_install_fix(*, package_manager: str, node: str, tried: list[str], actions: dict[str, str], log: str) -> str:
-    menu = "\n".join(f"- `{k}`: {v}" for k, v in actions.items())
-    return "\n\n".join(
-        [
-            f"Task: the dependency install ({package_manager}, Node {node}) failed. Pick the one action most likely "
-            "to fix it, or `give_up`. You cannot run commands; code runs the action you pick.",
-            f"Actions you may pick:\n{menu}\n- `give_up`: none of these addresses the failure",
-            "Already tried: " + (", ".join(tried) or "the default install only"),
-            _data("install-log", log),
-        ]
     )
 
 

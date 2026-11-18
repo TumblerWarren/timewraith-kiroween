@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field, ValidationError
 from . import ingest, sandbox
 from .analyze import is_test_file
 from .config import Settings
-from .models import Bug, CapabilityReport, Evidence
+from .models import Bug, CapabilityReport, Evidences
 
 PROTECTED = re.compile(
     r"(^|/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|tsconfig[^/]*\.json|\.github/.*|"
@@ -47,9 +47,9 @@ class ToolError(Exception):
 
 
 class Submission(BaseModel):
-    summary: str = Field(max_length=300)
-    root_cause: str = Field(max_length=1200)
-    evidence: list[Evidence] = Field(default_factory=list, max_length=6)
+    summary: str
+    root_cause: str
+    evidence: Evidences = Field(default_factory=list)
 
 
 _STR = {"type": "string"}
@@ -123,7 +123,7 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "submit",
         "description": (
-            "Finish: submit your current changes. summary (max 300 characters), root_cause (max 1200 characters, "
+            "Finish: submit your current changes. summary (what you changed), root_cause ("
             "explains the defect), evidence: list of {kind: 'source', ref: 'path:line' or 'path:a-b', why}."
         ),
         "inputSchema": {

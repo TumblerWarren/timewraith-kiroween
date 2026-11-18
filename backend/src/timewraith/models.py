@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 CaseMode = Literal["known-issue", "blind-hunt", "open-hunt"]
 Stage = Literal[
@@ -209,15 +209,20 @@ class CodeUnit(BaseModel):
     exported: bool
 
 
+def keep_first(n: int) -> AfterValidator:
+    """A list an agent wrote is cut to its first `n` items instead of being rejected. Text has no length limit:
+    an agent that says too much is never turned away for it."""
+    return AfterValidator(lambda items: items[:n])
+
+
 class Evidence(BaseModel):
     """One piece of evidence an agent cites. Code resolves every ref before the claim counts."""
 
     kind: Literal["signal", "source", "invariant", "point", "issue", "test", "doc"]
     ref: str = Field(
-        max_length=200,
         description="signal id | path:line[-line] (source, test, doc) | invariant id | zone@ISO | issue no.",
     )
-    why: str = Field(max_length=300)
+    why: str
 
 
 class DecisionRecord(BaseModel):
@@ -269,7 +274,7 @@ class ClockConfig(BaseModel):
 
 class InvariantUse(BaseModel):
     id: InvariantId
-    reason: str = Field(max_length=300)
+    reason: str
     max_gap_ms: int | None = Field(default=None, ge=1)
 
 
@@ -296,6 +301,9 @@ class TestPlan(BaseModel):
     kind: Literal["Planned experiments, not run"] = "Planned experiments, not run"
     experiments: list[Experiment] = []
     capped: bool = False
+
+
+Evidences = Annotated[list[Evidence], keep_first(6)]
 
 
 class Violation(BaseModel):
@@ -531,8 +539,8 @@ class Intent(BaseModel):
     id: str
     round: int
     candidate_id: str
-    focus: str = Field(max_length=300)
-    rationale: str = Field(max_length=400)
+    focus: str
+    rationale: str
     status: Literal["queued", "designed", "swept", "rejected"] = "queued"
     experiment_id: str | None = None
     reason: str = ""

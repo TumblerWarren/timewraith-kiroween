@@ -193,7 +193,6 @@
           "title": "Max Gap Ms"
         },
         "reason": {
-          "maxLength": 300,
           "title": "Reason",
           "type": "string"
         }

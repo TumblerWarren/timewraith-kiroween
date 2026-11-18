@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Where the built frontend is served from (the Docker image sets it). Empty: API only; Vite serves the UI.
     web_dir: str = ""
     # The Kiro Crew container, its volume and the Docker network it joins (compose names them explicitly).
+    # Docker Desktop shows containers that share this compose project label as one group. The app, the Kiro Crew,
+    # the GitHub container and the test sandboxes all carry it, so they appear under one name.
+    project: str = "timewraith"
     crew_container: str = "timewraith-crew"
     crew_volume: str = "timewraith-crew-home"
     crew_network: str = ""
@@ -43,7 +46,7 @@ class Settings(BaseSettings):
     max_bugs_to_fix: int = 5
     max_agent_calls: int = 40
     max_fix_attempts: int = 3
-    investigation_budget_s: int = 30 * 60
+    investigation_budget_s: int = 3 * 60 * 60  # active time per case; installing, fixing and reviewing all draw on it
     repeat_runs: int = 3
     max_patch_files: int = 3
     max_patch_lines: int = 60
@@ -76,9 +79,22 @@ class Settings(BaseSettings):
     # Sandbox (Docker)
     docker_cpus: str = "2"
     docker_memory: str = "4g"
-    install_timeout_s: int = 600
+    install_timeout_s: int = 20 * 60
     install_retries: int = 3  # self-healing retries after a failed install (installfix.py)
+    # Install sessions: the install mechanic repairs an install the fixed retries could not heal (installsession.py)
+    # Installing is not boxed in: long sessions, many commands, several rounds. The sandbox is the limit, not the agent.
+    install_session_s: int = 45 * 60
+    max_install_calls: int = 400
+    max_install_commands: int = 300
+    install_rounds: int = 3
     test_timeout_s: int = 180
+
+    def group_labels(self, service: str) -> list[str]:
+        """`docker run` arguments that put a container in this app's group (the compose project labels)."""
+        return [
+            "--label", f"com.docker.compose.project={self.project}",
+            "--label", f"com.docker.compose.service={service}",
+        ]  # fmt: skip
 
     @property
     def workspaces(self) -> Path:

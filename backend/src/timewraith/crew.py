@@ -175,6 +175,7 @@ class CrewManager:
                         "-d",
                         "--name",
                         CONTAINER,
+                        *get_settings().group_labels("crew"),
                         *(["--network", NETWORK] if NETWORK else []),
                         "--restart",
                         "unless-stopped",

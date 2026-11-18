@@ -118,7 +118,8 @@ class GitBox:
             state = self.container_state()
             if state == "missing":
                 r = _docker(
-                    ["run", "-d", "--name", CONTAINER, "--restart", "unless-stopped", "--cap-drop", "ALL",
+                    ["run", "-d", "--name", CONTAINER, *get_settings().group_labels("git"),
+                     "--restart", "unless-stopped", "--cap-drop", "ALL",
                      "--security-opt", "no-new-privileges", "--memory", "512m", "--pids-limit", "256",
                      *(["--network", NETWORK] if NETWORK else []), "-v", f"{VOLUME}:/home/gh", IMAGE],
                     timeout=120,

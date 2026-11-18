@@ -69,7 +69,7 @@ If the install fails, it retries up to `TW_INSTALL_RETRIES` times (default 3), e
 | Allow peer conflicts (`--legacy-peer-deps`) | `ERESOLVE` or a peer dependency conflict |
 | Lockfile not enforced (`npm install`, `--no-frozen-lockfile`) | A lockfile out of sync with `package.json` |
 
-When no pattern matches, Pumpkin Mechanic (profile `install-mechanic.md`) may pick one action from the same list. It must quote a line that code finds in the log, and it cannot run a command of its own. A timed-out install is not retried. If every retry fails, the case stops with `install_failed`, the actions tried and the key log lines. A Node version that worked is kept for the later sandbox runs.
+That list is only quick first aid. Any other failure, a timeout, and any retry that did not help goes to the install mechanic (profile `install-mechanic.md`, `installsession.py`). The agent decides what to do and tries again: it reads the repository, runs any commands it needs in the install sandbox, switches to any Node version that has an image, and runs `check_install` (the repository's test runner must start in a container without network). A failed check is not final while it has budget. If the agent runs out of ideas, a new round starts, told what the earlier rounds did (`TW_INSTALL_ROUNDS`, default 3, each up to `TW_INSTALL_SESSION_S`, default 45 minutes, up to `TW_MAX_INSTALL_COMMANDS` commands). The sandbox is the limit, not the agent: a throwaway container with all capabilities dropped, a read-only root, memory and process limits, no secrets, no Docker socket and only the case's workspace mounted. Afterwards code undoes changes to files git tracks, so a fix's diff stays the repository's own. If every round fails, the case stops with `install_failed`, what was tried and the key log lines. A Node version that worked is kept for the later sandbox runs.
 
 ## Commands (from the repo root)
 
@@ -112,12 +112,15 @@ Settings are read from `TW_*` environment variables or `backend/.env`. The ones 
 |---|---|---|
 | `TW_DATA_DIR` | `~/.timewraith` | SQLite database, workspaces and patches. Must be outside this repository |
 | `TW_AGENT_RUNTIME` | `auto` | `auto`, `stub` or `command` |
-| `TW_INVESTIGATION_BUDGET_S` | `1800` | Active time per investigation |
+| `TW_INVESTIGATION_BUDGET_S` | `10800` | Active time per investigation (three hours) |
 | `TW_MAX_AGENT_CALLS` | `40` | Agent calls per investigation |
 | `TW_MAX_FIX_ATTEMPTS` | `3` | Fix attempts per bug |
 | `TW_FIX_SESSION_S` | `720` | Time per fix session |
 | `TW_MAX_TOOL_CALLS` | `40` | Tool calls per fix session |
-| `TW_INSTALL_RETRIES` | `3` | Self-healing retries after a failed dependency install |
+| `TW_INSTALL_RETRIES` | `3` | Quick fixed retries after a failed dependency install, before the install mechanic |
+| `TW_INSTALL_ROUNDS` | `3` | Install mechanic rounds, each told what the earlier ones tried |
+| `TW_INSTALL_SESSION_S` | `2700` | Time for one install mechanic round |
+| `TW_MAX_INSTALL_COMMANDS` / `TW_MAX_INSTALL_CALLS` | `300` / `400` | Commands and tool calls per round |
 | `TW_CREW_BACKEND_URL` | `http://host.docker.internal:8787` | How the Kiro Crew container reaches this backend's fix tools |
 
 Every setting and its limit is listed in `src/timewraith/config.py`.

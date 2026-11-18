@@ -1,8 +1,6 @@
-"""Self-healing dependency install: a fixed list of retry actions, matched to the install log.
-
-The install is the only sandbox step with network, and it runs the target repository's own scripts, so nothing
-here runs a command an agent wrote. Code picks an action when the log matches a known failure; otherwise Pumpkin
-Mechanic may pick one from the same list, citing a log line, and code checks the citation (pipeline.py).
+"""Quick, free first aid for a failed dependency install: retry actions matched to failures code knows by heart.
+Nothing here is an agent's choice. Any failure that is not on this list, and any retry that does not help, goes to
+the install mechanic (installsession.py), who may run any commands in the install sandbox and try again.
 """
 
 from __future__ import annotations
@@ -70,7 +68,8 @@ def command(pm: str, o: InstallOptions) -> str:
             parts.append("--legacy-peer-deps")
     elif pm in {"pnpm", "yarn"}:
         lock = ("--no-frozen-lockfile" if pm == "pnpm" else "") if o.relaxed_lockfile else "--frozen-lockfile"
-        parts = [f"corepack enable --install-directory /tmp/bin && /tmp/bin/{pm} install", lock]
+        # corepack needs the directory to exist; the root filesystem is read-only, so it lives in the in-memory /tmp
+        parts = [f"mkdir -p /tmp/bin && corepack enable --install-directory /tmp/bin && /tmp/bin/{pm} install", lock]
         if o.legacy_peer_deps and pm == "pnpm":
             parts.append("--config.strict-peer-dependencies=false")
     else:
@@ -109,18 +108,8 @@ def matches(log: str) -> list[tuple[Action, str]]:
     return found
 
 
-def applicable(o: InstallOptions, pm: str) -> list[Action]:
-    return [a for a in LABELS if apply(o, a, pm) is not None]
-
-
 def excerpt(log: str, limit: int = 12) -> str:
     """The lines that explain a failed install: error lines if there are any, otherwise the last lines."""
     lines = [ln.rstrip() for ln in clean(log).splitlines() if ln.strip()]
     key = [ln for ln in lines if _KEY.search(ln) and "npm warn deprecated" not in ln]
     return "\n".join((key or lines)[-limit:])[:2000]
-
-
-def cites(log: str, line: str) -> bool:
-    """True when the quoted line really is in the log (whitespace-insensitive)."""
-    q = " ".join(line.split())
-    return len(q) >= 8 and q in " ".join(clean(log).split())

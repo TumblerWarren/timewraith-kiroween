@@ -69,7 +69,7 @@ DESIGN_TOOLS: list[dict[str, Any]] = [
         "name": "submit_adapter",
         "description": (
             "Finish with the current adapter. fields: the output fields run() returns, from instant, next, flag, "
-            "date, value. claim (max 300 characters): what the experiment tests. Code reruns the baseline check."
+            "date, value. claim: what the experiment tests. Code reruns the baseline check."
         ),
         "inputSchema": {
             "type": "object",
@@ -147,7 +147,7 @@ class DesignSession(RepoReader):
 
     def submit_adapter(self, fields: object, claim: object) -> str:
         fs = valid_fields(fields)
-        text = str(claim or "").strip()[:300]
+        text = str(claim or "").strip()
         if not text:
             raise ToolError("Give a claim: what the experiment tests")
         problems = self.baseline(fs)

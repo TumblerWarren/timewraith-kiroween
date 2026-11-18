@@ -78,6 +78,7 @@ def run(
         "run",
         "--rm",
         "--init",
+        *s.group_labels("sandbox"),
         "--network",
         "bridge" if network else "none",
         "--cpus",

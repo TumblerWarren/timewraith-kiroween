@@ -19,6 +19,7 @@ services:
       - "127.0.0.1:${TW_PORT:-8787}:8787" # localhost only: the API has no login
     environment:
       TW_DATA_VOLUME: ${TW_DATA_VOLUME:-timewraith-data}
+      TW_PROJECT: ${TW_PROJECT:-timewraith} # the group name in Docker Desktop, also given to the test containers
       TW_CREW_CONTAINER: ${TW_CREW_CONTAINER:-timewraith-crew}
       TW_CREW_VOLUME: ${TW_CREW_VOLUME:-timewraith-crew-home}
       TW_GIT_CONTAINER: ${TW_GIT_CONTAINER:-timewraith-git}
@@ -26,7 +27,7 @@ services:
       TW_CREW_NETWORK: ${TW_NETWORK:-timewraith-net}
       TW_CREW_BACKEND_URL: http://timewraith:8787 # how the Crew reaches the fix tools: by service name
       TW_AGENT_RUNTIME: ${TW_AGENT_RUNTIME:-auto}
-      TW_INVESTIGATION_BUDGET_S: ${TW_INVESTIGATION_BUDGET_S:-3600}
+      TW_INVESTIGATION_BUDGET_S: ${TW_INVESTIGATION_BUDGET_S:-10800}
     volumes:
       - timewraith-data:/data
       - /var/run/docker.sock:/var/run/docker.sock

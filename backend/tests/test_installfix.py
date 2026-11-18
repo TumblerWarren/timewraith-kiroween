@@ -77,13 +77,6 @@ def test_actions_apply_once_and_node_stops_at_the_newest() -> None:
     s = F.apply(o, "ignore_scripts", "npm")
     assert s is not None and F.apply(s, "ignore_scripts", "npm") is None
     assert F.apply(o, "legacy_peer_deps", "yarn") is None
-    assert F.applicable(F.InstallOptions(node="24", ignore_scripts=True), "yarn") == ["relaxed_lockfile"]
-
-
-def test_citation_must_be_in_the_log() -> None:
-    assert F.cites(PREPARE_FAILED, "npm error   command sh -c husky && npm run build")
-    assert not F.cites(PREPARE_FAILED, "npm error peer dependency conflict")
-    assert not F.cites(PREPARE_FAILED, "npm")
 
 
 def test_excerpt_keeps_error_lines_and_drops_deprecations() -> None:
@@ -99,7 +92,7 @@ def test_excerpt_keeps_error_lines_and_drops_deprecations() -> None:
 class FakeRuntime:
     name, label = "fake", "Fake runtime"
 
-    def __init__(self, reply: A.InstallFixOut | None) -> None:
+    def __init__(self, reply: Any) -> None:
         self.reply = reply
         self.calls = 0
 
@@ -191,39 +184,6 @@ def test_newer_node_is_kept_for_later_runs(engine: Engine, monkeypatch: pytest.M
     fake_installs(monkeypatch, [sandbox.Exec(1, ENGINE_STRICT), sandbox.Exec(0, "ok")], engine._ws(inv))
     engine._install(inv, FakeRuntime(None), time.monotonic())
     assert inv.capabilities is not None and inv.capabilities.node_version == "22"
-
-
-def test_unknown_failure_asks_pumpkin_mechanic(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
-    inv = case(engine)
-    log = "gyp ERR! build error\ngyp ERR! stack Error: not found: make\n"
-    reply = A.InstallFixOut(action="ignore_scripts", log_line="gyp ERR! build error", reason="A native build failed")
-    rt = FakeRuntime(reply)
-    seen = fake_installs(monkeypatch, [sandbox.Exec(1, log), sandbox.Exec(0, "ok")], engine._ws(inv))
-    engine._install(inv, rt, time.monotonic())
-    assert rt.calls == 1 and seen[1].ignore_scripts
-    rec = inv.decisions[-1]
-    assert rec.step == "install_repair" and rec.decision == "accepted"
-
-
-@pytest.mark.parametrize(
-    ("reply", "rule"),
-    [
-        (A.InstallFixOut(action="ignore_scripts", log_line="npm error invented line", reason="x"), "cited line"),
-        (A.InstallFixOut(action="give_up", log_line="gyp ERR! build error", reason="out of memory"), "no listed"),
-    ],
-)
-def test_bad_or_no_agent_pick_stops_with_the_log(
-    engine: Engine, monkeypatch: pytest.MonkeyPatch, reply: A.InstallFixOut, rule: str
-) -> None:
-    inv = case(engine)
-    ws = engine._ws(inv)
-    seen = fake_installs(monkeypatch, [sandbox.Exec(1, "gyp ERR! build error\n")], ws)
-    with pytest.raises(Stop) as e:
-        engine._install(inv, FakeRuntime(reply), time.monotonic())
-    assert e.value.code == "install_failed" and "gyp ERR! build error" in str(e.value)
-    assert len(seen) == 1
-    assert rule in inv.decisions[-1].rule
-    assert (ws / "src" / "__tw__" / "exp_1.adapter.ts").exists(), "own files come back after a failed install"
 
 
 def test_retries_are_capped_and_listed(engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -29,6 +29,47 @@ Open <http://localhost:8787>. On the Crew setup page, sign in to Kiro once: pick
 
 The API has no login and listens on `127.0.0.1` only. On Linux, pass the group of the Docker socket: `DOCKER_GID=$(stat -c %g /var/run/docker.sock) docker compose up -d --build`. The settings you can override are in [.env.example](.env.example).
 
+## Run the image on any Docker (no compose file)
+
+TimeWraith is one image. It needs the Docker socket and one volume. It creates its own network and starts the Kiro Crew and GitHub containers from the setup page, so nothing else is configured.
+
+```
+docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 \
+  --label com.docker.compose.project=timewraith --label com.docker.compose.service=app \
+  -v timewraith-data:/data -v /var/run/docker.sock:/var/run/docker.sock <image>
+```
+
+`<image>` is `timewraith:local` after `docker build -t timewraith:local .` in the repository root, or the registry name once the image is published (below).
+
+On Windows PowerShell, use a backtick for line breaks:
+
+```
+docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 `
+  --label com.docker.compose.project=timewraith --label com.docker.compose.service=app `
+  -v timewraith-data:/data -v /var/run/docker.sock:/var/run/docker.sock timewraith:local
+```
+
+`/var/run/docker.sock` is correct on Docker Desktop for Windows and macOS too: it is a path inside the Docker engine, not on your PC.
+
+The two `--label` options make Docker Desktop show the app, the Kiro Crew, the GitHub container and the test sandboxes as one group named `timewraith`; the app passes the same label on to every container it starts. Open <http://localhost:8787>. The image runs on `linux/amd64` and `linux/arm64`. The container starts as root only to read the Docker socket and then runs the app as an unprivileged user. Anyone who can reach port 8787 can start containers on your Docker host, so keep the port on `127.0.0.1`.
+
+- **Publish to GitHub Container Registry:** push a tag such as `v0.1.0`. The workflow `.github/workflows/image.yml` builds both platforms and pushes `ghcr.io/<owner>/<repo>`.
+- **Move it to a machine without internet:** `docker save timewraith:local | gzip > timewraith.tar.gz`, then `docker load -i timewraith.tar.gz` there. The Kiro Crew image (`ghcr.io/kirodotdev/kirocrew:stable`) is still pulled on first setup.
+
+### Everyday commands for the image
+
+| Task | Command |
+|---|---|
+| See it is healthy | `docker ps --filter name=timewraith` (look for `healthy`), then open <http://localhost:8787> |
+| Read the log | `docker logs -f timewraith` |
+| Stop and start | `docker stop timewraith` / `docker start timewraith` |
+| Update to a new build | `docker build -t timewraith:local .`, then `docker rm -f timewraith`, then the `docker run` line again. Cases and sign-ins stay: they are in the volumes |
+| Bring in cases from a TimeWraith run on your PC | `docker run --rm -v timewraith-data:/data -v "$HOME/.timewraith:/import:ro" timewraith:local python -m timewraith.importer /import` (add `--case <id>` for one case, `--replace` to overwrite) |
+| Delete the app, keep the data | `docker rm -f timewraith` |
+| Delete everything, including cases and sign-ins | `docker rm -f timewraith timewraith-crew timewraith-git`, then `docker volume rm timewraith-data timewraith-crew-home timewraith-git-home` and `docker network rm timewraith-net` |
+
+Run a second copy side by side by changing the names: `-e TW_CREW_CONTAINER=… -e TW_GIT_CONTAINER=… -e TW_CREW_VOLUME=… -e TW_GIT_VOLUME=… -e TW_CREW_NETWORK=…`, a different `-p` port and a different `-v` data volume. The Kiro and GitHub sign-ins live in the Crew and GitHub containers, so after an update you are still signed in unless you delete those volumes. If the Crew container was created by an older version and cannot reach the app (cases show "Stub runtime"), attach it once: `docker network connect timewraith-net timewraith-crew`.
+
 ## Run it from source
 
 Requirements: Python 3.14 with [uv](https://docs.astral.sh/uv/), Node 20 or 22 with pnpm, and Docker Desktop.

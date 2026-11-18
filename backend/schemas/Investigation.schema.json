@@ -760,12 +760,10 @@
         },
         "ref": {
           "description": "signal id | path:line[-line] (source, test, doc) | invariant id | zone@ISO | issue no.",
-          "maxLength": 200,
           "title": "Ref",
           "type": "string"
         },
         "why": {
-          "maxLength": 300,
           "title": "Why",
           "type": "string"
         }
@@ -1282,7 +1280,6 @@
           "title": "Experiment Id"
         },
         "focus": {
-          "maxLength": 300,
           "title": "Focus",
           "type": "string"
         },
@@ -1291,7 +1288,6 @@
           "type": "string"
         },
         "rationale": {
-          "maxLength": 400,
           "title": "Rationale",
           "type": "string"
         },
@@ -1354,7 +1350,6 @@
           "title": "Max Gap Ms"
         },
         "reason": {
-          "maxLength": 300,
           "title": "Reason",
           "type": "string"
         }

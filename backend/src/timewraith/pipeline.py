@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from . import agents as A
-from . import contribute, designsession, github, installfix, intent, publish, sandbox, verifysession
+from . import contribute, designsession, github, installfix, installsession, intent, publish, sandbox, verifysession
 from . import sweep as S
 from .analyze import analyze, is_test_file
 from .config import Settings
@@ -791,7 +791,7 @@ class Engine:
             step=step,
             runtime=inv.runtime,
             subject=subject,
-            claim=claim[:400],
+            claim=claim,
             evidence=evidence,
             dropped_evidence=dropped,
             checks=checks,
@@ -1524,7 +1524,7 @@ class Engine:
                 if r.timed_out or attempt == self.s.install_retries:
                     break
                 self._check(inv, t0)
-                pick = self._install_action(inv, rt, opts, tried, log)
+                pick = self._install_action(inv, opts, log)
                 if pick is None:
                     break
                 action, line, source = pick
@@ -1541,63 +1541,141 @@ class Engine:
                     evidence={"label": line},
                     data={"action": action, "log_line": line, "chosen_by": source},
                 )
+            # Any failure the quick fixes did not heal goes to the install mechanic, who may try again in new rounds,
+            # each one told what the earlier rounds did.
+            earlier: list[str] = []
+            said = ""
+            for round_no in range(1, self.s.install_rounds + 1):
+                healed, round_said = self._install_session(inv, rt, opts, [*tried, *earlier], log, ws, t0)
+                if healed:
+                    return
+                if not round_said:
+                    break  # no agent, no budget or no result: another round would not differ
+                earlier.append(f"install mechanic, round {round_no}: {round_said}")
+                said = "; ".join(earlier)
         key = installfix.excerpt(log)
         self._event(inv, "watchtower-warden", "note", "Dependency install failed", data={"log": key, "tried": tried})
         why = "timed out" if r.timed_out else "failed"
         repairs = f" after trying {'; '.join(tried)}" if tried else ""
+        repairs += f" and the install mechanic's own attempt ({said})" if said else ""
         last = "; ".join(key.splitlines()[-3:])[:600]
         raise Stop("install_failed", f"Dependency install {why} in the sandbox{repairs}. Last errors: {last}")
 
+    def _install_session(
+        self,
+        inv: Investigation,
+        rt: A.AgentRuntime,
+        opts: installfix.InstallOptions,
+        tried: list[str],
+        log: str,
+        ws: Path,
+        t0: float,
+    ) -> tuple[bool, str]:
+        """(installed, what happened). The install mechanic gets tools to run commands in the install sandbox and
+        works until the repository's test runner starts. Code runs the check on submit; changes to the files git
+        tracks are undone afterwards, so the code under test stays the repository's own."""
+        caps = inv.capabilities
+        assert caps and caps.package_manager and caps.test_runner
+        runner = caps.test_runner
+        if inv.budget.agent_calls >= self.s.max_agent_calls:
+            return False, ""
+        self._check(inv, t0)
+        # Installing comes before everything else, so it is not held back by the wrap-up rule: it gets the session
+        # time, or what is left of the case's budget if that is shorter (but never less than five minutes).
+        session_s = int(max(300, min(self.s.install_session_s, self._remaining(inv))))
+        # Each sandbox command is a fresh container, so the package manager shims are made in every one.
+        prefix = (
+            "mkdir -p /tmp/bin; export PATH=/tmp/bin:$PATH; "
+            "corepack enable --install-directory /tmp/bin >/dev/null 2>&1; "
+        )
+
+        def run(node: str, command: str, timeout: int) -> installsession.CommandResult:
+            r = sandbox.run(self.s, ws, node, prefix + command, network=True, timeout=timeout)
+            return installsession.CommandResult(r.code, installfix.clean(r.out), r.timed_out)
+
+        def check(node: str) -> tuple[bool, str]:
+            r = sandbox.run(
+                self.s, ws, node, f"test -f node_modules/{runner}/package.json && node_modules/.bin/{runner} --version",
+                network=False, timeout=120,
+            )  # fmt: skip
+            if r.code == 0:
+                return True, f"{runner} {r.out.strip().splitlines()[-1] if r.out.strip() else ''} starts on Node {node}"
+            return False, (
+                f"the test runner `{runner}` is not installed or does not start on Node {node}: "
+                + (installfix.excerpt(r.out, 4) or "node_modules has no " + runner)
+            )
+
+        session = installsession.open_session(
+            ws=ws,
+            tracked=_tracked(ws),
+            extra_readable=frozenset(),
+            node=opts.node,
+            on_event=lambda text, data: self._event(
+                inv, "pumpkin-mechanic", "tool", text, phase="execution", data=data
+            ),
+            deadline=time.monotonic() + session_s,
+            max_calls=self.s.max_install_calls,
+            max_commands=self.s.max_install_commands,
+            command_timeout_s=self.s.install_timeout_s,
+            run=run,
+            check=check,
+        )
+        prompt = A.prompt_install_session(
+            package_manager=caps.package_manager, node=opts.node, runner=runner, tried=tried,
+            log=installfix.clean(log)[-5000:], tool_calls=self.s.max_install_calls,
+            commands=self.s.max_install_commands,
+        )  # fmt: skip
+        inv.budget.agent_calls += 1
+        self._event(inv, "pumpkin-mechanic", "dispatch", "The install mechanic is repairing the install",
+                    phase="execution", data={"tried": tried})  # fmt: skip
+        self.sessions.add(session)
+        try:
+            rt.run_session("install-mechanic", "install_session", prompt, session, session_s + 120)
+        except A.AgentUnavailable as e:
+            if isinstance(e, A.AgentQuotaReached):
+                self._quota_note(inv, str(e))
+            return False, ""
+        finally:
+            self.sessions.close(session)
+            changed = _tracked_changes(ws)
+            if changed:
+                git(ws, ["checkout", "--", "."])
+                self._event(inv, "watchtower-warden", "note",
+                            f"Undid changes to {len(changed)} tracked file(s) made while repairing the install: "
+                            f"{', '.join(changed[:6])}", data={"files": changed})  # fmt: skip
+        use = f"{session.calls} tool calls, {len(session.log)} commands"
+        if session.submitted is None:
+            self._decide(inv, agent="pumpkin-mechanic", step="install_session", subject="install",
+                         claim="Install repair did not finish", evidence=[], dropped=0, checks=[use],
+                         decision="not_run", rule="The install mechanic did not submit; the install stays failed",
+                         phase="execution")  # fmt: skip
+            return False, f"no result after {use}"
+        summary, ok, detail = session.submitted
+        self._decide(inv, agent="pumpkin-mechanic", step="install_session", subject="install", claim=summary,
+                     evidence=[], dropped=0, checks=[use, detail],
+                     decision="accepted" if ok else "rejected",
+                     rule="The repository's test runner starts after the repair (checked by code)"
+                     if ok else "Code's check failed: the test runner does not start", phase="execution")  # fmt: skip
+        if not ok:
+            return False, f"{summary} The check still fails: {detail}"[:500]
+        caps.node_version = session.node
+        text = f"Dependencies installed by the install mechanic: {summary}"
+        inv.notes.append(text)
+        self._event(inv, "pumpkin-mechanic", "note", text,
+                    data={"commands": [c for _, c, _ in session.log], "node": session.node})  # fmt: skip
+        return True, summary
+
     def _install_action(
-        self, inv: Investigation, rt: A.AgentRuntime, opts: installfix.InstallOptions, tried: list[str], log: str
+        self, inv: Investigation, opts: installfix.InstallOptions, log: str
     ) -> tuple[installfix.Action, str, str] | None:
-        """(action, log line, who chose it) for the next install retry, or None when no listed action fits."""
+        """(action, log line, who chose it) for a failure code knows by heart, else None. Quick, free first aid."""
         caps = inv.capabilities
         assert caps and caps.package_manager
         pm = caps.package_manager
         for action, line in installfix.matches(log):
             if installfix.apply(opts, action, pm) is not None:
                 return action, line, "code (known failure in the log)"
-        allowed = installfix.applicable(opts, pm)
-        if not allowed:
-            return None
-        menu: dict[str, str] = {a: installfix.LABELS[a] for a in allowed}
-        prompt = A.prompt_install_fix(
-            package_manager=pm, node=opts.node, tried=tried, actions=menu, log=installfix.clean(log)[-6000:]
-        )
-
-        def record(claim: str, checks: list[str], decision: str, rule: str, dropped: int = 0) -> None:
-            self._decide(
-                inv,
-                agent="pumpkin-mechanic",
-                step="install_repair",
-                subject="install",
-                claim=claim,
-                evidence=[],
-                dropped=dropped,
-                checks=checks,
-                decision=decision,
-                rule=rule,
-                phase="execution",
-            )
-
-        try:
-            out = self._agent(inv, rt, "install-mechanic", "install_repair", prompt, A.InstallFixOut)
-        except A.AgentUnavailable as e:
-            record("Install repair not run", [str(e)], "not_run", "No known failure in the log and no agent to pick")
-            return None
-        checks = [f"cited log line: {out.log_line[:200]}"]
-        if out.action == "give_up":
-            record(out.reason, checks, "accepted", "Pumpkin Mechanic found no listed repair for this failure")
-            return None
-        if out.action not in allowed:
-            record(out.reason, checks, "rejected", "Only an untried action from the fixed list can run", 1)
-            return None
-        if not installfix.cites(log, out.log_line):
-            record(out.reason, checks, "rejected", "The cited line must appear in the install log", 1)
-            return None
-        record(out.reason, checks, "accepted", "A listed repair, citing a line that is in the install log")
-        return out.action, out.log_line.strip()[:300], "Pumpkin Mechanic"
+        return None  # anything else goes to the install mechanic, who decides what to try (_install_session)
 
     def _validate(self, inv: Investigation, rt: A.AgentRuntime, exps: list[Experiment], t0: float) -> None:
         """An adapter must run cleanly at ordinary instants; otherwise violations could be adapter mistakes."""
@@ -1959,7 +2037,7 @@ class Engine:
             "verify",
             f"Reproduced: {title}",
             clock=clock,
-            evidence={"label": j.claim[:300], "observed": v.detail},
+            evidence={"label": j.claim, "observed": v.detail},
             check={"versionId": inv.versions[0].id, "result": "fails"},
         )
         inv.versions[0].result, inv.versions[0].role = "fails", "affected"
@@ -2154,7 +2232,7 @@ class Engine:
             "verify",
             f"Reproduced: {title}",
             clock=clock,
-            evidence={"label": vd.claim[:300], "observed": v.detail},
+            evidence={"label": vd.claim, "observed": v.detail},
             check={"versionId": inv.versions[0].id, "result": "fails"},
         )
         inv.versions[0].result, inv.versions[0].role = "fails", "affected"
@@ -2312,7 +2390,7 @@ class Engine:
             agent="raven-archivist",
             step="match_issue",
             subject=bug.id,
-            claim=vd.claim[:400],
+            claim=vd.claim,
             evidence=[],
             dropped=0,
             checks=[f"{len(session.issues_seen)} issues and pull requests seen in {session.searches} search(es)"],
@@ -2473,7 +2551,7 @@ class Engine:
             "verify",
             f"Intended behaviour, not a bug: {title}",
             phase="verification",
-            evidence={"label": j.claim[:300], "observed": v.detail},
+            evidence={"label": j.claim, "observed": v.detail},
             data={"intended_id": fid, "documented_by": where},
         )
 
@@ -3005,6 +3083,21 @@ def _aside(ws: Path, folders: list[str]) -> Iterator[None]:
             src.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(dst, src)
         shutil.rmtree(store, ignore_errors=True)
+
+
+def _tracked(ws: Path) -> frozenset[str]:
+    try:
+        return frozenset(ln for ln in git(ws, ["ls-files", "-z"]).split("\0") if ln)
+    except IngestError:
+        return frozenset()
+
+
+def _tracked_changes(ws: Path) -> list[str]:
+    """Files git tracks that differ from the commit (an install repair must not leave any)."""
+    try:
+        return [ln[3:] for ln in git(ws, ["status", "--porcelain", "-uno"]).splitlines() if ln.strip()]
+    except IngestError:
+        return []
 
 
 def _keys(exp_id: str, vs: list[Violation]) -> set[VKey]:

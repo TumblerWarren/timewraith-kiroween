@@ -28,7 +28,7 @@ flowchart TD
     P -- cancel --> X([Cancelled])
 
     subgraph S4["4 Execution · code, Docker, no network"]
-        I[Install dependencies<br/>network only here, TimeWraith files moved aside] -- fails --> IH{{Retry with one fixed action<br/>code matches the log, else Pumpkin Mechanic picks<br/>up to 3 retries}}
+        I[Install dependencies<br/>network only here, TimeWraith files moved aside] -- fails --> IH{{Quick fix code knows<br/>else the install mechanic<br/>runs commands and retries<br/>up to 3 rounds}}
         IH -- retry --> I
         I --> W[Sweep about 2,600 clock points per experiment<br/>13 zones, DST, month ends, leap days]
         W --> O[Fixed invariant oracles mark violations]
@@ -81,7 +81,7 @@ Violet boxes are Kiro agent steps. Plain boxes are code. Light boxes are your de
 |---|---|---|---|---|---|
 | Bat Scout | Bat Scout | 2 Discovery | Scan candidates and quoted source | Keep or drop per candidate, with cited signals | Invent candidates or lines |
 | Pumpkin Mechanic | Pumpkin Mechanic | 3 Design | Candidate source, invariant catalog | An adapter, output fields, invariants, anchor instants | Choose pass or fail, or write assertions |
-| Pumpkin Mechanic (install repair) | Pumpkin Mechanic | 4 Execution | A failed install log that matches no known failure, and the untried actions | One action from the fixed list, quoting a log line | Run a command, or pick an action outside the list |
+| Pumpkin Mechanic (install repair) | Pumpkin Mechanic | 4 Execution | The failed install log, what was tried, and tools: read, run any command in the install sandbox, switch Node, check the install | Fixes it, or reports what it found; code checks that the test runner starts offline | Skip the check, or change files git tracks (code undoes that) |
 | Raven Archivist | Raven Archivist | 5 Verification | Violation, outputs at its clock points, adapter, source, the repository's own tests and docs | Verdict: defect, intended behaviour, allowed exception or adapter error, with cited evidence | Declare a bug without a failing regression test |
 | Doctor Stitch | Doctor Stitch | + Fix | Finding, failing test output, and in a session only TimeWraith's tools | A patch through `submit`, with root cause and source citations | Touch tests, config, manifests, lockfiles, CI or generated files |
 | Raven Archivist (review) | Raven Archivist | Fix gate 8 | The diff and the regression test only, never Doctor Stitch's reasoning | Approve or reject, with a reason | See the author's reasoning |
@@ -251,7 +251,7 @@ When the user checks the fix against the repository's rules again after a push, 
 
 | Limit | Value | Setting |
 |---|---|---|
-| Active time | 30 minutes | `TW_INVESTIGATION_BUDGET_S` |
+| Active time | 3 hours | `TW_INVESTIGATION_BUDGET_S` |
 | Agent calls | 40 | `TW_MAX_AGENT_CALLS` |
 | Bugs to fix | 5 | `TW_MAX_BUGS_TO_FIX` |
 | Fix attempts per bug | 3 | `TW_MAX_FIX_ATTEMPTS` |

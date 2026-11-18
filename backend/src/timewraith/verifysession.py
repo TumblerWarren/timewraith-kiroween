@@ -19,14 +19,14 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, ValidationError
 
 from . import sweep as S
 from .fixsession import READ_TOOLS, RepoReader, ToolError, _cap
-from .models import Evidence
+from .models import Evidence, keep_first
 from .sandbox import ProbeResult
 
 MAX_PROBE_CHARS = 4000
@@ -53,9 +53,9 @@ class UserCheck(BaseModel):
 
 class Verdict(BaseModel):
     verdict: Literal["defect", "intended_behavior", "allowed_exception", "adapter_error"]
-    title: str = Field(default="", max_length=120)
-    claim: str = Field(max_length=1200)
-    evidence: list[Evidence] = Field(default_factory=list, max_length=8)
+    title: str = ""
+    claim: str
+    evidence: Annotated[list[Evidence], keep_first(8)] = Field(default_factory=list)
     reproduction: Reproduction | None = None
     user_check: UserCheck | None = None
     issue_number: int | None = None
@@ -102,8 +102,8 @@ VERIFY_TOOLS: list[dict[str, Any]] = [
     {
         "name": "submit_verdict",
         "description": (
-            "Finish with one verdict: defect, intended_behavior, allowed_exception or adapter_error. claim (max "
-            "1200 characters) explains it; title (max 120) names the behaviour. evidence: list of {kind, ref, why}, "
+            "Finish with one verdict: defect, intended_behavior, allowed_exception or adapter_error. claim "
+            "explains it, as long as it needs; title names the behaviour. evidence: list of {kind, ref, why}, "
             "kind one of source (ref path:line or path:a-b), test, doc (ref path:line), invariant, point "
             "(ref zone@ISO). A defect needs `reproduction`: {code, failing: {zone, instant}, control: {zone, "
             "instant}}; its check must fail at `failing` and pass at `control`, and code reruns it. A defect also "

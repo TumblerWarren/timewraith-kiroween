@@ -18,12 +18,10 @@
         },
         "ref": {
           "description": "signal id | path:line[-line] (source, test, doc) | invariant id | zone@ISO | issue no.",
-          "maxLength": 200,
           "title": "Ref",
           "type": "string"
         },
         "why": {
-          "maxLength": 300,
           "title": "Why",
           "type": "string"
         }

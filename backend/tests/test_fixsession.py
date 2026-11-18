@@ -108,17 +108,15 @@ def test_tests_config_manifests_and_generated_files_cannot_be_edited(ws: Path) -
             s.call("replace", {"path": path, "old": "t", "new": "u"})
 
 
-def test_submit_needs_a_change_and_short_text_and_ends_the_session(ws: Path) -> None:
+def test_submit_needs_a_change_accepts_text_of_any_length_and_ends_the_session(ws: Path) -> None:
     s = _session(ws, [])
     ev = [{"kind": "source", "ref": "src/next.ts:2", "why": "adds 1 ms"}]
     with pytest.raises(ToolError, match="not changed any file"):
         s.call("submit", {"summary": "s", "root_cause": "r", "evidence": ev})
     s.call("replace", {"path": "src/next.ts", "old": "now + 1", "new": "now + 60000"})
-    with pytest.raises(ToolError, match="Shorten"):
-        s.call("submit", {"summary": "x" * 301, "root_cause": "r", "evidence": ev})
-    # The regression test has not been run since the edit: one warning, then a second submit goes through.
+    # Long text is never turned away: the first submit only warns about the untested edit, as for short text.
     with pytest.raises(ToolError, match="has not been run since your last edit"):
-        s.call("submit", {"summary": "step a minute", "root_cause": "adds 1 ms", "evidence": ev})
+        s.call("submit", {"summary": "x" * 5000, "root_cause": "r" * 5000, "evidence": ev})
     assert "Submitted" in s.call("submit", {"summary": "step a minute", "root_cause": "adds 1 ms", "evidence": ev})
     assert s.submission and s.submission.summary == "step a minute"
     with pytest.raises(ToolError, match="Already submitted"):
