@@ -64,6 +64,7 @@ function fakeApi(inv: Investigation): Api {
     makeBranch: vi.fn(fail),
     githubPreview: vi.fn(fail),
     prepareContribution: vi.fn(fail),
+    generateDescription: vi.fn(fail),
     githubPush: vi.fn(fail),
     githubPullRequest: vi.fn(fail),
     githubUpdate: vi.fn(fail),
@@ -260,6 +261,26 @@ describe("Accepted fix branch and sharing", () => {
     expect(vi.mocked(api.githubPreview).mock.calls.length).toBeGreaterThanOrEqual(4);
   });
 
+  it("writes the title and description again from the repository's rules, and shows a failure", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(acceptedCase({ ...branch, contribution }));
+    vi.mocked(api.githubPreview).mockResolvedValue({ ...preview, contribution, duplicates: [] });
+    vi.mocked(api.generateDescription).mockResolvedValueOnce({ title: "fix: repeated hour", body: "## Description\nFrom the template.", template: ".github/pull_request_template.md" });
+    renderCase(api, "fixes");
+    await openFixTools();
+    const body = await screen.findByLabelText(FIX_SHARING.description);
+    await user.clear(body);
+    await user.paste("my own words");
+    await user.click(screen.getByRole("button", { name: FIX_SHARING.generate }));
+    expect(api.generateDescription).toHaveBeenCalledExactlyOnceWith(BASE.id, bugFixture.id);
+    await waitFor(() => expect(screen.getByLabelText(FIX_SHARING.description)).toHaveValue("## Description\nFrom the template."));
+    expect(screen.getByLabelText(FIX_SHARING.title)).toHaveValue("fix: repeated hour");
+    expect(screen.getByText(FIX_SHARING.generated(".github/pull_request_template.md"))).toBeVisible();
+    vi.mocked(api.generateDescription).mockRejectedValueOnce(new ApiError("description_failed", "backend detail"));
+    await user.click(screen.getByRole("button", { name: FIX_SHARING.generate }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(FIX_SHARING.errors.description_failed);
+    expect(screen.getByLabelText(FIX_SHARING.description)).toHaveValue("## Description\nFrom the template.");
+  });
   it("keeps push disabled when repository checks introduce a failure", async () => {
     const rejected = { ...contribution, checks: [{ ...contribution.checks[0]!, passed: false, detail: "New lint failure." }] };
     const api = fakeApi(acceptedCase({ ...branch, contribution: rejected }));

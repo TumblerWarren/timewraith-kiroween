@@ -1,5 +1,6 @@
 import type {
   Contribution,
+  GeneratedDescription,
   CreateInvestigation,
   FlowStep,
   FixBranch,
@@ -40,6 +41,7 @@ export interface Api {
   branchPatchUrl(id: string, bugId: string): string;
   githubPreview(id: string, bugId: string): Promise<GitHubPreview>;
   prepareContribution(id: string, bugId: string): Promise<Contribution>;
+  generateDescription(id: string, bugId: string): Promise<GeneratedDescription>;
   githubPush(id: string, bugId: string, confirmBranch: string, acknowledgeDuplicates: boolean): Promise<Publish>;
   githubPullRequest(id: string, bugId: string, title: string, body: string, confirmBranch: string, acknowledgeDuplicates: boolean): Promise<Publish>;
   githubUpdate(id: string, bugId: string, title: string, body: string, confirmBranch: string): Promise<Publish>;
@@ -107,6 +109,7 @@ export function createApi(base: string = import.meta.env.VITE_TW_API_BASE ?? "/a
     branchPatchUrl: (id, bugId) => `${base}${bugPath(id, bugId)}/branch.patch`,
     githubPreview: (id, bugId) => call<GitHubPreview>(`${bugPath(id, bugId)}/github`),
     prepareContribution: (id, bugId) => post<Contribution>(`${bugPath(id, bugId)}/contribution`),
+    generateDescription: (id, bugId) => post<GeneratedDescription>(`${bugPath(id, bugId)}/contribution/description`),
     githubPush: (id, bugId, confirmBranch, acknowledgeDuplicates) => post<Publish>(`${bugPath(id, bugId)}/github/push`, {
       confirm_branch: confirmBranch, acknowledge_duplicates: acknowledgeDuplicates,
     }),

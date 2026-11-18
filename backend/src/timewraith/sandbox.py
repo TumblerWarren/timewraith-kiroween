@@ -6,10 +6,12 @@ CPU, memory and process limits, and no network unless `network=True` (only for d
 
 from __future__ import annotations
 
+import contextlib
 import json
 import shlex
 import shutil
 import subprocess
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -73,11 +75,14 @@ def run(
     for rel in scratch:
         (ws / rel).mkdir(parents=True, exist_ok=True)
         extra += ["--tmpfs", f"/work/{rel}:rw,size=256m"]
+    name = f"tw-sbx-{uuid.uuid4().hex[:12]}"
     args = [
         "docker",
         "run",
         "--rm",
         "--init",
+        "--name",
+        name,
         *s.group_labels("sandbox"),
         "--network",
         "bridge" if network else "none",
@@ -118,9 +123,17 @@ def run(
             args, capture_output=True, text=True, timeout=timeout, check=False, encoding="utf-8", errors="replace"
         )
     except subprocess.TimeoutExpired as e:
+        _kill(name)
         out = e.stdout if isinstance(e.stdout, str) else ""
         return Exec(code=124, out=out[-8000:], timed_out=True)
     return Exec(code=r.returncode, out=(r.stdout + r.stderr)[-8000:])
+
+
+def _kill(name: str) -> None:
+    """Stop a sandbox container by name. Killing the `docker run` client on a timeout leaves the container
+    running, so a looping test would keep a CPU busy long after the case moved on."""
+    with contextlib.suppress(OSError, subprocess.TimeoutExpired):
+        subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=30, check=False)
 
 
 def install(s: Settings, ws: Path, caps: CapabilityReport, opts: InstallOptions | None = None) -> Exec:
@@ -220,11 +233,21 @@ def sweep(
     out.mkdir(parents=True)
     q = shlex.quote
     parts = []
+    limit = s.sweep_file_timeout_s
     for z in zones:
         safe = z.replace("/", "_")
         env = f"TZ={q(z)} TW_TZ={q(z)} TW_DIR=/work/.tw TW_SET={q(set_name)}"
-        parts.append(f"{env} {_files_cmd(caps, harness_paths)} > .tw/out/log-{safe}.txt 2>&1 || true")
-    ex = run(s, ws, caps.node_version, "; ".join(parts), network=False, timeout=s.test_timeout_s * len(zones))
+        # One runner process per harness file, side by side, each with its own time limit: a harness that loops or
+        # runs very long (a synchronous loop ignores Jest's own timeout) is killed alone and the others still report.
+        jobs = []
+        for i, path in enumerate(harness_paths):
+            log = f".tw/out/log-{safe}.{i}.txt"
+            run_one = f"timeout -k 5 {limit} {_files_cmd(caps, [path])}"
+            skip = f".tw/out/skip-{i}"  # a file that timed out is not run again in the remaining zones
+            note = f"{{ echo 'TIMEOUT: {path} exceeded {limit} s' >> {log}; touch {skip}; }}"
+            jobs.append(f"[ -e {skip} ] || ( {env} {run_one} > {log} 2>&1; [ $? -ge 124 ] && {note} ) &")
+        parts.append("\n".join(jobs) + f"\nwait; cat .tw/out/log-{safe}.*.txt > .tw/out/log-{safe}.txt 2>&1 || true")
+    ex = run(s, ws, caps.node_version, "\n".join(parts), network=False, timeout=(limit + 15) * len(zones))
     logs: dict[str, str] = {}
     for z in zones:
         p = out / f"log-{z.replace('/', '_')}.txt"

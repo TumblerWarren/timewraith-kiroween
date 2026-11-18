@@ -33,6 +33,7 @@ function fakeApi(states: SetupStatus[]): Api {
     makeBranch: vi.fn(fail),
     githubPreview: vi.fn(fail),
     prepareContribution: vi.fn(fail),
+    generateDescription: vi.fn(fail),
     githubPush: vi.fn(fail),
     githubPullRequest: vi.fn(fail),
     githubUpdate: vi.fn(fail),

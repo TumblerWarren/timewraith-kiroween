@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from timewraith import contribute
-from timewraith.models import RuleSummary
+from timewraith.models import ClockConfig, RuleSummary
 
 TEMPLATE = """## Description
 <!-- describe -->
@@ -132,3 +132,14 @@ def test_the_commit_message_is_wrapped_and_in_blocks() -> None:
     assert blocks[0] == "fix: addHour" and blocks[1] == "It moves forward."
     assert blocks[2].startswith("Cause: ") and blocks[-1] == "Related: #453"
     assert all(len(line) <= 72 for line in msg.splitlines())
+
+
+def test_the_before_check_uses_the_bugs_own_zone_before_the_ci_zone() -> None:
+    """A DST-hour bug passes in UTC; judging it there alone reports a false 'already fixed upstream'."""
+    bug = ClockConfig(instant="2026-11-01T09:00:00.000Z", time_zone="America/Los_Angeles", label="bug")
+    clocks = contribute.check_clocks(bug, "UTC")
+    assert [(c.time_zone, c.instant) for c in clocks] == [
+        ("America/Los_Angeles", "2026-11-01T09:00:00.000Z"),
+        ("UTC", "2026-11-01T09:00:00.000Z"),
+    ]
+    assert contribute.check_clocks(bug, "America/Los_Angeles") == [bug]

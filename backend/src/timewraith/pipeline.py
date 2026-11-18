@@ -294,6 +294,33 @@ class Engine:
                 self._working.discard(inv_id)
         return contribution
 
+    def generate_description(self, inv_id: str, bug_id: str) -> dict[str, str]:
+        """The pull request title and description, written again in the repository's own style: its current pull
+        request template and title convention, with the results of the last repository check. The sandbox does not
+        run and nothing is saved or sent; the page shows the text for you to edit."""
+        inv, bug = self._bug(inv_id, bug_id)
+        branch = bug.fix.branch
+        contribution = branch.contribution if branch else None
+        attempt = next((a for a in reversed(bug.fix.attempts) if a.accepted_by_gates and a.diff.strip()), None)
+        if contribution is None or attempt is None:
+            raise Stop("not_prepared", "Check the fix against the repository's rules before writing its description")
+        owner, repo = publish.upstream_of(inv)
+        try:
+            rules = contribute.read_rules(owner, repo, self.s.github_token)
+        except (OSError, ValueError) as e:
+            raise Stop("description_failed", f"The repository's pull request rules could not be read: {e}") from e
+        sources = [p for p in re.findall(r"^\+\+\+ b/(.+)$", attempt.diff, re.M) if p != contribution.test_path]
+        title, body, _ = _pr_text(
+            bug,
+            attempt,
+            rules,
+            sources,
+            [*sources, contribution.test_path],
+            contribution.test_path,
+            contribution.checks,
+        )
+        return {"title": title, "body": body, "template": rules.summary.template_path or ""}
+
     def _shape(self, inv: Investigation, bug: Bug) -> Contribution:
         caps, fm, br = inv.capabilities, inv.feature_map, bug.fix.branch
         assert caps and fm and br
@@ -310,8 +337,7 @@ class Engine:
         pinned = inv.target.revision or br.base
         tracked = [p for p in git(ws, ["ls-files", "-z"]).split("\0") if p]
         test_path = contribute.test_location(tracked, cand.unit.path, bug.title, is_test_file)
-        clock = ClockConfig(instant=bug.clock.instant, time_zone=contribute.ci_timezone(rules.scripts),
-                            label="the repository's own test zone")  # fmt: skip
+        clocks = contribute.check_clocks(bug.clock, contribute.ci_timezone(rules.scripts))
         # The install was made in Linux, so `.bin` links do not resolve on a Windows host: look for the packages.
         have = {t: (ws / "node_modules" / pkg / "package.json").exists()
                 for t, pkg in (("prettier", "prettier"), ("eslint", "eslint"), ("tsc", "typescript"))}  # fmt: skip
@@ -356,11 +382,12 @@ class Engine:
                 # 1. the new test must fail on the upstream's latest code without the fix
                 relaxed = False
                 write_test(relaxed)
-                before = sandbox.run_test_file(self.s, ws, caps, test_path, [clock])[0]
+                # in the bug's own zone: a DST-hour bug passes in UTC, which would read as "already fixed"
+                before = sandbox.run_test_file(self.s, ws, caps, test_path, clocks[:1])[0]
                 if before.outcome == "error":
                     relaxed = True
                     write_test(relaxed)
-                    before = sandbox.run_test_file(self.s, ws, caps, test_path, [clock])[0]
+                    before = sandbox.run_test_file(self.s, ws, caps, test_path, clocks[:1])[0]
                 if before.outcome == "passed":
                     raise Stop(
                         "already_fixed_upstream",
@@ -383,6 +410,8 @@ class Engine:
                 # 3. format and lint with the repository's own tools; the strict typing of the test may need relaxing
                 owned = [test_path, *(src_paths if src_formatted else [])]
                 for attempt_no in (1, 2):
+                    if have["eslint"]:
+                        _eslint_fix(ws, sh, [test_path, *src_paths], src_paths)
                     if have["prettier"]:
                         sh(f"node_modules/.bin/prettier --write {q_all(owned)}")
                     fmt = sh(f"node_modules/.bin/prettier --check {q_all(owned)}") if have["prettier"] else None
@@ -413,13 +442,14 @@ class Engine:
                     checks.append(CheckResult(name=name, command=tool, passed=res.code == 0, detail=tail(res.out),
                                               preexisting=res.code != 0 and not base_ok))  # fmt: skip
                 # 4. the tests, as the repository runs them
-                after = sandbox.run_test_file(self.s, ws, caps, test_path, [clock])[0]
+                afters = sandbox.run_test_file(self.s, ws, caps, test_path, clocks)  # bug's zone and the CI zone
+                worst = next((a for a in afters if a.outcome != "passed"), afters[0])
                 checks.append(
                     CheckResult(
                         name="The new test passes with the fix",
                         command=f"jest {test_path}",
-                        passed=after.outcome == "passed",
-                        detail=tail(after.failure or after.outcome),
+                        passed=all(a.outcome == "passed" for a in afters),
+                        detail=tail(worst.failure or worst.outcome),
                     )
                 )
                 suite = sandbox.run_suite(self.s, ws, caps)
@@ -439,49 +469,9 @@ class Engine:
                 git(ws, ["reset", "-q", "--hard", "HEAD"])
                 (ws / test_path).unlink(missing_ok=True)
         # The branch: one commit on the upstream's latest code, in the repository's own commit style.
-        title = contribute.conventional_title(bug.title, rs)
         related = [f"#{bug.issue_match['number']}"] if bug.issue_match else []
-        source_ref = next((e.ref for e in bug.evidence if e.kind == "source"), None)
-
-        def describe(level: int, with_diff: bool = True) -> str:
-            return contribute.describe(
-                level=level, summary=attempt.summary, root_cause=attempt.root_cause, diff=attempt.diff,
-                sources=src_paths, zone=bug.violation.zone, instant=bug.violation.instant,
-                local=bug.violation.local, detail=bug.violation.detail, count=bug.violation.count,
-                reproduction=(bug.reproduction or {}).get("code", ""), source_ref=source_ref,
-                checks=[(c.name, c.command, c.passed or c.preexisting) for c in checks], test_path=test_path,
-                related=related, with_diff=with_diff,
-            )  # fmt: skip
-
-        changes = [f"`{p}`: {'the fix' if p in src_paths else 'regression test'}" for p in final]
-        passed = {c.name: c.passed for c in checks}
-        verified = {
-            "bug fix": True,
-            "added tests": True,
-            "test improvement": True,
-            "rebased": True,  # the branch is one commit on the upstream tip fetched above
-            "tests pass": all(v for k, v in passed.items() if "test" in k.lower()),
-            "eslint": passed.get("ESLint (the repository's linter)", False),
-            "prettier": passed.get("Prettier (the repository's formatter)", False),
-        }
-
-        def compose(with_diff: bool) -> str:
-            if not rules.template:
-                return describe(2, with_diff) + contribute.DISCLOSURE
-            return (
-                contribute.fill_template(
-                    rules.template,
-                    description=describe(3, with_diff),
-                    changes=changes,
-                    related=related,
-                    verified=verified,
-                )
-                + contribute.DISCLOSURE
-            )
-
-        body = compose(True)
-        if len(body) > publish.MAX_BODY - 200:  # GitHub text is capped at MAX_BODY: drop the diff before the rest
-            body = compose(False)
+        title, body, trimmed = _pr_text(bug, attempt, rules, src_paths, [*src_paths, test_path], test_path, checks)
+        if trimmed:
             notes.append("The pull request text was too long to include the patch; it lists the files instead")
         git(dest, ["fetch", "-q", "--depth", "1", "origin", tip], timeout=self.s.clone_timeout_s)
         git(dest, ["checkout", "-q", "-B", br.name, tip])
@@ -2997,6 +2987,81 @@ def _edge_kind(v: Violation) -> str:
         return near
     day = v.local[8:10]
     return "month end" if day in {"01", "28", "29", "30", "31"} else "other"
+
+
+def _pr_text(
+    bug: Bug,
+    attempt: FixAttempt,
+    rules: contribute.Rules,
+    src_paths: list[str],
+    files: list[str],
+    test_path: str,
+    checks: list[CheckResult],
+) -> tuple[str, str, bool]:
+    """The pull request title and description, written the way the repository asks: its title style, its pull request
+    template when it has one (otherwise a plain description), and the disclosure. The last value says the patch was
+    left out because GitHub caps the text."""
+    rs = rules.summary
+    title = contribute.conventional_title(bug.title, rs)
+    related = [f"#{bug.issue_match['number']}"] if bug.issue_match else []
+    source_ref = next((e.ref for e in bug.evidence if e.kind == "source"), None)
+
+    def describe(level: int, with_diff: bool) -> str:
+        return contribute.describe(
+            level=level, summary=attempt.summary, root_cause=attempt.root_cause, diff=attempt.diff,
+            sources=src_paths, zone=bug.violation.zone, instant=bug.violation.instant,
+            local=bug.violation.local, detail=bug.violation.detail, count=bug.violation.count,
+            reproduction=(bug.reproduction or {}).get("code", ""), source_ref=source_ref,
+            checks=[(c.name, c.command, c.passed or c.preexisting) for c in checks], test_path=test_path,
+            related=related, with_diff=with_diff,
+        )  # fmt: skip
+
+    changes = [f"`{p}`: {'the fix' if p in src_paths else 'regression test'}" for p in files]
+    passed = {c.name: c.passed for c in checks}
+    verified = {
+        "bug fix": True,
+        "added tests": True,
+        "test improvement": True,
+        "rebased": True,  # the branch is one commit on the upstream tip
+        "tests pass": all(v for k, v in passed.items() if "test" in k.lower()),
+        "tests": True,  # last: a box that only asks for tests ("written one or more tests…"); the fix adds one
+        "eslint": passed.get("ESLint (the repository's linter)", False),
+        "prettier": passed.get("Prettier (the repository's formatter)", False),
+    }
+
+    def compose(with_diff: bool) -> str:
+        if not rules.template:
+            return describe(2, with_diff) + contribute.DISCLOSURE
+        filled = contribute.fill_template(
+            rules.template, description=describe(3, with_diff), changes=changes, related=related, verified=verified
+        )
+        return filled + contribute.DISCLOSURE
+
+    body = compose(True)
+    if len(body) > publish.MAX_BODY - 200:  # GitHub text is capped at MAX_BODY: drop the diff before the rest
+        return title, compose(False), True
+    return title, body, False
+
+
+def _eslint_fix(ws: Path, sh: Callable[[str], sandbox.Exec], paths: list[str], src_paths: list[str]) -> None:
+    """Let the repository's own ESLint settle style rules that Prettier cannot (a multi-line `if` without braces
+    under `curly`). A fixed source file is kept only when ESLint touched a few lines; anything larger would be an
+    unrelated rewrite of the maintainers' code, so the file is put back and the check reports the real error."""
+    before = {p: (ws / p).read_bytes() for p in src_paths}
+    sh(f"node_modules/.bin/eslint --fix --quiet {q_all(paths)} || true")
+    for p, old in before.items():
+        new = (ws / p).read_bytes()
+        if new == old:
+            continue
+        a, b = old.decode("utf-8", "replace").splitlines(), new.decode("utf-8", "replace").splitlines()
+        changed = sum(
+            1 for ln in difflib.unified_diff(a, b, n=0, lineterm="") if ln[:1] in "+-" and ln[:3] not in ("+++", "---")
+        )
+        if changed > _MAX_ESLINT_FIX_LINES:
+            (ws / p).write_bytes(old)
+
+
+_MAX_ESLINT_FIX_LINES = 8
 
 
 def q_all(paths: list[str]) -> str:

@@ -263,6 +263,14 @@ def prepare_contribution(inv_id: str, bug_id: str, request: Request) -> dict[str
     return engine.prepare_contribution(inv_id, bug_id).model_dump()
 
 
+@app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/contribution/description")
+def generate_description(inv_id: str, bug_id: str, request: Request) -> dict[str, str]:
+    """Write the pull request title and description again from the repository's own template and title convention.
+    Nothing is saved or sent to GitHub; the text comes back for you to review and edit."""
+    _local_action(request)
+    return engine.generate_description(inv_id, bug_id)
+
+
 @app.post("/api/v1/investigations/{inv_id}/bugs/{bug_id}/github/push")
 def github_push(inv_id: str, bug_id: str, request: Request, body: dict[str, Any]) -> dict[str, Any]:
     """Push the fix branch to your fork. Body `{"confirm_branch": "<the branch name>"}`."""

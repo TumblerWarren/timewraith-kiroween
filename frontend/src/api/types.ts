@@ -197,6 +197,14 @@ export interface Contribution {
   readonly test_path: string;
 }
 
+/** The pull request text written again in the repository's own template and title style. Not saved or sent. */
+export interface GeneratedDescription {
+  readonly title: string;
+  readonly body: string;
+  /** The repository's pull request template file, or "" when it has none. */
+  readonly template: string;
+}
+
 export interface FixBranch {
   readonly name: string;
   readonly path: string;

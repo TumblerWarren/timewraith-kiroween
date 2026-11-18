@@ -129,6 +129,12 @@ export const FIX_SHARING = {
   cancel: "Cancel",
   title: "Pull request title",
   description: "Pull request description",
+  generate: "Generate from the repository's rules",
+  generating: "Writing the description…",
+  generated: (template: string) =>
+    template
+      ? `Written in the repository's pull request template (${template}). Review it before you open the pull request.`
+      : "The repository has no pull request template, so this is a plain description. Review it before you open the pull request.",
   result: "View pull request",
   errors: {
     github_not_connected: "Connect GitHub on the Crew page first.",
@@ -150,6 +156,7 @@ export const FIX_SHARING = {
     github_logout_failed: "TimeWraith could not disconnect GitHub. Check that its container is running and try again.",
     branch_failed: "TimeWraith could not create the local fix branch. Check that the case workspace is available and try again.",
     not_prepared: "Check the fix against the repository's rules before sharing it.",
+    description_failed: "TimeWraith could not read the repository's pull request rules. Check your connection and try again.",
     checks_failed: "The fix failed one or more repository checks. Review the check results before sharing.",
     repo_archived: "This repository is archived and cannot receive pull requests.",
     duplicate_exists: "GitHub found existing pull requests for this bug. Read them and confirm before continuing.",

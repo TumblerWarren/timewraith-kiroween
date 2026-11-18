@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from . import github
-from .models import RuleSummary
+from .models import ClockConfig, RuleSummary
 
 CONTRIBUTING_PATHS = ("CONTRIBUTING.md", ".github/CONTRIBUTING.md", "docs/CONTRIBUTING.md")
 TEMPLATE_PATHS = (
@@ -111,6 +111,15 @@ def ci_timezone(scripts: dict[str, str]) -> str:
     return "UTC"
 
 
+def check_clocks(bug: ClockConfig, ci_zone: str) -> list[ClockConfig]:
+    """The clocks a regression test is run under before a pull request: first the bug's own zone and instant, where
+    it was seen to fail, then the repository's CI zone. A bug that only shows in one zone (a DST hour in
+    America/Los_Angeles) passes in UTC, so judging "is it still there upstream" in the CI zone alone gives a
+    false "already fixed"."""
+    ci = ClockConfig(instant=bug.instant, time_zone=ci_zone, label="the repository's own test zone")
+    return [bug] if ci_zone == bug.time_zone else [bug, ci]
+
+
 def test_location(tracked: list[str], source_path: str, bug_title: str, is_test: Callable[[str], bool]) -> str:
     """Where the new test goes and what it is called: next to the repository's own tests, named like them
     (`<Source>.<topic>.test.ts`), as a new file so it cannot clash with the maintainers' own edits."""
@@ -164,6 +173,7 @@ def fill_template(
     out: list[str] = []
     section = ""
     filled_desc = False
+    used_desc = False
     change_iter = iter(changes)
     for line in template.replace("\r\n", "\n").split("\n"):
         heading = re.match(r"^#{1,6}\s+(.*)$", line)
@@ -179,7 +189,7 @@ def fill_template(
             continue
         if section.startswith("description") and not filled_desc and line.strip() and not line.startswith("Fixes"):
             out.append(description)
-            filled_desc = True
+            filled_desc = used_desc = True
             continue
         if section.startswith("changes") and line.strip() in {"-", "*"}:
             nxt = next(change_iter, None)
@@ -192,6 +202,8 @@ def fill_template(
             continue  # an empty placeholder: replaced below
         out.append(line)
     text = "\n".join(out).rstrip() + "\n"
+    if not used_desc:  # a template with no Description section (only a checklist): the text goes after it
+        text += f"\n## Description\n\n{description}\n"
     if related:
         refs = "\n".join(f"- Related to {r}" for r in related)
         text = re.sub(r"(?im)^(#{1,6}\s+Related[^\n]*\n)", lambda m: m.group(1) + refs + "\n", text, count=1) \

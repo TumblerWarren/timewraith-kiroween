@@ -109,6 +109,8 @@ export function ShareFix({ branch, bugId, invId, saved, onChanged }: {
   const [checkFailed, setCheckFailed] = useState(false);
   const [acknowledged, setAcknowledged] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ preparedAt: string; title: string; body: string } | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generatedNote, setGeneratedNote] = useState<string | null>(null);
   useEffect(() => {
     if (!api) return;
     let active = true;
@@ -184,6 +186,22 @@ export function ShareFix({ branch, bugId, invId, saved, onChanged }: {
     } finally {
       setReload((value) => value + 1);
       setBusy(null);
+    }
+  }
+
+  async function generateDescription() {
+    if (!api || busy || generating) return;
+    setGenerating(true);
+    setError(null);
+    setGeneratedNote(null);
+    try {
+      const next = await api.generateDescription(invId, bugId);
+      setDraft({ preparedAt, title: next.title, body: next.body });
+      setGeneratedNote(copy.generated(next.template));
+    } catch (err) {
+      setError(err instanceof ApiError ? sharingError(err.code, err.message) : String(err));
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -297,7 +315,11 @@ export function ShareFix({ branch, bugId, invId, saved, onChanged }: {
           </div>
           <div className="field">
             <label htmlFor={`${id}-body`}>{copy.description}</label>
-            <textarea id={`${id}-body`} value={body} onChange={(event) => setDraft({ preparedAt, title, body: event.currentTarget.value })} rows={6} maxLength={8000} disabled={!!busy} />
+            <textarea id={`${id}-body`} value={body} onChange={(event) => { setGeneratedNote(null); setDraft({ preparedAt, title, body: event.currentTarget.value }); }} rows={6} maxLength={8000} disabled={!!busy || generating} />
+            <button type="button" className="btn btn--quiet" disabled={!api || !!busy || generating} onClick={() => void generateDescription()}>
+              {generating ? copy.generating : copy.generate}
+            </button>
+            {generatedNote && <p role="status" className="case-note">{generatedNote}</p>}
           </div>
           {published && <button type="submit" className="btn btn--primary" disabled={!(done ? canUpdate : canOpen) || !title.trim() || !!busy}>
             {done ? copy.update : copy.pullRequest}

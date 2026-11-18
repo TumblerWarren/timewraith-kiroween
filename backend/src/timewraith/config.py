@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     crew_backend_url: str = "http://host.docker.internal:8787"
 
     # Sandbox (Docker)
-    docker_cpus: str = "2"
+    docker_cpus: str = "4"
     docker_memory: str = "4g"
     install_timeout_s: int = 20 * 60
     install_retries: int = 3  # self-healing retries after a failed install (installfix.py)
@@ -88,6 +88,8 @@ class Settings(BaseSettings):
     max_install_commands: int = 300
     install_rounds: int = 3
     test_timeout_s: int = 180
+    # One generated harness file in the zone sweep: killed on its own after this, the other files still report.
+    sweep_file_timeout_s: int = 300
 
     def group_labels(self, service: str) -> list[str]:
         """`docker run` arguments that put a container in this app's group (the compose project labels)."""
