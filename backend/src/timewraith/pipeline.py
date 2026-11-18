@@ -3018,15 +3018,26 @@ def _pr_text(
 
     changes = [f"`{p}`: {'the fix' if p in src_paths else 'regression test'}" for p in files]
     passed = {c.name: c.passed for c in checks}
+
+    def ran_clean(prefix: str) -> bool:
+        return any(c.passed for c in checks if c.name.startswith(prefix))
+
+    eslint, prettier, tsc = ran_clean("ESLint"), ran_clean("Prettier"), ran_clean("TypeScript")
+    # A box is ticked by the first key found in its label, so the order matters.
     verified = {
         "bug fix": True,
         "added tests": True,
         "test improvement": True,
         "rebased": True,  # the branch is one commit on the upstream tip
         "tests pass": all(v for k, v in passed.items() if "test" in k.lower()),
-        "tests": True,  # last: a box that only asks for tests ("written one or more tests…"); the fix adds one
-        "eslint": passed.get("ESLint (the repository's linter)", False),
-        "prettier": passed.get("Prettier (the repository's formatter)", False),
+        "eslint": eslint,
+        "prettier": prettier,
+        # The sandbox ran `tsc --noEmit` on the repository's tsconfig: the compile `npm run build` does, minus output.
+        "typescript compilation": tsc,
+        "typescript errors": tsc,
+        "style guidelines": eslint and prettier,
+        "coding standards": eslint and prettier,
+        "tests": True,  # a box that only asks for tests ("written one or more tests…"); the fix adds one
     }
 
     def compose(with_diff: bool) -> str:

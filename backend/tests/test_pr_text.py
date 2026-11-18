@@ -38,7 +38,11 @@ def _text(rules: contribute.Rules) -> tuple[str, str, bool]:
     attempt = SimpleNamespace(
         summary="Truncate the milliseconds from the epoch.", root_cause="setMilliseconds", diff=DIFF
     )
-    checks = [CheckResult(name="ESLint (the repository's linter)", command="eslint", passed=True, detail="")]
+    checks = [
+        CheckResult(name="ESLint (the repository's linter)", command="eslint", passed=True, detail=""),
+        CheckResult(name="Prettier (the repository's formatter)", command="prettier", passed=True, detail=""),
+        CheckResult(name="TypeScript (type check)", command="tsc --noEmit", passed=True, detail=""),
+    ]
     return pipeline._pr_text(
         _bug(),
         attempt,
@@ -82,3 +86,49 @@ def test_a_checklist_only_template_still_gets_the_explanation_and_the_test_box()
     assert "- [x] Written one or more tests" in body
     assert "- [ ] Linked to an existing bug" in body  # nothing links an issue, so it stays unchecked
     assert body.index("Thanks for contributing") < body.index("Truncate the milliseconds")
+
+
+CODE_QUALITY = (
+    "## Code Quality\n"
+    "- [ ] Code follows project style guidelines\n"
+    "- [ ] ESLint checks pass (`npm run lint`)\n"
+    "- [ ] Prettier formatting applied (`npm run format`)\n"
+    "- [ ] TypeScript compilation successful (`npm run build`)\n"
+    "- [ ] No new TypeScript errors or warnings\n"
+    "- [ ] Benchmarks were run before and after changes\n"
+)
+
+
+def _checked(body: str) -> dict[str, bool]:
+    return {ln[6:].strip(): ln.startswith("- [x]") for ln in body.splitlines() if ln.startswith(("- [x]", "- [ ]"))}
+
+
+def test_code_quality_boxes_follow_the_checks_that_ran() -> None:
+    _, body, _ = _text(_rules(CODE_QUALITY, conventional=False))
+    boxes = _checked(body)
+    assert boxes["Code follows project style guidelines"]
+    assert boxes["ESLint checks pass (`npm run lint`)"]
+    assert boxes["Prettier formatting applied (`npm run format`)"]
+    assert not boxes["Benchmarks were run before and after changes"]  # nothing measured
+
+
+def test_typescript_boxes_need_the_type_check_to_have_passed() -> None:
+    eslint = CheckResult(name="ESLint (the repository's linter)", command="eslint", passed=True, detail="")
+    prettier = CheckResult(name="Prettier (the repository's formatter)", command="prettier", passed=True, detail="")
+    tsc = CheckResult(name="TypeScript (type check)", command="tsc --noEmit", passed=True, detail="")
+    attempt = SimpleNamespace(summary="Fix.", root_cause="Cause.", diff=DIFF)
+    rules = _rules(CODE_QUALITY, conventional=False)
+
+    def boxes(checks: list[CheckResult]) -> dict[str, bool]:
+        args = (_bug(), attempt, rules, ["src/parseoptions.ts"], ["src/parseoptions.ts"], "t.test.ts", checks)
+        return _checked(pipeline._pr_text(*args)[1])  # type: ignore[arg-type]
+
+    passed = boxes([eslint, prettier, tsc])
+    assert passed["TypeScript compilation successful (`npm run build`)"]
+    assert passed["No new TypeScript errors or warnings"]
+    failed = boxes([eslint, prettier, tsc.model_copy(update={"passed": False})])
+    assert not failed["TypeScript compilation successful (`npm run build`)"]
+    assert not failed["No new TypeScript errors or warnings"]
+    assert failed["Code follows project style guidelines"]  # style depends on lint and format only
+    skipped = boxes([eslint, prettier])  # a repository without TypeScript checks: nothing is claimed
+    assert not skipped["TypeScript compilation successful (`npm run build`)"]
