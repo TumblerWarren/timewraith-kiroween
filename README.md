@@ -17,6 +17,19 @@ Kiro agents propose. Plain code decides.
 
 The full flow, the agents, the tools and the gates are in [docs/agent-flow.md](docs/agent-flow.md).
 
+## Real cases
+
+Two TimeWraith runs on public repositories reached **fixed version verified**: the bug was reproduced from clean containers, a regression test fails before the fix and passes after it, and the fix passed all eight gates. Neither fix has been sent upstream yet.
+
+| Repository | Bug TimeWraith reproduced | Where it shows |
+|---|---|---|
+| [jkbrzt/rrule](https://github.com/jkbrzt/rrule) | The default `dtstart` (now) comes out one hour early during the repeated DST hour, because `setMilliseconds` re-resolves the ambiguous local hour to the earlier offset (`src/parseoptions.ts:43`) | `America/Los_Angeles`, 2026-11-01 09:00Z |
+| [harrisiirak/cron-parser](https://github.com/harrisiirak/cron-parser) | `addHour` does not advance at the Lord Howe DST end (a 30-minute fall-back), so an hourly expression loops until `LOOP_LIMIT` and throws | `Australia/Lord_Howe`, 2024-04-06 14:00Z |
+
+An open upstream pull request, cron-parser #453 by another author, fixes the same `addHour` behaviour. TimeWraith found the bug on its own and then matched it to that pull request; it does not claim the bug was unknown.
+
+Not every run finds something. On date-fns (a heavily tested monorepo) TimeWraith reported the run as inconclusive instead of clean, because three of its candidates need the `Temporal` API that Node 22 lacks. That led to the environment check and the Temporal polyfill described under Status and limits.
+
 ## Run it with Docker (one command)
 
 Requirement: Docker (Docker Desktop 4.29 or later, or Docker Engine 26 or later). Nothing else is installed on your machine.
@@ -122,6 +135,19 @@ pnpm --dir frontend verify
 
 `pnpm --dir frontend verify` runs typecheck, lint, the style guard, the unit tests (including the colour contrast test) and the build.
 
+## Asset pipeline
+
+The mascot art is generated with Codex and cleaned by scripts in `tools/art/`:
+
+```
+python tools/art/codex_gen.py --id <mascot>/<part> --subject "<what to draw>"   # generate, copy to frontend/assets/masters/, cut out
+python tools/art/cutout.py <master.png> --id <mascot>/<part>                    # trim and place on the 1024 x 1024 canvas
+python tools/art/contact_sheet.py <id> [<id> ...]                               # contact sheet on dark, light and checkerboard
+pnpm --dir frontend shots                                                       # build, then screenshots of the pages
+```
+
+The full procedure, including the magenta chroma-key fallback, is the `generate-mascot-asset` skill in `.kiro/skills/`.
+
 ## Documentation
 
 | Document | What it covers |
@@ -139,3 +165,31 @@ pnpm --dir frontend verify
 - For Python cases, Bat reads source and proposes a temporal hypothesis. After plan approval, the Crew selects dependency setup and writes pytest experiments, even for repositories without tests. Raven checks a separately written reproduction at the failing and control dates. Doctor Stitch can repair the implicated Python source and supply a standalone pytest regression. Verified fixes use the case’s existing approval, branch, and pull request flow.
 - Each investigation uses Kiro agent calls. Usage limits on the Kiro account stop agent steps, and the case says so.
 - Investigations run locally. Accepted fixes can be downloaded or explicitly prepared and shared through the optional GitHub workflow.
+- Before any experiment, a canary test checks that the repository's runner can run a generated test at all. When it cannot (for example a Vitest config that only includes files named `test.ts`), a shared runner profile is tried, then an agent repair; if nothing works the case ends early as inconclusive, with the reason.
+- When the code under test uses `Temporal` and Node lacks it, TimeWraith installs `temporal-polyfill` into `.tw/deps` (outside the repository, no install scripts) and loads it as the global. The case says so, because findings about that code then depend on the polyfill.
+- A run that could test only part of its plan says how much and why (adapter, environment or a throttled agent service). With fewer than 70% of experiments run and no bug, it is inconclusive, not clean.
+- If the Kiro account runs out of usage or its sign-in expires, the case lists the steps that did not run. After you sign in again (another account works), Continue runs only those steps in the same case.
+- Each experiment's adapter must import the code it claims to test; an adapter that tests some other function is refused.
+
+## Built with Kiro
+
+Two kinds of Kiro use: Kiro built the project, and Kiro agents are the product's runtime.
+
+- **The runtime is a Kiro Crew.** The agents (Bat Scout, Pumpkin Mechanic, Raven Archivist, Doctor Stitch, Wraith Director, and the install mechanic) run as Kiro CLI sessions in the `ghcr.io/kirodotdev/kirocrew:stable` container. They reach the case only through TimeWraith's own MCP tools (`backend/agents/tw_mcp_proxy.py`), so code decides what is accepted. Their instructions are in `backend/agents/*.md`.
+- **Specs.** `.kiro/specs/timewraith/` (requirements, design, tasks) for the product and the interface, and `.kiro/specs/backend/` for the investigation engine. On 2026-11-11 an audit against `tasks.md` found that the Version Timeline (design D21) was missing, and the reveal-honesty property test it led to caught a real leak: the case id was used as a DOM id (see [docs/kiro-usage.md](docs/kiro-usage.md)).
+- **Hooks.** Nine hooks in `.kiro/hooks/` with helpers in `scripts/hooks/`: lint and typecheck on save, the banned-style guard, Reduce Motion coverage, the asset pipeline on master save, unit tests after a task, a shell guard and a debug dump. The debug hook pinned the real hook event schema on 2026-11-10 (`docs/kiro-usage.md`). All nine are currently disabled (`"enabled": false`); turn them on in each JSON file.
+- **Skills.** Four workspace skills in `.kiro/skills/`: `generate-mascot-asset`, `add-motion-effect`, `run-landing-qa` and `write-kiro-usage-readme` (which produced this section). Their discovery by the agent was confirmed on 2026-11-10.
+- **Steering.** Nine steering files were written on 2026-11-10 (four always-on, three file-match, one auto, one manual, per `docs/kiro-usage.md`). The `.kiro/steering/` folder is empty in this repository now, so they are not part of the submission.
+
+## Hackathon category
+
+**Costume Contest** is the entered category: the hand-inked, cel-painted interface and its mascot cast (Bat Scout, Pumpkin Mechanic, Raven Archivist, Doctor Stitch, Wraith Director, Watchtower Warden). Two supporting angles are described in the text only:
+
+- **Frankenstein:** a crew of Kiro agents stitched to a Docker sandbox runner, a clock and time-zone sweep harness, a version comparator and GitHub.
+- **Resurrection:** old date-boundary bugs from public issue trackers revived as reproducible evidence. The sample scenario in the interface comes from FullCalendar #7998; it is labelled sample and is not presented as a TimeWraith finding.
+
+Notes for the Devpost entry are in [docs/devpost-notes.md](docs/devpost-notes.md).
+
+## License
+
+No license file has been chosen yet. Add one before the repository is published.
