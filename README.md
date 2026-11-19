@@ -39,6 +39,8 @@ docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 
 ```
 
 Then open <http://localhost:8787>. The page walks you through the rest: it starts the Kiro Crew and GitHub containers itself, and you sign in to Kiro once with your own account (approve a code in your browser). The image runs on `linux/amd64` and `linux/arm64`. To remove everything later: `docker rm -f timewraith` and `docker volume rm timewraith-data`.
+
+`:latest` is the stable release and changes only when a version tag such as `v0.1.1` is pushed. To try the newest commit on `main` instead, use `ghcr.io/tumblerwarren/timewraith-kiroween:main` in the same command.
 ## Run it with Docker (one command)
 
 Requirement: Docker (Docker Desktop 4.29 or later, or Docker Engine 26 or later). Nothing else is installed on your machine.
