@@ -87,7 +87,7 @@ docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 
 
 The two `--label` options make Docker Desktop show the app, the Kiro Crew, the GitHub container and the test sandboxes as one group named `timewraith`; the app passes the same label on to every container it starts. Open <http://localhost:8787>. The image runs on `linux/amd64` and `linux/arm64`. The container starts as root only to read the Docker socket and then runs the app as an unprivileged user. Anyone who can reach port 8787 can start containers on your Docker host, so keep the port on `127.0.0.1`.
 
-- **Publish to GitHub Container Registry:** push a tag such as `v0.1.0`. The workflow `.github/workflows/image.yml` builds both platforms and pushes `ghcr.io/<owner>/<repo>`.
+- **Publish to GitHub Container Registry:** push to `main` or push a tag such as `v0.1.0`, or run the workflow by hand from the Actions tab. The single workflow `.github/workflows/build.yml` verifies the frontend, then builds both platforms and pushes `ghcr.io/<owner>/<repo>`; a `v*` tag also sets `latest`.
 - **Move it to a machine without internet:** `docker save timewraith:local | gzip > timewraith.tar.gz`, then `docker load -i timewraith.tar.gz` there. The Kiro Crew image (`ghcr.io/kirodotdev/kirocrew:stable`) is still pulled on first setup.
 
 ### Everyday commands for the image
