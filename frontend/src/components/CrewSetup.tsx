@@ -73,7 +73,7 @@ export function CrewSetup() {
             <div className="crew-setup__device" role="group" aria-label={SETUP.login}>
               <p className="crew-setup__hint">{s.login.state === "failed" ? SETUP.retryLead : SETUP.methodHint}</p>
               <div className="actions">
-                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => signIn("google")}>
+                <button type="button" className={org.open ? "btn" : "btn btn--primary"} disabled={busy} onClick={() => signIn("google")}>
                   {SETUP.signInGoogle}
                 </button>
                 <button type="button" className="btn" disabled={busy} onClick={() => signIn("github")}>
@@ -82,7 +82,13 @@ export function CrewSetup() {
                 <button type="button" className="btn" disabled={busy} onClick={() => signIn("builder_id")}>
                   {SETUP.startLogin}
                 </button>
-                <button type="button" className="btn" disabled={busy} onClick={() => setOrg({ ...org, open: !org.open })}>
+                <button
+                  type="button"
+                  className={org.open ? "btn btn--primary" : "btn"}
+                  aria-pressed={org.open}
+                  disabled={busy}
+                  onClick={() => setOrg({ ...org, open: !org.open })}
+                >
                   {SETUP.signInOrganization}
                 </button>
               </div>
