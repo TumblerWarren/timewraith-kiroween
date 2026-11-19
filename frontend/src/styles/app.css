@@ -533,3 +533,17 @@
   gap: var(--space-1);
   color: var(--midnight-muted);
 }
+.crew-setup__org {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 28rem;
+  margin-top: 0.6rem;
+}
+.crew-setup__org label {
+  display: grid;
+  gap: 0.25rem;
+}
+.crew-setup__org input {
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+}

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useApi } from "../api/ApiProvider";
 import { ApiError } from "../api/client";
-import type { LoginMethod, SetupStatus } from "../api/types";
+import type { LoginMethod, OrganizationSignIn, SetupStatus } from "../api/types";
 import { sharingError } from "./status";
 
 /**
@@ -23,7 +23,7 @@ export interface Readiness {
   readonly error: string | null;
   readonly act: (name: SetupAction) => void;
   /** Start the Kiro sign-in with one method. */
-  readonly signIn: (method: LoginMethod) => void;
+  readonly signIn: (method: LoginMethod, organization?: OrganizationSignIn) => void;
 }
 
 const POLL_BUSY_MS = 3000;
@@ -123,8 +123,8 @@ export function SetupProvider({ children }: { readonly children: ReactNode }) {
   );
 
   const signIn = useCallback(
-    (method: LoginMethod) => {
-      if (api) run("login", () => api.startLogin(method));
+    (method: LoginMethod, organization?: OrganizationSignIn) => {
+      if (api) run("login", () => (organization ? api.startLogin(method, organization) : api.startLogin(method)));
     },
     [api, run],
   );

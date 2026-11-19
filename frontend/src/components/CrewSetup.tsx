@@ -18,6 +18,7 @@ export function CrewSetup() {
   const { online } = useApi();
   const { status: s, docker, crew, login, busyAction, error, act, signIn } = useReadiness();
   const [confirming, setConfirming] = useState(false);
+  const [org, setOrg] = useState<{ open: boolean; startUrl: string; region: string }>({ open: false, startUrl: "", region: "us-east-1" });
   if (!online || !s) return <p className="crew-setup__hint">The backend is offline, so the Crew cannot be set up from here.</p>;
   const busy = busyAction !== null;
 
@@ -81,7 +82,43 @@ export function CrewSetup() {
                 <button type="button" className="btn" disabled={busy} onClick={() => signIn("builder_id")}>
                   {SETUP.startLogin}
                 </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => setOrg({ ...org, open: !org.open })}>
+                  {SETUP.signInOrganization}
+                </button>
               </div>
+              {org.open ? (
+                <form
+                  className="crew-setup__org"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    signIn("organization", { startUrl: org.startUrl.trim(), region: org.region.trim() });
+                  }}
+                >
+                  <p className="crew-setup__hint">{SETUP.orgHint}</p>
+                  <label>
+                    {SETUP.orgUrlLabel}
+                    <input
+                      type="url"
+                      required
+                      value={org.startUrl}
+                      placeholder={SETUP.orgUrlPlaceholder}
+                      onChange={(e) => setOrg({ ...org, startUrl: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    {SETUP.orgRegionLabel}
+                    <input
+                      type="text"
+                      required
+                      value={org.region}
+                      onChange={(e) => setOrg({ ...org, region: e.target.value })}
+                    />
+                  </label>
+                  <button type="submit" className="btn btn--primary" disabled={busy}>
+                    {SETUP.orgContinue}
+                  </button>
+                </form>
+              ) : null}
             </div>
           ) : null}
           {login === "busy" && s.login.code ? (

@@ -39,6 +39,12 @@ export const SETUP = {
   startLogin: "Sign in with Builder ID",
   signInGoogle: "Sign in with Google",
   signInGitHub: "Sign in with GitHub",
+  signInOrganization: "Sign in with your organization",
+  orgUrlLabel: "Organization start URL",
+  orgUrlPlaceholder: "https://your-org.awsapps.com/start",
+  orgRegionLabel: "AWS region of your Identity Center",
+  orgContinue: "Continue",
+  orgHint: "For a company Kiro subscription managed in AWS IAM Identity Center. Ask your administrator for the start URL and region.",
   methodHint:
     "Pick the account whose Kiro credits the agents should use. A Google, GitHub or Builder ID sign-in can be a different Kiro account, even with the same email.",
   retryLead: "Sign-in did not finish. Choose a method to try again:",

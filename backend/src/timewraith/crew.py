@@ -33,7 +33,24 @@ NETWORK = get_settings().crew_network
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 # "Code: XQFX-WDVN" (Builder ID) and "And confirm the code: JSNZ-NGGR" (Google, GitHub)
 _CODE = re.compile(r"(?i:code):\s*([A-Z0-9]{4}-[A-Z0-9]{4})")
-LoginMethod = Literal["builder_id", "google", "github"]
+LoginMethod = Literal["builder_id", "google", "github", "organization"]
+LOGIN_METHODS = ("builder_id", "google", "github", "organization")
+# An organization signs in through AWS IAM Identity Center: its start URL and the region it lives in.
+_ORG_URL = re.compile(r"^https://[a-z0-9][a-z0-9.-]*\.(awsapps\.com|amazonaws\.com)(/[A-Za-z0-9._~/#?=&%-]*)?$")
+_ORG_REGION = re.compile(r"^[a-z]{2}(-[a-z]+)+-\d$")
+
+
+def check_organization(start_url: object, region: object) -> tuple[str, str]:
+    """The Identity Center start URL and region, or ValueError with what to fix. Both go to kiro-cli as arguments
+    and as typed answers, so only the shapes AWS issues are accepted."""
+    url, reg = str(start_url or "").strip(), str(region or "").strip()
+    if not _ORG_URL.match(url) or len(url) > 200:
+        raise ValueError("Give your organization's sign-in (start) URL, such as https://your-org.awsapps.com/start")
+    if not _ORG_REGION.match(reg):
+        raise ValueError("Give the AWS region of your Identity Center, such as us-east-1")
+    return url, reg
+
+
 # The helper that picks Google or GitHub in kiro-cli's sign-in menu (it shows the menu only in a terminal).
 LOGIN_HELPER = Path(__file__).resolve().parents[2] / "agents" / "tw_login.py"
 LOGIN_HELPER_IN_CONTAINER = "/home/kirocrew/.tw/tw_login.py"
@@ -303,7 +320,14 @@ class CrewManager:
             self._stop_container_login()
         self._signed_in = (0.0, False)
 
-    def _login_command(self, method: LoginMethod) -> list[str]:
+    def _login_command(self, method: LoginMethod, org: tuple[str, str] | None = None) -> list[str]:
+        if method == "organization":
+            assert org
+            url, region = org
+            return [
+                "docker", "exec", "-i", CONTAINER, "kiro-cli", "login", "--license", "pro",
+                "--identity-provider", url, "--region", region, "--use-device-flow",
+            ]  # fmt: skip
         if method == "builder_id":
             return ["docker", "exec", CONTAINER, "kiro-cli", "login", "--license", "free", "--use-device-flow"]
         r = subprocess.run(
@@ -316,9 +340,13 @@ class CrewManager:
             raise RuntimeError(f"Could not prepare the sign-in: {_last_line(r.stderr) or 'docker exec failed'}")
         return ["docker", "exec", CONTAINER, "python3", LOGIN_HELPER_IN_CONTAINER, method]
 
-    def start_login(self, method: LoginMethod = "builder_id", wait_s: float = 20.0) -> LoginState:
-        if method not in ("builder_id", "google", "github"):
-            raise RuntimeError("Choose Builder ID, Google or GitHub")
+    def start_login(
+        self, method: LoginMethod = "builder_id", wait_s: float = 20.0, org: tuple[str, str] | None = None
+    ) -> LoginState:
+        if method not in LOGIN_METHODS:
+            raise RuntimeError("Choose Builder ID, Google, GitHub or your organization")
+        if method == "organization" and org is None:
+            raise RuntimeError("Give your organization's start URL and region")
         if self.container_state() != "running":
             raise RuntimeError("Start Kiro Crew first")
         with self._lock:
@@ -327,11 +355,18 @@ class CrewManager:
                 return lg
             self._stop_container_login()  # a login left over from an earlier attempt would hold the old code
             proc = subprocess.Popen(
-                self._login_command(method),
+                self._login_command(method, org),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                stdin=subprocess.DEVNULL,
+                stdin=subprocess.PIPE if org else subprocess.DEVNULL,
             )
+            if org and proc.stdin:
+                # Some kiro-cli versions ask for the start URL and region even when they are given as options.
+                try:
+                    proc.stdin.write(f"{org[0]}\n{org[1]}\n".encode())
+                    proc.stdin.flush()
+                except OSError:
+                    pass
             self.login = LoginState(state="pending", started=time.monotonic(), proc=proc, method=method)
         threading.Thread(target=self._watch_login, args=(self.login,), daemon=True, name="crew-login").start()
         end = time.monotonic() + wait_s

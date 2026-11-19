@@ -129,7 +129,16 @@ describe("CrewSetup", () => {
     expect(screen.getByRole("button", { name: SETUP.startLogin })).toBeEnabled();
   });
 
-  it("deletes the Crew only after confirmation and refreshes setup", async () => {
+  it("signs in with an organization using its start URL and region", async () => {
+    const user = userEvent.setup();
+    const ready: SetupStatus = { ...base, docker: { ...base.docker, running: true }, crew: { ...base.crew, container: "running" } };
+    const api = fakeApi([ready]);
+    renderWith(api);
+    await user.click(await screen.findByRole("button", { name: SETUP.signInOrganization }));
+    await user.type(screen.getByLabelText(SETUP.orgUrlLabel), "https://my-org.awsapps.com/start");
+    await user.click(screen.getByRole("button", { name: SETUP.orgContinue }));
+    expect(api.startLogin).toHaveBeenCalledWith("organization", { startUrl: "https://my-org.awsapps.com/start", region: "us-east-1" });
+  });  it("deletes the Crew only after confirmation and refreshes setup", async () => {
     const user = userEvent.setup();
     const running: SetupStatus = { ...base, docker: { ...base.docker, running: true }, crew: { ...base.crew, container: "running", signed_in: true } };
     const removed: SetupStatus = { ...running, crew: { ...base.crew }, login: { ...base.login } };

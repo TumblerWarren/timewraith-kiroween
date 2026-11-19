@@ -9,6 +9,7 @@ import type {
   Investigation,
   InvestigationSummary,
   LoginMethod,
+  OrganizationSignIn,
   Publish,
   ReplayEventMsg,
   Retest,
@@ -51,7 +52,7 @@ export interface Api {
   setup(): Promise<SetupStatus>;
   startDocker(): Promise<SetupStatus>;
   startCrew(): Promise<SetupStatus>;
-  startLogin(method?: LoginMethod): Promise<SetupStatus>;
+  startLogin(method?: LoginMethod, organization?: OrganizationSignIn): Promise<SetupStatus>;
   cancelLogin(): Promise<SetupStatus>;
   logout(): Promise<SetupStatus>;
   deleteCrew(): Promise<SetupStatus>;
@@ -123,7 +124,11 @@ export function createApi(base: string = import.meta.env.VITE_TW_API_BASE ?? "/a
     setup: () => call<SetupStatus>("/system/setup"),
     startDocker: () => post<SetupStatus>("/system/docker/start"),
     startCrew: () => post<SetupStatus>("/system/crew/start"),
-    startLogin: (method = "builder_id") => post<SetupStatus>("/system/crew/login", { method }),
+    startLogin: (method = "builder_id", organization) =>
+    post<SetupStatus>(
+      "/system/crew/login",
+      organization ? { method, start_url: organization.startUrl, region: organization.region } : { method },
+    ),
     cancelLogin: () => post<SetupStatus>("/system/crew/login/cancel"),
     logout: () => post<SetupStatus>("/system/crew/logout"),
     deleteCrew: () => post<SetupStatus>("/system/crew/delete"),

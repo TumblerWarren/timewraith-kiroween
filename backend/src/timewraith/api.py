@@ -163,13 +163,20 @@ def system_crew_start(request: Request) -> dict[str, Any]:
 
 @app.post("/api/v1/system/crew/login")
 def system_crew_login(request: Request, body: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Start the Kiro sign-in. Body `{"method": "builder_id" | "google" | "github"}`; Builder ID when absent."""
+    """Start the Kiro sign-in. Body `{"method": "builder_id" | "google" | "github" | "organization"}`; Builder ID
+    when absent. An organization also sends `start_url` and `region` (AWS IAM Identity Center)."""
     _local_action(request)
     method = (body or {}).get("method", "builder_id")
-    if method not in ("builder_id", "google", "github"):
-        raise Stop("invalid_method", "Choose builder_id, google or github")
+    if method not in crew.LOGIN_METHODS:
+        raise Stop("invalid_method", "Choose builder_id, google, github or organization")
+    org: tuple[str, str] | None = None
+    if method == "organization":
+        try:
+            org = crew.check_organization((body or {}).get("start_url"), (body or {}).get("region"))
+        except ValueError as e:
+            raise Stop("invalid_organization", str(e)) from e
     try:
-        crew.manager.start_login(method)
+        crew.manager.start_login(method, org=org)
     except RuntimeError as e:
         raise Stop("crew_not_running", str(e)) from e
     return _setup()

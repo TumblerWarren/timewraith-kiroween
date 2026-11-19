@@ -400,7 +400,13 @@ export interface Health {
 
 /** GET /system/setup: Docker Desktop, the Kiro Crew container and the Kiro sign-in. */
 /** How the Kiro Crew container signs in to Kiro. Different methods can be different Kiro accounts, with separate credits. */
-export type LoginMethod = "builder_id" | "google" | "github";
+export type LoginMethod = "builder_id" | "google" | "github" | "organization";
+
+/** An organization signs in through AWS IAM Identity Center: its start URL and the AWS region it lives in. */
+export interface OrganizationSignIn {
+  readonly startUrl: string;
+  readonly region: string;
+}
 
 export interface GitHubSetupStatus {
   readonly container: "missing" | "stopped" | "running";
