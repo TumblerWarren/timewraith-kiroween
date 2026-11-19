@@ -1,7 +1,7 @@
 name: Build and publish
-# One workflow. The frontend is verified on every push and pull request. The Docker image (amd64 and arm64) is then
-# built and pushed to GitHub Container Registry when main is pushed, when a tag like v0.1.0 is pushed, or when
-# someone runs the workflow by hand. Pull requests verify only; they never publish.
+# One workflow. The frontend is verified on every push and pull request. The Docker image (amd64 and arm64) is built
+# and pushed to GitHub Container Registry only when someone runs this workflow by hand (Actions, Run workflow).
+# Run it on main to publish latest. Merges and tags never publish.
 on:
   push:
   pull_request:
@@ -38,10 +38,7 @@ jobs:
 
   image:
     needs: frontend
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.ref == 'refs/heads/main' ||
-      startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -58,10 +55,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=sha
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
