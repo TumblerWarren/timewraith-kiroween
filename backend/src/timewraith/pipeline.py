@@ -38,6 +38,7 @@ from . import (
     installfix,
     installsession,
     intent,
+    playbook,
     publish,
     python_adapter,
     python_crew,
@@ -1099,6 +1100,7 @@ class Engine:
             scripts=caps.scripts,
             tool_calls=self.s.max_install_calls,
             commands=self.s.max_install_commands,
+            known=playbook.advice_text("\n".join(env.attempts) + " " + " ".join(caps.scripts.values()), runner),
         )
         inv.budget.agent_calls += 1
         self._event(inv, "pumpkin-mechanic", "dispatch", "The install mechanic is repairing the test environment",
@@ -2537,7 +2539,7 @@ class Engine:
         prompt = A.prompt_install_session(
             package_manager=caps.package_manager, node=opts.node, runner=runner, tried=tried,
             log=installfix.clean(log)[-5000:], tool_calls=self.s.max_install_calls,
-            commands=self.s.max_install_commands,
+            commands=self.s.max_install_commands, known=playbook.advice_text(log, runner),
         )  # fmt: skip
         inv.budget.agent_calls += 1
         self._event(inv, "pumpkin-mechanic", "dispatch", "The install mechanic is repairing the install",

@@ -582,7 +582,15 @@ def prompt_plan(*, round_no: int, max_intents: int, ledger: str, candidates: str
 
 
 def prompt_install_session(
-    *, package_manager: str, node: str, runner: str, tried: list[str], log: str, tool_calls: int, commands: int
+    *,
+    package_manager: str,
+    node: str,
+    runner: str,
+    tried: list[str],
+    log: str,
+    tool_calls: int,
+    commands: int,
+    known: str = "",
 ) -> str:
     return "\n\n".join(
         [
@@ -599,6 +607,8 @@ def prompt_install_session(
             f"You have {tool_calls} tool calls and {commands} commands. If it cannot be done, submit_install "
             "anyway with what you found: it is reported to the user as it is.",
             f"The failing install log (end of it):\n{_data('install.log', log)}",
+            "Known setups from earlier cases. They are advice; judge whether each applies:\n"
+            + _data("known-setups", known or "(none)"),
         ]
     )
 
@@ -614,6 +624,7 @@ def prompt_environment_session(
     scripts: dict[str, str],
     tool_calls: int,
     commands: int,
+    known: str = "",
 ) -> str:
     shown = "\n".join(f"{k}: {v}" for k, v in list(scripts.items())[:25]) or "(none)"
     failures = "\n".join(attempts[-3:]) or "(nothing)"
@@ -637,6 +648,8 @@ def prompt_environment_session(
             f"done, submit_install anyway with what you found; the user sees it as written.",
             f"package.json scripts:\n{_data('scripts', shown)}",
             f"What the check said so far:\n{_data('failures', failures)}",
+            "Known setups from earlier cases. They are advice; judge whether each applies:\n"
+            + _data("known-setups", known or "(none)"),
         ]
     )
 
