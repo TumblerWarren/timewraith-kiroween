@@ -40,6 +40,8 @@ docker compose up -d --build
 
 Open <http://localhost:8787>. On the Crew setup page, sign in to Kiro once: pick Google, GitHub or Builder ID, then approve the code in your browser. The cloned repositories, the edits, the fix branches, the patches and the case database all live in the `timewraith-data` Docker volume, and the Kiro sign-in lives in `timewraith-crew-home`. `docker compose down` keeps both; `docker compose down -v` deletes them.
 
+For judging, download or clone the tagged GitHub release into a local folder and run the Compose command above from that folder. Use Docker Desktop in Linux-container mode on Windows or macOS, or Docker Engine with the Compose plugin on Linux. Sign in with your own Kiro account to run the live Crew. To try the workflow, open a case for `https://github.com/kelektiv/node-cron` on `main`, choose **Open hunt**, then approve the plan when prompted.
+
 The API has no login and listens on `127.0.0.1` only. On Linux, pass the group of the Docker socket: `DOCKER_GID=$(stat -c %g /var/run/docker.sock) docker compose up -d --build`. The settings you can override are in [.env.example](.env.example).
 
 ### Rebuild after code changes
@@ -192,4 +194,4 @@ Notes for the Devpost entry are in [docs/devpost-notes.md](docs/devpost-notes.md
 
 ## License
 
-No license file has been chosen yet. Add one before the repository is published.
+TimeWraith is available under the [MIT License](LICENSE).
