@@ -575,6 +575,44 @@ def prompt_install_session(
     )
 
 
+def prompt_environment_session(
+    *,
+    package_manager: str,
+    node: str,
+    runner: str,
+    config_path: str,
+    harness: str,
+    attempts: list[str],
+    scripts: dict[str, str],
+    tool_calls: int,
+    commands: int,
+) -> str:
+    shown = "\n".join(f"{k}: {v}" for k, v in list(scripts.items())[:25]) or "(none)"
+    failures = "\n".join(attempts[-3:]) or "(nothing)"
+    return "\n\n".join(
+        [
+            f"Task: dependencies are installed, but a trivial generated test does not run in this repository. Make "
+            f"it run. Test runner: {runner}. Package manager: {package_manager}. Node: {node}. The test is "
+            f"`{harness}`; it imports nothing from the repository. TimeWraith runs it with the clock and time zone "
+            f"controlled, and every later experiment shares the fix.",
+            f"You work like a developer who just cloned the repository. Use run_command to read the failure and fix "
+            f"the cause. Typical causes: the runner does not collect `*.tw.test.*` files (write a runner "
+            f"configuration to `{config_path}`, based on the repository's own, that also collects "
+            f"`**/__tw__/*.tw.test.*`; code passes it to the runner with --config); TypeScript or ESM transform "
+            f"setup; a build step the tests need first (a package build, generated files, a workspace package that "
+            f"must be compiled); a Node version the code needs (use_node); a missing global or setup file; a "
+            f"read-only cache folder (point it at /tmp). Files you create that git does not track stay. Edits to "
+            f"files git tracks are undone afterwards, so put configuration in `{config_path}`, not over the "
+            f"repository's own file. Never edit the source under test.",
+            f"Use check_install to run the same check code runs on submit: the generated test must be collected and "
+            f"run. Then submit_install. You have {tool_calls} tool calls and {commands} commands. If it cannot be "
+            f"done, submit_install anyway with what you found; the user sees it as written.",
+            f"package.json scripts:\n{_data('scripts', shown)}",
+            f"What the check said so far:\n{_data('failures', failures)}",
+        ]
+    )
+
+
 def prompt_design_session(
     *,
     unit: str,

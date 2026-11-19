@@ -1007,6 +1007,9 @@ class Engine:
                 self._workshop(inv, rt, canary, [self.ENV_FRAMING, *env.attempts[-1:]], t0)
                 ok = self._canary_passes(inv, canary, env)
                 env.how = f"an agent repair (round {rounds})" if ok else ""
+            if not ok and getattr(rt, "supports_sessions", False):
+                ok = self._environment_session(inv, rt, canary, env, t0)
+                env.how = "the install mechanic's shell repair" if ok else ""
             if ok:
                 self._supply_temporal(inv, designed, canary, env)
         finally:
@@ -1036,6 +1039,99 @@ class Engine:
             e.executability_reason = f"The test environment cannot run generated tests: {env.reason}"[:500]
         inv.status = "inconclusive"
         return False
+
+    def _environment_session(
+        self, inv: Investigation, rt: A.AgentRuntime, canary: Experiment, env: EnvironmentCheck, t0: float
+    ) -> bool:
+        """The last resort when the runner cannot run a generated test: the install mechanic gets a shell in the
+        install sandbox (network on, the repository writable) and works like a developer who just cloned the
+        repository: a build step, a runner configuration, a Node version. Code is the referee: the same canary
+        must run. The agent writes its runner configuration to an untracked file because changes to files git
+        tracks are undone afterwards, so the code under test stays the repository's own."""
+        caps = inv.capabilities
+        assert caps and caps.package_manager and caps.test_runner
+        if inv.budget.agent_calls >= self.s.max_agent_calls or self.s.environment_session_s <= 0:
+            return False
+        self._check(inv, t0)
+        ws, runner = self._ws(inv), caps.test_runner
+        config_path = f".tw/runner-env.{'mjs' if runner == 'vitest' else 'cjs'}"
+        session_s = int(max(300, min(self.s.environment_session_s, self._remaining(inv))))
+        prefix = (
+            "mkdir -p /tmp/bin; export PATH=/tmp/bin:$PATH; "
+            "corepack enable --install-directory /tmp/bin >/dev/null 2>&1; "
+        )
+
+        def run(node: str, command: str, timeout: int) -> installsession.CommandResult:
+            r = sandbox.run(self.s, ws, node, prefix + command, network=True, timeout=timeout)
+            return installsession.CommandResult(r.code, installfix.clean(r.out), r.timed_out)
+
+        def check(node: str) -> tuple[bool, str]:
+            caps.node_version = node
+            if (ws / config_path).is_file():
+                canary.runner_config = config_path
+            ok = self._canary_passes(inv, canary, env)
+            return ok, "a generated test is collected and runs" if ok else (
+                env.attempts[-1] if env.attempts else "no output"
+            )
+
+        session = installsession.open_session(
+            ws=ws,
+            tracked=_tracked(ws),
+            extra_readable=frozenset(),
+            node=caps.node_version,
+            on_event=lambda text, data: self._event(
+                inv, "pumpkin-mechanic", "tool", text, phase="execution", data=data
+            ),
+            deadline=time.monotonic() + session_s,
+            max_calls=self.s.max_install_calls,
+            max_commands=self.s.max_install_commands,
+            command_timeout_s=self.s.install_timeout_s,
+            run=run,
+            check=check,
+        )
+        prompt = A.prompt_environment_session(
+            package_manager=caps.package_manager,
+            node=caps.node_version,
+            runner=runner,
+            config_path=config_path,
+            harness=canary.harness_path or "",
+            attempts=env.attempts,
+            scripts=caps.scripts,
+            tool_calls=self.s.max_install_calls,
+            commands=self.s.max_install_commands,
+        )
+        inv.budget.agent_calls += 1
+        self._event(inv, "pumpkin-mechanic", "dispatch", "The install mechanic is repairing the test environment",
+                    phase="execution")  # fmt: skip
+        self.sessions.add(session)
+        try:
+            rt.run_session("install-mechanic", "environment_session", prompt, session, session_s + 120)
+        except A.AgentUnavailable as e:
+            if isinstance(e, A.AgentQuotaReached):
+                self._quota_note(inv, str(e))
+            return False
+        finally:
+            self.sessions.close(session)
+            changed = _tracked_changes(ws)
+            if changed:
+                git(ws, ["checkout", "--", "."])
+                self._event(inv, "watchtower-warden", "note",
+                            f"Undid changes to {len(changed)} tracked file(s) made while repairing the environment: "
+                            f"{', '.join(changed[:6])}", data={"files": changed})  # fmt: skip
+        use = f"{session.calls} tool calls, {len(session.log)} commands"
+        if session.submitted is None:
+            return False
+        summary, ok, detail = session.submitted
+        if ok and not self._canary_passes(inv, canary, env):  # still true once tracked edits are undone?
+            ok, detail = False, "it stopped working once edits to tracked files were undone"
+        self._decide(inv, agent="pumpkin-mechanic", step="environment_session", subject="environment", claim=summary,
+                     evidence=[], dropped=0, checks=[use, detail], decision="accepted" if ok else "rejected",
+                     rule="A generated test runs after the repair (checked by code)" if ok
+                     else "Code's check failed: a generated test still does not run", phase="execution")  # fmt: skip
+        if ok:
+            caps.node_version = session.node
+            inv.notes.append(f"Test environment repaired by the install mechanic: {summary}")
+        return ok
 
     def _supply_temporal(
         self, inv: Investigation, designed: list[Experiment], canary: Experiment, env: EnvironmentCheck

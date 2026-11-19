@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     # Before any experiment: can a generated test run here at all? Agent repair rounds if the repository's own setup and
     # the default profile both fail. If it still cannot, the case stops early and says why.
     environment_repair_rounds: int = 2
+    # When those rounds fail, the install mechanic gets a shell (build steps, config, Node) for this long.
+    environment_session_s: int = 20 * 60
     # The package that supplies Temporal. It is installed outside the repository, only when the code under test uses
     # Temporal and this Node lacks it.
     temporal_polyfill: str = "temporal-polyfill"

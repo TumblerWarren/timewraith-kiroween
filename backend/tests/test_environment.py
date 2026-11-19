@@ -219,9 +219,12 @@ def test_an_environment_that_cannot_run_a_test_ends_the_case_early_with_the_reas
     inv, exps = case()
     Canary(engine, tmp_path, works_when=lambda ex: False)
     rounds: list[int] = []
+    sessions: list[int] = []
     monkeypatch.setattr(engine, "_workshop", lambda *a: rounds.append(1) or False)
+    monkeypatch.setattr(engine, "_environment_session", lambda *a: sessions.append(1) or False)
     assert engine._environment(inv, Rt(), exps, time.monotonic()) is False  # type: ignore[arg-type]
     assert len(rounds) == engine.s.environment_repair_rounds, "bounded repair rounds, then it stops"
+    assert len(sessions) == 1, "then one shell repair by the install mechanic, then it stops"
     assert (
         inv.environment
         and inv.environment.status == "failed"
