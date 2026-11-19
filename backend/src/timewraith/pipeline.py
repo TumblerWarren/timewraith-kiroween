@@ -1133,6 +1133,33 @@ class Engine:
             inv.notes.append(f"Test environment repaired by the install mechanic: {summary}")
         return ok
 
+    def _refuted(
+        self, inv: Investigation, rt: A.AgentRuntime, cand: Candidate, vd: verifysession.Verdict, source: str
+    ) -> str | None:
+        """An independent second look at a finding about to be reported: a fresh agent, with no session history,
+        tries to refute it. Returns the reason when it can, else None. If the reviewer is unavailable or out of
+        budget the finding stands: the code-checked reproduction already passed."""
+        rep = vd.reproduction
+        if rep is None or rep.control is None:
+            return None
+        prompt = A.prompt_refute(
+            title=vd.title or cand.title,
+            claim=vd.claim,
+            reproduction=rep.code,
+            failing=f"{rep.failing.zone}@{rep.failing.instant}",
+            control=f"{rep.control.zone}@{rep.control.instant}",
+            path=cand.unit.path,
+            source=source,
+        )
+        try:
+            out = self._agent(inv, rt, "raven-archivist", "refute_finding", prompt, A.RefuteOut)
+        except A.AgentUnavailable:
+            return None
+        if not out.refuted or not out.reason.strip():
+            return None
+        _kept, _dropped = self._evidence(inv, out.evidence, points=set())
+        return out.reason.strip()[:600] if _kept else None
+
     def _supply_temporal(
         self, inv: Investigation, designed: list[Experiment], canary: Experiment, env: EnvironmentCheck
     ) -> None:
@@ -3370,6 +3397,13 @@ class Engine:
                 "process zone is local-time behaviour by design, not a defect",
                 kept,
                 dropped,
+            )
+            return None
+        source_text = (ws / cand.unit.path).read_text(encoding="utf-8", errors="ignore")
+        if reason := self._refuted(inv, rt, cand, vd, source_text):
+            (ws / reg_rel).unlink(missing_ok=True)
+            record(
+                vd.claim, checks, "rejected", f"Not reported: an independent review refuted it: {reason}", kept, dropped
             )
             return None
         title = vd.title or f"{cand.unit.name}: {v.invariant.replace('_', ' ')}"

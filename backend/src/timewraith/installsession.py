@@ -28,6 +28,7 @@ from typing import Any
 from .fixsession import READ_TOOLS, RepoReader, ToolError, _cap
 
 MAX_COMMAND_CHARS = 20_000
+MAX_SAME_FAILURE = 3
 OUTPUT_TAIL = 6000
 _NODE = re.compile(r"^\d{1,2}(\.\d{1,3}){0,2}$")  # any Node version that has an image: 14, 16, 22.11, 24
 _STR = {"type": "string"}
@@ -119,6 +120,12 @@ class InstallSession(RepoReader):
         left = self._time_left()
         if left < 30:
             raise ToolError("The time for this repair is used up; call submit_install now")
+        same = sum(1 for n, c, code in self.log if n == self.node and c == command.strip() and code != 0)
+        if same >= MAX_SAME_FAILURE:
+            raise ToolError(
+                f"This exact command has failed {same} times. Running it again will not change it: try a different "
+                f"approach, or call submit_install with what you found."
+            )
         r = self.run(self.node, command, min(self.command_timeout_s, left))
         self.log.append((self.node, command.strip(), r.code))
         head = "TIMED OUT" if r.timed_out else f"exit code {r.code}"

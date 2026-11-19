@@ -75,6 +75,12 @@ class JudgeOut(BaseModel):
     evidence: Evidences = Field(default_factory=list)
 
 
+class RefuteOut(BaseModel):
+    refuted: bool
+    reason: str
+    evidence: Evidences = Field(default_factory=list)
+
+
 class IssueMatchOut(BaseModel):
     issue_number: int | None
     reason: str
@@ -483,6 +489,28 @@ def prompt_judge(
             "search; each line is number, tab, text). If a test asserts this exact behaviour, or a doc describes it, "
             "the verdict is intended_behavior, citing it.\n"
             + _data("repository-intent", intent or "(no test or doc passage about this code and time found)"),
+        ]
+    )
+
+
+def prompt_refute(
+    *, title: str, claim: str, reproduction: str, failing: str, control: str, path: str, source: str
+) -> str:
+    return "\n\n".join(
+        [
+            "Task: you are an independent reviewer. Another agent claims the finding below is a defect. Try to "
+            "show it is not. Look for: the function reads the process-local calendar by design (getMonth, "
+            "setHours, an `in` option), so a zone-dependent result is correct; the reproduction misuses the API or "
+            "passes input the function does not promise to handle; the control differs from the failing point in "
+            "more than the suspect variable (for local-time code, a control with the same instant is not a control; "
+            "it needs the same local calendar values); the documented or tested behaviour matches the result. "
+            "Answer refuted=true only if you can name the specific reason, citing a source line. If you cannot "
+            "find one, answer refuted=false. Do not invent reasons.",
+            _data("title", title),
+            _data("claim", claim),
+            _data("reproduction", reproduction),
+            f"Failing point: {failing}\nControl point: {control}",
+            _data(path, numbered(source)),
         ]
     )
 
