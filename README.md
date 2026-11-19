@@ -30,6 +30,15 @@ An open upstream pull request, cron-parser #453 by another author, fixes the sam
 
 Not every run finds something. On date-fns (a heavily tested monorepo) TimeWraith reported the run as inconclusive instead of clean, because three of its candidates need the `Temporal` API that Node 22 lacks. That led to the environment check and the Temporal polyfill described under Status and limits.
 
+## Quick start for judges: one command, nothing to clone
+
+Requirement: Docker (Docker Desktop 4.29 or later, or Docker Engine 26 or later). Run this once:
+
+```
+docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 --label com.docker.compose.project=timewraith --label com.docker.compose.service=app -v timewraith-data:/data -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/tumblerwarren/timewraith-kiroween:latest
+```
+
+Then open <http://localhost:8787>. The page walks you through the rest: it starts the Kiro Crew and GitHub containers itself, and you sign in to Kiro once with your own account (approve a code in your browser). The image runs on `linux/amd64` and `linux/arm64`. To remove everything later: `docker rm -f timewraith` and `docker volume rm timewraith-data`.
 ## Run it with Docker (one command)
 
 Requirement: Docker (Docker Desktop 4.29 or later, or Docker Engine 26 or later). Nothing else is installed on your machine.
