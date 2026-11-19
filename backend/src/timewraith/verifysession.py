@@ -59,6 +59,8 @@ class Verdict(BaseModel):
     reproduction: Reproduction | None = None
     user_check: UserCheck | None = None
     issue_number: int | None = None
+    zone_intent: Literal["local_by_design", "zone_independent_expected", "not_applicable"] | None = None
+    zone_intent_reason: str = ""
 
 
 _STR = {"type": "string"}
@@ -119,7 +121,11 @@ VERIFY_TOOLS: list[dict[str, Any]] = [
             "needs `user_check`: {code, failing: {zone, instant}}, the same symptom through the API the package's "
             "users call (as in its README), failing in the same zone; a fix must make both pass. An "
             "adapter_error needs `reproduction` whose check passes at the violation's point. Give issue_number "
-            "only for a search result that reports this same behaviour."
+            "only for a search result that reports this same behaviour. A defect whose failing and control points "
+            "use different zones also needs `zone_intent` and `zone_intent_reason`: would a user in the failing "
+            "zone expect this result? local_by_design if the function works on the process-local calendar (so "
+            "zones legitimately differ); zone_independent_expected only if the code or docs promise the same "
+            "answer in every zone, and the reason cites that code or doc line."
         ),
         "inputSchema": {
             "type": "object",
@@ -149,6 +155,11 @@ VERIFY_TOOLS: list[dict[str, Any]] = [
                     "required": ["code", "failing"],
                 },
                 "issue_number": {"type": "integer"},
+                "zone_intent": {
+                    "type": "string",
+                    "enum": ["local_by_design", "zone_independent_expected", "not_applicable"],
+                },
+                "zone_intent_reason": _STR,
             },
             "required": ["verdict", "claim", "evidence"],
         },

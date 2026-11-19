@@ -3370,6 +3370,20 @@ class Engine:
             return "a defect needs a control point where the same check passes", []
         if "source" not in kinds:
             return "a defect must cite the responsible source lines (kind source, ref path:line) that exist", []
+        if rep.failing.zone != rep.control.zone and vd.zone_intent != "zone_independent_expected":
+            if vd.zone_intent == "local_by_design":
+                return (
+                    "you judged this function local-time by design, so a result that differs by zone is the "
+                    "intended behaviour, not a defect. Submit intended_behavior citing the repository line, or "
+                    "show a defect whose control uses the same local calendar values",
+                    [f"zone intent: local_by_design ({vd.zone_intent_reason[:200]})"],
+                )
+            return (
+                "a defect whose failing and control points use different zones needs zone_intent "
+                "zone_independent_expected with a zone_intent_reason citing the code or doc that promises the "
+                "same answer in every zone",
+                [],
+            )
         fail_ms, ctrl_ms = verifysession.point_ms(rep.failing), verifysession.point_ms(rep.control)
         v_ms = S.parse_instant(v.instant) or 0
         if rep.failing.zone != v.zone and abs(fail_ms - v_ms) > 36 * 3_600_000:

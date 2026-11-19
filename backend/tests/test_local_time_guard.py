@@ -1,3 +1,4 @@
+from timewraith import verifysession
 from timewraith.environment import local_time_by_design
 
 
@@ -20,3 +21,17 @@ def test_mixed_utc_and_local_is_not_excused() -> None:
 
 def test_plain_code_is_not_local() -> None:
     assert not local_time_by_design("return Math.floor(ms / 60000);")
+
+
+def test_verdict_accepts_zone_intent() -> None:
+    vd = verifysession.Verdict(
+        verdict="defect",
+        claim="c",
+        zone_intent="local_by_design",
+        zone_intent_reason="reads getMonth()",
+    )
+    assert vd.zone_intent == "local_by_design"
+
+
+def test_zone_intent_is_optional() -> None:
+    assert verifysession.Verdict(verdict="defect", claim="c").zone_intent is None
