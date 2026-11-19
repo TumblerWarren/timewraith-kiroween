@@ -142,7 +142,7 @@ def analyze(root: Path) -> CapabilityReport:
         else CapabilityItem(
             id="adapter.js_tests",
             status="unsupported",
-            reason="No Vitest or Jest found; the MVP runs experiments only through these runners",
+            reason=_no_runner_reason(deps, scripts),
         )
     )
 
@@ -186,6 +186,19 @@ def analyze(root: Path) -> CapabilityReport:
     items.append(CapabilityItem(id="adapter.browser", status="unsupported", reason="Browser adapter not in the MVP"))
     report.items = items
     return report
+
+
+_OTHER_RUNNERS = ("mocha", "ava", "tap", "jasmine", "uvu", "tape", "node-tap", "@playwright/test", "cypress", "bun")
+
+
+def _no_runner_reason(deps: dict[str, object], scripts: object) -> str:
+    """Why a JS repo cannot be run, naming the runner it uses instead so the message is actionable."""
+    text = " ".join(str(v) for v in scripts.values()) if isinstance(scripts, dict) else ""
+    found = [r for r in _OTHER_RUNNERS if r in deps or re.search(rf"(^|[\s;&|]){re.escape(r)}(\s|$)", text)]
+    if "node --test" in text or "node:test" in text:
+        found.append("node:test")
+    using = f"It uses {', '.join(found)}. " if found else "No test runner was found in package.json. "
+    return f"{using}TimeWraith runs experiments only through Jest or Vitest, so no experiments were planned."
 
 
 def _is_test(rel: str) -> bool:

@@ -1345,6 +1345,12 @@ class Engine:
             data={"items": [i.model_dump() for i in caps.items]},
         )
         js_unsupported = any(i.id == "language.js_ts" and i.status == "unsupported" for i in caps.items)
+        no_js_runner = any(i.id == "adapter.js_tests" and i.status == "unsupported" for i in caps.items)
+        if no_js_runner and caps.test_runner is None:
+            reason = next(i.reason for i in caps.items if i.id == "adapter.js_tests")
+            inv.notes.append(f"Not supported: {reason}")
+            self._finish(inv)
+            return
         if caps.test_runner != "pytest" and js_unsupported:
             python = any(i.id == "language.python" for i in caps.items)
             inv.notes.append(
