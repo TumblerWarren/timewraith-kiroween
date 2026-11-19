@@ -57,6 +57,8 @@ LOGIN_HELPER_IN_CONTAINER = "/home/kirocrew/.tw/tw_login.py"
 _URL = re.compile(r"https://[^\s\"'<>]+")
 # Sign-in pages kiro-cli is known to use; anything else is not shown as a link.
 _LOGIN_HOSTS = ("awsapps.com", "kiro.dev", "aws.amazon.com", "signin.aws", "amazoncognito.com")
+# The device page of AWS IAM Identity Center, for example device.sso.us-east-1.amazonaws.com.
+_IDC_DEVICE_HOST = re.compile(r"^(device\.)?sso\.[a-z0-9-]+\.amazonaws\.com$")
 
 REJECTED_MESSAGE = "Kiro rejected the saved sign-in (it expired or was revoked). Sign in again."
 LOGIN_TIMEOUT_S = 15 * 60
@@ -81,10 +83,18 @@ def parse_device_output(text: str) -> tuple[str | None, str | None]:
     url = None
     for m in _URL.finditer(clean):
         host = (urlsplit(m.group(0)).hostname or "").lower()
-        if any(host == h or host.endswith("." + h) for h in _LOGIN_HOSTS):
+        if any(host == h or host.endswith("." + h) for h in _LOGIN_HOSTS) or _IDC_DEVICE_HOST.match(host):
             url = m.group(0)
             break
     return (code_m.group(1) if code_m else None), url
+
+
+def organization_device_url(start_url: str | None, code: str | None) -> str | None:
+    """The page where an organization user approves the code, built from the start URL when kiro-cli printed no
+    trusted link: the Identity Center portal's device page, with the code filled in."""
+    if not start_url or not code:
+        return None
+    return f"{start_url.rstrip('/')}/#/device?user_code={code}"
 
 
 def _docker(args: list[str], timeout: float = 30) -> subprocess.CompletedProcess[str]:
@@ -114,6 +124,7 @@ class LoginState:
     url: str | None = None
     error: str | None = None
     method: str = "builder_id"
+    org_url: str | None = None
     started: float = 0.0
     proc: subprocess.Popen[bytes] | None = field(default=None, repr=False)
 
@@ -377,7 +388,9 @@ class CrewManager:
                     proc.stdin.flush()
                 except OSError:
                     pass
-            self.login = LoginState(state="pending", started=time.monotonic(), proc=proc, method=method)
+            self.login = LoginState(
+                state="pending", started=time.monotonic(), proc=proc, method=method, org_url=org[0] if org else None
+            )
         threading.Thread(target=self._watch_login, args=(self.login,), daemon=True, name="crew-login").start()
         end = time.monotonic() + wait_s
         while time.monotonic() < end and self.login.state == "pending" and not self.login.code:
@@ -397,6 +410,8 @@ class CrewManager:
                 buf = (buf + chunk.decode("utf-8", "replace"))[-8000:]
                 if not lg.code:
                     lg.code, lg.url = parse_device_output(buf)
+                if lg.code and not lg.url:
+                    lg.url = organization_device_url(lg.org_url, lg.code)
             rc = lg.proc.wait()
         finally:
             killer.cancel()
