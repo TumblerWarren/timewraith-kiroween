@@ -10,7 +10,7 @@ import { CaseStoreProvider } from "../../../cases/store";
 import { CasePage } from "../CasePage";
 import { RunGraph, stepStates } from "../parts";
 import { ApiError } from "../../../api/client";
-import { CASE_ADDITIONS, CASE_LIVE, CONTRIBUTION, FIX_SHARING } from "../../../content/copy";
+import { CASE_ADDITIONS, CASE_CONTINUE, CASE_LIVE, CONTRIBUTION, FIX_SHARING } from "../../../content/copy";
 import { bugFixture, caseFixture } from "./fixtures/caseAdditions";
 import type { Contribution, FixBranch, GitHubPreview, Publish, ReplayEventMsg, Retest } from "../../../api/types";
 
@@ -65,6 +65,7 @@ function fakeApi(inv: Investigation): Api {
     githubPreview: vi.fn(fail),
     prepareContribution: vi.fn(fail),
     generateDescription: vi.fn(fail),
+    continueCase: vi.fn(fail),
     githubPush: vi.fn(fail),
     githubPullRequest: vi.fn(fail),
     githubUpdate: vi.fn(fail),
@@ -562,5 +563,42 @@ describe("Case page", () => {
     expect(within(gates).getAllByRole("listitem")).toHaveLength(8);
     expect(within(gates).getByText(/1203 changed lines/)).toBeInTheDocument();
     expect(within(gates).getAllByText("Not run:")).toHaveLength(6);
+  });
+});
+
+describe("Continue after the agents stopped", () => {
+  const STOPPED: Investigation = {
+    ...BASE,
+    stage: "completed",
+    error: null,
+    unfinished: ["1 adapter repair did not start", "2 repeated violations were never judged"],
+    notes: ["Kiro usage limit reached for this account. Agent steps cannot run until the limit resets or the plan changes."],
+  };
+
+  it("offers Continue with what is left, and runs the unfinished steps when pressed", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(STOPPED);
+    vi.mocked(api.continueCase).mockResolvedValue({ ...NEXT, id: "inv-1", stage: "experimenting" });
+    renderCase(api);
+    const note = await screen.findByRole("note", { name: CASE_CONTINUE.title });
+    expect(note).toHaveTextContent("1 adapter repair did not start");
+    expect(note).toHaveTextContent("2 repeated violations were never judged");
+    await user.click(within(note).getByRole("button", { name: CASE_CONTINUE.button }));
+    expect(api.continueCase).toHaveBeenCalledExactlyOnceWith("inv-1");
+  });
+
+  it("shows the reason when the backend refuses, for example because nobody is signed in", async () => {
+    const user = userEvent.setup();
+    const api = fakeApi(STOPPED);
+    vi.mocked(api.continueCase).mockRejectedValue(new ApiError("not_signed_in", "Sign in to Kiro on the Crew page first, then continue the case"));
+    renderCase(api);
+    await user.click(await screen.findByRole("button", { name: CASE_CONTINUE.button }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Sign in to Kiro on the Crew page first");
+  });
+
+  it("is not offered when the agents left nothing undone", async () => {
+    renderCase(fakeApi({ ...BASE, stage: "completed", error: null, unfinished: [], notes: [] }));
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByRole("note", { name: CASE_CONTINUE.title })).not.toBeInTheDocument();
   });
 });

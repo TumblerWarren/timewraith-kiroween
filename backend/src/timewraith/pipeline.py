@@ -30,26 +30,47 @@ from pathlib import Path
 from typing import Any, Literal
 
 from . import agents as A
-from . import contribute, designsession, github, installfix, installsession, intent, publish, sandbox, verifysession
+from . import (
+    contribute,
+    designsession,
+    fixsession,
+    github,
+    installfix,
+    installsession,
+    intent,
+    publish,
+    python_adapter,
+    python_crew,
+    python_fix,
+    resume,
+    sandbox,
+    verifysession,
+)
+from . import (
+    environment as E,
+)
 from . import sweep as S
 from .analyze import analyze, is_test_file
 from .config import Settings
-from .discovery import build_feature_map
+from .discovery import build_feature_map, source_candidate, source_inventory
 from .fixsession import SessionRegistry
 from .ingest import IngestError, clone, git, make_target, parse_issue_url, resolve_ref, validate_ref
 from .models import (
+    ATTENTION_PREFIX,
     LADDER,
     STAGE_PHASE,
     Actor,
     Bug,
     BugCategory,
     Candidate,
+    CapabilityReport,
     CheckResult,
     ClockConfig,
     Contribution,
     CoverageRow,
     CreateInvestigation,
     DecisionRecord,
+    EnvironmentCheck,
     EventKind,
     Evidence,
     EvidenceStatus,
@@ -67,28 +88,44 @@ from .models import (
     Publish,
     ReplayEvent,
     Retest,
+    RunSummary,
     ServerClockReading,
     SweepResult,
+    TestPlan,
     Version,
     Violation,
 )
 from .planning import build_test_plan
 from .store import Store
 
-VKey = tuple[str, str, str, str]  # experiment, invariant, zone, instant
+VKey = tuple[str, str, str, str, str]  # experiment, invariant, zone, instant, failure kind
 
 PROTECTED = re.compile(
     r"(^|/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|tsconfig[^/]*\.json|\.github/.*|"
     r"(vitest|jest|vite|babel|eslint|prettier)\.config\.[^/]+|\.eslintrc[^/]*|__tw__/.*|\.tw/.*)$"
 )
+_REPAIR_PROMPT = (
+    "\nUse run_command to diagnose tests and fixture failures in a writable copy. "
+    "Use save_fixture to make a working fixture available to verification. "
+    "Use write_runner_config when available if the runner setup needs repair. "
+    "Apply verified source changes through your existing edit tools."
+)
 RUNNING = {"cloning", "analyzing", "discovering", "designing", "installing", "experimenting", "verifying", "fixing"}
 _SRC_REF = re.compile(r"^(?P<p>[^:]+):(?P<a>\d+)(?:-(?P<b>\d+))?$")
 INVARIANT_CATEGORY: dict[str, BugCategory] = {
     "local_date_matches": "midnight_rollover",
+    "calendar_contract": "other_temporal",
     "instant_zone_independent": "timezone_conversion",
     "flag_monotonic": "expiry_boundary",
+    "retry_cancelled": "other_temporal",
+    "expiry_deadline": "expiry_boundary",
     "next_after_now": "dst_transition",
 }
+
+
+def _window_hint(inv: Investigation) -> str:
+    window = inv.sweep_window
+    return f"\nCase clock window: {S.iso(window.start_ms)} to {S.iso(window.end_ms)} (exclusive)." if window else ""
 
 
 def now_iso() -> str:
@@ -110,6 +147,7 @@ class Engine:
         self._lock = threading.Lock()
         self._working: set[str] = set()
         self._publishing: set[str] = set()  # "case/bug" with a GitHub step running
+        self._repair_notes: dict[str, str] = {}  # experiment id -> why its last repair was rejected
         self._started: dict[str, float] = {}  # monotonic start of the current active stretch, per case
         self.sessions = SessionRegistry()  # live fix sessions, served by POST /internal/fix-tools/*
 
@@ -122,6 +160,7 @@ class Engine:
                 raise IngestError("issue_required", "Known issue and Blind hunt need an issue URL")
             parse_issue_url(req.issue_url, target.owner, target.repo)
         inv = Investigation(id=str(uuid.uuid4()), created_at=now_iso(), request=req, target=target)
+        inv.sweep_window = S.future_window(datetime.fromisoformat(inv.created_at))
         rt = A.make_runtime(self.s, lambda *_: None)
         inv.runtime, inv.runtime_label = rt.name, rt.label
         self.store.save(inv)
@@ -333,8 +372,27 @@ class Engine:
         rs = rules.summary
         if rs.archived:
             raise Stop("repo_archived", f"{owner}/{repo} is archived or disabled: it takes no pull requests")
-        ws, dest = self._ws(inv), Path(br.path)
+        ws = self._ws(inv)
         pinned = inv.target.revision or br.base
+        if caps.test_runner == "pytest":
+            test_path = bug.regression_test_path
+            rs.test_dir, rs.test_pattern = str(Path(test_path).parent), "test_*.py"
+            src_paths = [cand.unit.path]
+            tip, py_checks, py_files = self._check_python_contribution(
+                inv, bug, cand.unit.path, attempt, rs.default_branch
+            )
+            return self._commit_contribution(
+                inv,
+                bug,
+                attempt,
+                rules,
+                tip,
+                src_paths,
+                test_path,
+                py_files,
+                py_checks,
+                ["Python checks used the case's pinned dependencies."],
+            )
         tracked = [p for p in git(ws, ["ls-files", "-z"]).split("\0") if p]
         test_path = contribute.test_location(tracked, cand.unit.path, bug.title, is_test_file)
         clocks = contribute.check_clocks(bug.clock, contribute.ci_timezone(rules.scripts))
@@ -468,6 +526,24 @@ class Engine:
             finally:
                 git(ws, ["reset", "-q", "--hard", "HEAD"])
                 (ws / test_path).unlink(missing_ok=True)
+        return self._commit_contribution(inv, bug, attempt, rules, tip, src_paths, test_path, final, checks, notes)
+
+    def _commit_contribution(
+        self,
+        inv: Investigation,
+        bug: Bug,
+        attempt: FixAttempt,
+        rules: contribute.Rules,
+        tip: str,
+        src_paths: list[str],
+        test_path: str,
+        final: dict[str, bytes],
+        checks: list[CheckResult],
+        notes: list[str],
+    ) -> Contribution:
+        br = bug.fix.branch
+        assert br
+        dest, rs, pinned = Path(br.path), rules.summary, inv.target.revision or br.base
         # The branch: one commit on the upstream's latest code, in the repository's own commit style.
         related = [f"#{bug.issue_match['number']}"] if bug.issue_match else []
         title, body, trimmed = _pr_text(bug, attempt, rules, src_paths, [*src_paths, test_path], test_path, checks)
@@ -489,6 +565,62 @@ class Engine:
         br.files = git(dest, ["diff", "--name-only", f"{tip}..{commit}"]).split()
         return Contribution(prepared_at=now_iso(), rules=rs, base=tip, rebased=tip != pinned, notes=notes,
                             checks=checks, title=title, body=body, test_path=test_path)  # fmt: skip
+
+    def _check_python_contribution(
+        self, inv: Investigation, bug: Bug, source: str, attempt: FixAttempt, branch: str
+    ) -> tuple[str, list[CheckResult], dict[str, bytes]]:
+        ws = self._ws(inv)
+        if not bug.contribution_test:
+            raise ValueError("No portable pytest regression was verified")
+        git(ws, ["fetch", "-q", "--depth", "1", "origin", branch], timeout=self.s.clone_timeout_s)
+        tip = git(ws, ["rev-parse", "FETCH_HEAD"]).strip()
+        with python_fix.checkout(ws, tip) as work:
+            src = python_fix.safe_path(work, source)
+            test = python_fix.safe_path(work, bug.regression_test_path)
+            if test.exists() or not src.is_file():
+                raise Stop("rebase_conflict", "Upstream moved the source or already uses the regression test path")
+
+            def regression() -> str:
+                return python_fix.test_result(
+                    self, inv, work, bug, source, bug.contribution_test or "", bug.clock.instant, controlled=False
+                )
+
+            before = regression()
+            if before == "passed":
+                raise Stop("already_fixed_upstream", "The portable regression already passes on the upstream revision")
+            try:
+                git(work, ["apply", "--whitespace=nowarn", "-"], stdin=attempt.diff)
+            except IngestError as exc:
+                raise Stop("rebase_conflict", f"The Python patch no longer applies: {exc}") from exc
+            test.parent.mkdir(parents=True, exist_ok=True)
+            test.write_bytes(bug.contribution_test.encode("utf8"))
+            after = regression()
+            native = python_adapter.run(
+                self.s,
+                work,
+                bug.regression_test_path,
+                bug.clock.instant,
+                bug.clock.time_zone,
+                controlled=False,
+                environment=inv.python_environment,
+            )
+            checks = [
+                CheckResult(
+                    name="Regression test fails on upstream",
+                    command="pytest",
+                    detail=before,
+                    passed=before == "assertion_failed",
+                ),
+                CheckResult(
+                    name="Regression test passes with fix",
+                    command=f"pytest {bug.regression_test_path}",
+                    detail=native.detail or after,
+                    passed=after == "passed" and native.outcome == "passed" and native.passed == 1,
+                ),
+                python_fix.suite(self, inv, work, bug),
+                *python_fix.static_checks(self, inv, work, source),
+            ]
+            return tip, checks, {source: src.read_bytes(), bug.regression_test_path: test.read_bytes()}
 
     def _make_branch(self, inv: Investigation, bug: Bug) -> FixBranch:
         """One commit on the pinned revision, in a clone of its own: the source change the gates tested plus the
@@ -522,8 +654,14 @@ class Engine:
         (dest / bug.regression_test_path).parent.mkdir(parents=True, exist_ok=True)
         # Bytes, not write_text: on Windows write_text would turn the generated LF files into CRLF in a repository
         # that uses LF, and `git am` strips those CRs, so the patch file would not match the branch.
-        (dest / bug.regression_test_path).write_bytes(bug.regression_test.encode("utf-8"))
-        if ex and ex.adapter_path and ex.adapter_code and f"{ex.id}.adapter" in bug.regression_test:
+        (dest / bug.regression_test_path).write_bytes((bug.contribution_test or bug.regression_test).encode("utf-8"))
+        if (
+            ex
+            and ex.adapter == "js_sweep"
+            and ex.adapter_path
+            and ex.adapter_code
+            and f"{ex.id}.adapter" in bug.regression_test
+        ):
             (dest / ex.adapter_path).parent.mkdir(parents=True, exist_ok=True)
             (dest / ex.adapter_path).write_bytes(ex.adapter_code.encode("utf-8"))
             paths.append(ex.adapter_path)
@@ -623,6 +761,125 @@ class Engine:
             raise Stop("not_found", "Investigation not found")
         return inv
 
+    # ---------- continuing a case whose agents stopped ----------
+    def unfinished(self, inv: Investigation) -> list[str]:
+        """What the agents left undone in a finished case, in words. Empty while it runs or when nothing is left."""
+        if inv.stage not in {"completed", "failed"} or inv.id in self._working:
+            return []
+        return resume.describe(resume.find_gaps(inv))
+
+    def continue_case(self, inv_id: str) -> Investigation:
+        """Run again the agent steps that could not run (the Kiro account was out of usage, its sign-in expired, the
+        service was throttled), in the same case, with the account that is signed in now. Whatever finished stays."""
+        from .crew import manager as crew_manager
+
+        inv = self._get(inv_id)
+        if inv_id in self._working or inv.stage not in {"completed", "failed"}:
+            raise Stop("busy", "Wait for the case to stop before continuing it")
+        gaps = resume.find_gaps(inv)
+        if not gaps.any:
+            raise Stop("nothing_to_continue", "The agents left nothing unfinished in this case")
+        if not crew_manager.signed_in(fresh=True):
+            raise Stop("not_signed_in", "Sign in to Kiro on the Crew page first, then continue the case")
+        ok, why = sandbox.docker_available()
+        if not ok:
+            raise Stop("sandbox_unavailable", f"Execution not run: {why}")
+        if not (self._ws(inv) / ".git").exists():
+            raise Stop("workspace_missing", "This case's checkout is gone, so it cannot continue. Open the case again.")
+        self._cancel.discard(inv_id)
+        self._event(inv, "watchtower-warden", "stage", "Continuing: " + "; ".join(resume.describe(gaps)),
+                    data={"continue": True})  # fmt: skip
+        self._forget_stop(inv, gaps)
+        inv.stage, inv.error = "experimenting", None
+        self.store.save(inv)
+        self._start(inv_id, lambda i: self._continue_run(i, gaps))
+        return inv
+
+    def _forget_stop(self, inv: Investigation, gaps: resume.Gaps) -> None:
+        """Put the case back to where the agents stopped: the notes about the stop go (the run writes new ones if the
+        problem is still there), and the steps that did not run become runnable again. The record of what happened
+        stays in the decisions."""
+        stale = (ATTENTION_PREFIX, "Inconclusive:", "No anomaly observed")
+        inv.notes = [n for n in inv.notes if not (n.startswith(stale) or resume.STOPPED.search(n))]
+        exps = {e.id: e for e in inv.test_plan.experiments} if inv.test_plan else {}
+        for eid in gaps.repair:
+            ex = exps[eid]
+            ex.status, ex.failure_kind, ex.executability_reason = "designed", None, None
+        for bug in inv.bugs:
+            if bug.id in gaps.fix:
+                bug.fix.state, bug.fix.label = "not-started", ""
+        if inv.status == "inconclusive":
+            inv.status = "observed-anomaly" if any(s.violations for s in inv.sweeps) else "planned"
+
+    def _continue_run(self, inv: Investigation, gaps: resume.Gaps) -> None:
+        t0 = time.monotonic()
+        rt = self._runtime(inv)
+        caps, plan = inv.capabilities, inv.test_plan
+        assert caps and plan and caps.package_manager
+        ws = self._ws(inv)
+        baseline_keys: set[VKey] = set()
+        for sweep in inv.sweeps:
+            baseline_keys |= _keys(sweep.experiment_id, sweep.violations)
+        by_id = {e.id: e for e in plan.experiments}
+
+        # 1 experiments the agent never got to design, then every experiment whose adapter still needs its repair
+        for eid in gaps.design:
+            self._check(inv, t0)
+            self._design(inv, rt, by_id[eid], feedback=None)
+        todo = [by_id[i] for i in [*gaps.design, *gaps.repair] if by_id[i].status == "designed"]
+        valid: list[Experiment] = []
+        if todo:
+            if not (ws / "node_modules").exists():
+                self._stage(inv, "installing", "Installing dependencies in an isolated container")
+                self._install(inv, rt, t0)
+            self._stage(inv, "experimenting", "Checking the adapters the agents did not get to")
+            env = inv.environment
+            if env is None or env.status != "ok":
+                if not self._environment(inv, rt, todo, t0):
+                    self._run_health(inv)
+                    self._finish(inv)
+                    return
+            elif env.runner_config:  # the profile found earlier is shared by the experiments that come back
+                for e in todo:
+                    e.runner_config = e.runner_config or env.runner_config
+            self._validate(inv, rt, todo, t0)
+            valid = [e for e in todo if e.status == "designed"]
+            if valid:
+                self._stage(inv, "verifying", "Sweeping, then repeating violations from clean containers")
+                self._sweep_and_verify(inv, rt, valid, baseline_keys)
+
+        # 2 violations nobody judged, in experiments that were swept before the agents stopped
+        pending = {i: resume.unjudged(inv, by_id[i]) for i in gaps.judge}
+        if any(pending.values()):
+            self._stage(inv, "verifying", "Raven is judging the violations that were left unjudged")
+            need = self.s.verify_session_s + 180
+            for eid, violations in pending.items():
+                for violation in violations:
+                    if inv.budget.agent_calls + 1 >= self.s.max_agent_calls or not self._preflight(
+                        inv, need, "judging the violations that were left"
+                    ):
+                        break
+                    bug = self._verify(inv, rt, by_id[eid], violation)
+                    if bug:
+                        inv.bugs.append(bug)
+                    self.store.save(inv)
+
+        # 3 the planner's next round, then the fixes that were not attempted
+        swept = [e for e in plan.experiments if e.status == "swept"]
+        if gaps.planner or valid:
+            first = 1 + max((i.round for i in inv.intents), default=0)
+            self._plan_rounds(inv, rt, swept, baseline_keys, t0, first)
+        inv.coverage = self._ledger(inv)
+        self.store.save(inv)
+        owed = [b for b in inv.bugs if b.fix.state == "not-started"]
+        if owed:
+            self._fix_bugs(inv, rt, owed[: self.s.max_bugs_to_fix], swept, baseline_keys, t0)
+        if not inv.bugs and not inv.intended and not any(r.violations for r in inv.sweeps):
+            self._report_no_anomaly(inv)
+        self._run_health(inv)
+        self._reveal(inv, rt)
+        self._finish(inv)
+
     def _start(self, inv_id: str, fn: object) -> None:
         with self._lock:
             self._working.add(inv_id)
@@ -669,6 +926,219 @@ class Engine:
         """Seconds left of the case's time budget, counting the stretch that is running now."""
         running = time.monotonic() - self._started.get(inv.id, time.monotonic())
         return self.s.investigation_budget_s - inv.budget.active_seconds - running
+
+    @staticmethod
+    def _unrun_reasons(exps: list[Experiment], limit: int = 3) -> str:
+        """Why experiments could not run, most common first, short enough to read in a note."""
+        counts: dict[str, int] = {}
+        for e in exps:
+            if e.status == "adapter_invalid" and e.executability_reason:
+                first = next((ln.strip() for ln in e.executability_reason.splitlines() if ln.strip()), "")
+                key = re.sub(r"\s+", " ", first.split(";")[0])[:110]
+                counts[key] = counts.get(key, 0) + 1
+        top = sorted(counts.items(), key=lambda kv: -kv[1])[:limit]
+        return "Reasons: " + "; ".join(f"{why} (x{n})" for why, n in top) + "." if top else ""
+
+    def _report_no_anomaly(self, inv: Investigation) -> None:
+        """A case with no violations says how much it actually tested. Finding nothing after most experiments failed to
+        run says nothing about the repository, so that case is inconclusive, not clean."""
+        exps = inv.test_plan.experiments if inv.test_plan else []
+        tried = [e for e in exps if e.status in {"swept", "adapter_invalid", "not_run"}]
+        ran = [e for e in tried if e.status == "swept"]
+        if tried and len(ran) / len(tried) < self.s.min_experiments_ran:
+            inv.status = "inconclusive"
+            text = (
+                f"Inconclusive: only {len(ran)} of {len(tried)} experiments could run, so finding nothing proves "
+                f"{self._unrun_reasons(tried)} Run the case again after the cause is fixed."
+            )
+        else:
+            text = f"No anomaly observed: {len(ran)} of {len(tried)} experiments ran and none found a violation."
+            if len(ran) < len(tried):
+                text += f" {len(tried) - len(ran)} could not run. {self._unrun_reasons(tried)}"
+        inv.notes.append(text.strip())
+        self._event(inv, "raven-archivist", "note", text.strip(), phase="verification")
+
+    ENV_FRAMING = (
+        "This is the environment canary, not a real experiment: its adapter imports nothing from the repository. It "
+        "fails because the test runner here does not collect or run a generated test file at all, so every experiment "
+        "would fail the same way. Fix the runner setup, not the adapter: read the repository's runner configuration to "
+        "see why the harness is not collected, and write a configuration that collects every generated file matching "
+        "**/__tw__/*.tw.test.* (write_runner_config for Vitest). Experiments will share what you write."
+    )
+
+    def _canary_passes(self, inv: Investigation, canary: Experiment, env: EnvironmentCheck) -> bool:
+        outputs, errors = self._sweep(inv, [canary], ["UTC"], "baseline")[canary.id]
+        problems = S.baseline_problems(outputs, canary.fields) + errors[:2]
+        if problems or not outputs.get("UTC"):
+            env.attempts.append(re.sub(r"\s+", " ", "; ".join(problems))[:400] or "the canary produced no output")
+            return False
+        env.node, env.missing_globals = E.facts_from(outputs)
+        return True
+
+    def _environment(self, inv: Investigation, rt: A.AgentRuntime, designed: list[Experiment], t0: float) -> bool:
+        """Can a generated test run in this repository at all? Found once, with a canary, before any experiment is
+        judged: what stops one experiment (the runner does not collect the harness, a read-only folder) stops them all,
+        so it is fixed once and the fix is shared. Order: the repository's own setup, a default profile, then an agent
+        that reads the repository's runner configuration. If none works the case ends here, with the reason, instead of
+        spending its budget on experiments that cannot run."""
+        caps = inv.capabilities
+        assert caps
+        env = inv.environment = EnvironmentCheck()
+        if caps.test_runner not in {"vitest", "jest"} or not designed or not designed[0].adapter_path:
+            env.status = "skipped"
+            return True
+        ws, first = self._ws(inv), designed[0]
+        adapter = Path(first.adapter_path or "")
+        canary = E.canary_experiment(first.candidate_id, adapter.parent.as_posix(), adapter.suffix or ".js")
+        E.write_canary(ws, canary, S.harness_code(canary.id, caps.test_runner), S.baseline_points(inv.sweep_window))
+        self._event(inv, "watchtower-warden", "step", "Checking that a generated test can run in this repository",
+                    phase="execution")  # fmt: skip
+        try:
+            ok = self._canary_passes(inv, canary, env)
+            env.how = "the repository's own setup" if ok else ""
+            if not ok and caps.test_runner == "vitest":
+                canary.runner_config = E.write_default_profile(ws)
+                ok = self._canary_passes(inv, canary, env)
+                env.how = "the default runner profile" if ok else ""
+            rounds = 0
+            while not ok and getattr(rt, "supports_sessions", False) and rounds < self.s.environment_repair_rounds:
+                rounds += 1
+                self._check(inv, t0)
+                self._workshop(inv, rt, canary, [self.ENV_FRAMING, *env.attempts[-1:]], t0)
+                ok = self._canary_passes(inv, canary, env)
+                env.how = f"an agent repair (round {rounds})" if ok else ""
+            if ok:
+                self._supply_temporal(inv, designed, canary, env)
+        finally:
+            E.remove_canary(ws, canary)
+        if ok:
+            env.status, env.runner_config = "ok", canary.runner_config
+            env.polyfills = E.installed_polyfills(ws)
+            if env.runner_config:  # the profile every experiment shares, unless the agent chose its own for one
+                for e in designed:
+                    e.runner_config = e.runner_config or env.runner_config
+            self._decide(inv, agent="watchtower-warden", step="environment_check", subject="environment",
+                         claim="Generated tests can run in this repository", evidence=[],
+                         dropped=0, checks=[f"works through {env.how}", *(f"Node {env.node}" for _ in [0] if env.node),
+                                            *(f"missing globals: {', '.join(env.missing_globals)}"
+                                              for _ in [0] if env.missing_globals)],
+                         decision="accepted", rule="A canary harness is collected and runs",
+                         phase="execution")  # fmt: skip
+            return True
+        env.status, env.reason = "failed", env.attempts[-1] if env.attempts else "the canary did not run"
+        self._decide(inv, agent="watchtower-warden", step="environment_check", subject="environment",
+                     claim="Generated tests can run in this repository", evidence=[], dropped=0,
+                     checks=env.attempts[-3:], decision="rejected",
+                     rule="No generated test can run here, so no experiment would be a fair test",
+                     phase="execution")  # fmt: skip
+        for e in designed:
+            e.status, e.failure_kind = "not_run", "environment"
+            e.executability_reason = f"The test environment cannot run generated tests: {env.reason}"[:500]
+        inv.status = "inconclusive"
+        return False
+
+    def _supply_temporal(
+        self, inv: Investigation, designed: list[Experiment], canary: Experiment, env: EnvironmentCheck
+    ) -> None:
+        """Node 22 has no Temporal. When the code under test uses it, a test of that code cannot even build its input,
+        so TimeWraith supplies it: a polyfill installed in `.tw/deps` (never in the repository, no scripts run) and
+        loaded as the global in every test of the case. The canary runs again to prove it works, and the case says
+        that Temporal here is a polyfill. If anything fails the case goes on without it and says why."""
+        caps, fm = inv.capabilities, inv.feature_map
+        assert caps
+        ws = self._ws(inv)
+        if E.POLYFILL_GLOBAL not in env.missing_globals or env.polyfills or not fm:
+            return
+        units = [c.unit.path for e in designed for c in fm.candidates if c.id == e.candidate_id]
+        if not E.uses_global(ws, units):
+            return
+        package = self.s.temporal_polyfill
+        name = E.package_name(package)
+        self._event(inv, "watchtower-warden", "step", f"Supplying Temporal from {package}: this Node has none",
+                    phase="execution")  # fmt: skip
+        result = sandbox.install_polyfill(self.s, ws, caps.node_version, package)
+        version = E.installed_version(ws, name) if result.code == 0 else None
+        if version is None:
+            env.attempts.append(f"Could not install {package}: {re.sub(r'\s+', ' ', result.out)[-200:]}")
+            return
+        E.write_preload(ws, name)
+        if self._canary_passes(inv, canary, env) and E.POLYFILL_GLOBAL not in env.missing_globals:
+            env.provided = [f"{E.POLYFILL_GLOBAL} from {name} {version}"]
+            note = (
+                f"Environment: this Node ({env.node}) has no Temporal, so TimeWraith supplied it from {name} "
+                f"{version}, installed outside the repository. Results about code that uses Temporal depend on it."
+            )
+            inv.notes.append(note)
+            self._event(inv, "watchtower-warden", "note", note, phase="execution", data={"provided": env.provided})
+            return
+        (ws / sandbox.PRELOAD).unlink(missing_ok=True)  # it did not work: run as before, with the global missing
+        env.attempts.append(f"{name} {version} was installed but Temporal did not become available; not used")
+        self._canary_passes(inv, canary, env)
+
+    def _run_health(self, inv: Investigation) -> None:
+        """Say plainly when a finished run had problems. A case can complete with no error and still have tested little:
+        experiments that could not run, or an agent service that refused requests. Findings from what did run may be
+        incomplete, and a case with no bug is not clean when most of its experiments never ran."""
+        exps = inv.test_plan.experiments if inv.test_plan else []
+        tried = [e for e in exps if e.status in {"swept", "adapter_invalid", "not_run"}]
+        ran = [e for e in tried if e.status == "swept"]
+        problems: list[str] = []
+        by_cause = {"adapter": 0, "environment": 0, "throttled": 0}
+        for e in tried:
+            if e.status != "swept":
+                by_cause[e.failure_kind or "adapter"] += 1
+        inv.run_summary = RunSummary(
+            experiments=len(tried),
+            ran=len(ran),
+            repairs_rejected=sum(1 for d in inv.decisions if d.step == "repair_adapter" and d.decision == "rejected"),
+            environment_check=inv.environment.status if inv.environment else "skipped",
+            **by_cause,
+        )
+        env = inv.environment
+        if env is not None and env.status == "failed":
+            problems.append(f"No generated test could run in this repository: {env.reason}. No experiment was run.")
+        elif tried and len(ran) < len(tried):
+            causes = ", ".join(f"{n} {k}" for k, n in by_cause.items() if n)
+            problems.append(
+                f"{len(tried) - len(ran)} of {len(tried)} experiments could not run ({causes}). "
+                f"{self._unrun_reasons(tried)}"
+            )
+        refused = sum(
+            1
+            for d in inv.decisions
+            if d.step == "repair_adapter"
+            and d.decision == "not_run"
+            and any("agent was unavailable" in c for c in d.checks)
+        )
+        if refused:
+            problems.append(
+                f"The agent service refused {refused} repair request(s), usually because it is throttled; "
+                "run the case again later."
+            )
+        if problems and not any(n.startswith(ATTENTION_PREFIX) for n in inv.notes):
+            inv.notes.append(
+                ATTENTION_PREFIX + " ".join(problems).strip() + " Results from what did run may be incomplete."
+            )
+            self._event(inv, "watchtower-warden", "note", inv.notes[-1], phase="verification", data={"attention": True})
+        if not inv.bugs and tried and len(ran) / len(tried) < self.s.min_experiments_ran:
+            inv.status = "inconclusive"
+
+    def _unit_problems(self, inv: Investigation, ex: Experiment) -> list[str]:
+        """An adapter has to run the code it says it tests. One that passes its baseline by testing some other function
+        would put its findings under the wrong candidate."""
+        fm = inv.feature_map
+        cand = next((c for c in fm.candidates if c.id == ex.candidate_id), None) if fm else None
+        if cand is None or ex.id == E.CANARY_ID or not ex.adapter_path or not ex.adapter_code:
+            return []
+        return E.unit_problem(self._ws(inv), ex.adapter_path, ex.adapter_code, cand.unit.path)
+
+    def _repair_skipped(self, inv: Investigation, ex: Experiment, why: str) -> None:
+        """A repair that could not start is on the record: otherwise the experiment just ends up invalid."""
+        if E.is_throttled(why):
+            ex.failure_kind = "throttled"
+        self._decide(inv, agent="pumpkin-mechanic", step="repair_adapter", subject=ex.id, claim=ex.claim or "",
+                     evidence=[], dropped=0, checks=[f"Repair not started: {why}"], decision="not_run",
+                     rule="The baseline check decides on the adapter as it stands", phase="execution")  # fmt: skip
 
     def _preflight(self, inv: Investigation, need_s: float, what: str) -> bool:
         """Start a step only if the time left covers it. Otherwise the case wraps up: it says once what was not
@@ -738,11 +1208,29 @@ class Engine:
         if inv.budget.agent_calls >= self.s.max_agent_calls:
             raise A.AgentUnavailable("Agent call budget reached")
         inv.budget.agent_calls += 1
-        try:
-            return rt.call(agent, step, prompt, schema)
-        except A.AgentQuotaReached as e:
-            self._quota_note(inv, str(e))
-            raise
+        waits = list(self.s.throttle_waits_s)
+        while True:
+            try:
+                return rt.call(agent, step, prompt, schema)
+            except A.AgentQuotaReached as e:
+                self._quota_note(inv, str(e))
+                raise
+            except A.AgentUnavailable as e:
+                if not waits or not E.is_throttled(str(e)):
+                    raise
+                self._wait(inv, waits.pop(0), f"{agent} {step}")
+
+    def _wait(self, inv: Investigation, seconds: int, what: str) -> None:
+        """The agent service said it is busy: wait, then ask again. A throttle is not a failed attempt, and the wait
+        stays in view of the case page, which shows it as the latest activity."""
+        self._event(
+            inv, "watchtower-warden", "note", f"The agent service is busy; waiting {seconds}s before {what} tries again"
+        )
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            if inv.id in self._cancel:
+                raise Stop("cancelled", "Cancelled by the user")
+            time.sleep(min(1.0, max(0.0, end - time.monotonic())))
 
     def _quota_note(self, inv: Investigation, message: str = A.QUOTA_MESSAGE) -> None:
         """Say once, plainly, that the agents stopped because the Kiro account is out of usage."""
@@ -856,8 +1344,14 @@ class Engine:
             "Capability report ready",
             data={"items": [i.model_dump() for i in caps.items]},
         )
-        if any(i.id == "language.js_ts" and i.status == "unsupported" for i in caps.items):
-            inv.notes.append("Repository language is not supported in this version; no experiments planned")
+        js_unsupported = any(i.id == "language.js_ts" and i.status == "unsupported" for i in caps.items)
+        if caps.test_runner != "pytest" and js_unsupported:
+            python = any(i.id == "language.python" for i in caps.items)
+            inv.notes.append(
+                "Python detected; no pytest files found"
+                if python
+                else "Repository language is not supported in this version; no experiments planned"
+            )
             self._finish(inv)
             return
 
@@ -878,36 +1372,49 @@ class Engine:
             )
 
         # 2 Discovery
-        self._stage(inv, "discovering", "Searching the source for time-sensitive code")
-        fm = build_feature_map(ws, self.s.max_parse_bytes, hints)
-        inv.feature_map = fm
-        self._event(
-            inv,
-            "bat-scout",
-            "explore",
-            f"{len(fm.signals)} time signals in {len({s.path for s in fm.signals})} files; "
-            f"{len(fm.candidates)} candidates (not proven bugs)",
-            data={"top": [{"id": c.id, "title": c.title, "score": c.score} for c in fm.candidates[:10]]},
-        )
-        self._check(inv, t0)
-        self._review(inv, rt)
-
-        # 3 Experiment design
-        self._stage(inv, "designing", "Designing controlled-clock experiments")
-        inv.test_plan = plan = build_test_plan(fm.candidates, caps, self.s.max_experiment_candidates)
-        for ex in plan.experiments:
+        if caps.test_runner == "pytest":
+            self._stage(inv, "discovering", "Bat is reading Python source for temporal behavior")
+            try:
+                python_crew.plan_case(self, inv, rt)
+            except A.AgentUnavailable as exc:
+                inv.notes.append(str(exc))
+            if not inv.test_plan or not inv.test_plan.experiments:
+                inv.status = "inconclusive"
+                inv.notes.append("No source-based Python experiment was proposed")
+                self._finish(inv)
+                return
+        else:
+            self._stage(inv, "discovering", "Searching the source for time-sensitive code")
+            fm = build_feature_map(ws, self.s.max_parse_bytes, hints)
+            inv.feature_map = fm
+            self._event(
+                inv,
+                "bat-scout",
+                "explore",
+                f"{len(fm.signals)} time signals in {len({s.path for s in fm.signals})} files; "
+                f"{len(fm.candidates)} candidates (not proven bugs); "
+                f"{fm.skipped.get('test_files', 0)} test files recognised and left out as targets",
+                data={"top": [{"id": c.id, "title": c.title, "score": c.score} for c in fm.candidates[:10]]},
+            )
             self._check(inv, t0)
-            if ex.executability != "not_controllable":
-                self._design(inv, rt, ex, feedback=None)
-        designed = [e for e in plan.experiments if e.status == "designed"]
-        self._event(
-            inv,
-            "pumpkin-mechanic",
-            "plan",
-            f"{len(designed)} of {len(plan.experiments)} experiments designed; "
-            f"{sum(e.point_count for e in designed)} clock points planned (planned, not run)",
-            data={"designed": len(designed)},
-        )
+            self._review(inv, rt)
+
+            # 3 Experiment design
+            self._stage(inv, "designing", "Designing controlled-clock experiments")
+            inv.test_plan = plan = build_test_plan(fm.candidates, caps, self.s.max_experiment_candidates)
+            for ex in plan.experiments:
+                self._check(inv, t0)
+                if ex.executability != "not_controllable":
+                    self._design(inv, rt, ex, feedback=None)
+            designed = [e for e in plan.experiments if e.status == "designed"]
+            self._event(
+                inv,
+                "pumpkin-mechanic",
+                "plan",
+                f"{len(designed)} of {len(plan.experiments)} experiments designed; "
+                f"{sum(e.point_count for e in designed)} clock points planned (planned, not run)",
+                data={"designed": len(designed)},
+            )
         if req.auto:
             self._phase_two(inv, t0)
         else:
@@ -939,8 +1446,23 @@ class Engine:
             }
             for c in top
         ]
+        ws = self._ws(inv)
+        paths = source_inventory(ws, self.s.max_parse_bytes)
+        focus = A._data("case focus", inv.request.area or "")
+        if inv.request.mode == "known-issue":
+            focus += A._data("reported behavior", (self.s.artifacts / inv.id / "issue.txt").read_text("utf8")[:5000])
+        prompt = (
+            A.prompt_review(payload) + "\nSelect inspect_paths from the source inventory to investigate "
+            "calendar behavior the scanner may have missed. You may select files even when candidates is empty. "
+            f"The candidates shown are the top {len(top)} of {len(fm.candidates)} by a keyword score, which is only a "
+            "hint: prefer the code whose behaviour matters most to callers, and use inspect_paths to reach what the "
+            f"score ranked lower. {fm.skipped.get('test_files', 0)} test files were recognised and left out; they are "
+            "evidence of intended behaviour, never the code under test."
+            + A._data("source inventory", "\n".join(paths))
+            + focus
+        )
         try:
-            out = self._agent(inv, rt, "bat-scout", "review_candidates", A.prompt_review(payload), A.ReviewOut)
+            out = self._agent(inv, rt, "bat-scout", "review_candidates", prompt, A.ReviewOut)
         except A.AgentUnavailable as e:
             for cand in top:
                 if cand.score >= 3:
@@ -1006,6 +1528,76 @@ class Engine:
                 rule="Kept for an experiment" if item.keep else "Dropped by Bat Scout",
             )
 
+        selected = [p for p in dict.fromkeys(out.inspect_paths) if p in paths]
+        if selected:
+            self._inspect_js_sources(inv, rt, selected, focus)
+
+    def _inspect_js_sources(self, inv: Investigation, rt: A.AgentRuntime, paths: list[str], context: str) -> None:
+        fm = inv.feature_map
+        assert fm
+        sources = {p: (self._ws(inv) / p).read_text("utf8", errors="replace").splitlines() for p in paths}
+        excerpts = {p: "\n".join(lines)[:10000].splitlines() for p, lines in sources.items()}
+        prompt = (
+            "For each new calendar or timekeeping hypothesis, cite the file, line, and exact code from "
+            "the supplied numbered passages. Explain the expected behavior. Return an empty list if none. "
+            "Order leads by priority for testing.\n"
+            + context
+            + "\n".join(A._data(p, A.numbered("\n".join(lines))) for p, lines in excerpts.items())
+        )
+        try:
+            result = self._agent(inv, rt, "bat-scout", "inspect_js_sources", prompt, A.SourceLeads)
+        except A.AgentUnavailable as exc:
+            self._event(inv, "bat-scout", "note", f"Source inspection stopped: {exc}")
+            return
+        prioritized: list[Candidate] = []
+        for lead in result.items:
+            lines = sources.get(lead.path, [])
+            quote = lead.quote.strip()
+            visible = excerpts.get(lead.path, [])
+            if (
+                lead.line > len(visible)
+                or not quote
+                or quote not in visible[lead.line - 1]
+                or not lead.hypothesis.strip()
+                or not lead.expectation.strip()
+            ):
+                self._decide(
+                    inv,
+                    agent="bat-scout",
+                    step="inspect_js_sources",
+                    subject=lead.path,
+                    claim=lead.hypothesis,
+                    evidence=[],
+                    dropped=1,
+                    checks=[],
+                    decision="rejected",
+                    rule="Unresolved source lead",
+                )
+                continue
+            claim = f"{lead.hypothesis.strip()} Expected behavior: {lead.expectation.strip()}"
+            candidate = source_candidate(lead.path, lines, lead.line, claim, lead.category)
+            if any(c.id == candidate.id for c in prioritized):
+                continue
+            match = next((c for c in fm.candidates if c.id == candidate.id), None)
+            if match:
+                candidate = match
+                candidate.selected, candidate.rationale = True, claim
+                fm.candidates.remove(candidate)
+            prioritized.append(candidate)
+            self._decide(
+                inv,
+                agent="bat-scout",
+                step="inspect_js_sources",
+                subject=candidate.id,
+                claim=claim,
+                evidence=[Evidence(kind="source", ref=f"{lead.path}:{lead.line}", why=quote)],
+                dropped=0,
+                checks=["Quote matched the inspected source line"],
+                decision="accepted",
+                rule="Selected by Bat for experiment design",
+            )
+        fm.candidates[:0] = prioritized
+
     def _design(
         self, inv: Investigation, rt: A.AgentRuntime, ex: Experiment, feedback: str | None, focus: str | None = None
     ) -> None:
@@ -1022,6 +1614,12 @@ class Engine:
         issue = None
         if inv.request.mode == "known-issue":
             issue = (self.s.artifacts / inv.id / "issue.txt").read_text(encoding="utf-8")
+        tracked = git(ws, ["ls-files", "-z"]).split("\0")
+        name = _expectation_subject(c)
+        snippets = intent.find(ws, tracked, name, c.unit.path, "UTC")
+        expectations = {
+            f"{sn.path}:{sn.start}-{sn.end}": sn for sn in snippets if re.search(rf"\b{re.escape(name)}\b", sn.text)
+        }
         try:
             out = self._agent(
                 inv,
@@ -1035,9 +1633,10 @@ class Engine:
                     runner=caps.test_runner,
                     adapter_path=adapter_rel,
                     import_path=f"../{src.stem}",
-                    catalog=S.catalog_text(),
+                    catalog=S.catalog_text() + _window_hint(inv),
                     claim=c.rationale,
                     issue=issue,
+                    expectations="\n\n".join(sn.render() for sn in expectations.values()),
                     feedback=feedback,
                     focus=focus,
                 ),
@@ -1063,11 +1662,21 @@ class Engine:
         checks = [f"{len(kept)} evidence item(s) resolved, {dropped} removed"]
         invs, inv_checks = _derive_invariants(out.invariants, out.fields, out.adapter_code)
         checks += inv_checks
+        for rule in invs:
+            if rule.expectation_ref and rule.expectation_ref not in expectations:
+                checks.append(f"Dropped unrecognized expectation citation for {rule.id}")
+                rule.expectation_ref = None
+            if rule.id == "expiry_deadline" and rule.expired_at_deadline is not None and not rule.expectation_ref:
+                rule.expired_at_deadline = None
+                checks.append("Expiry at the exact deadline left unspecified: no verified expectation citation")
+        invs = [rule for rule in invs if rule.id != "calendar_contract" or rule.expectation_ref]
         anchors = []
         for a in out.anchors:
             ms = S.parse_instant(a)
             if ms is None:
                 checks.append(f"dropped anchor {a[:40]!r}: not an ISO instant with offset in 2000-2100")
+            elif inv.sweep_window and not inv.sweep_window.contains(ms):
+                checks.append(f"Dropped anchor {a!r} outside the case window")
             else:
                 anchors.append(ms)
         if not re.search(r"\brun\b", out.adapter_code):
@@ -1094,11 +1703,22 @@ class Engine:
         (ws / folder).mkdir(parents=True, exist_ok=True)
         (ws / adapter_rel).write_text(adapter_code, encoding="utf-8")
         (ws / harness_rel).write_text(S.harness_code(ex.id, caps.test_runner), encoding="utf-8")
-        points = S.build_points(anchors)
+        points = S.build_points(anchors, inv.sweep_window)
+        if "expiry_trace" in out.fields and inv.sweep_window:
+            points = {z: [t for t in times if t + 1001 < inv.sweep_window.end_ms] for z, times in points.items()}
+        if "clock_jumps" in out.fields and inv.sweep_window:
+            points = {z: [t for t in times if S.clock_jump_fits(inv.sweep_window, t)] for z, times in points.items()}
+        if set(out.fields) <= {"after_cancel", "timeout_trace", "interval_trace", "expiry_trace", "clock_jumps"}:
+            # Replay elapsed-time scenarios at representative dates in each zone.
+            baselines = S.baseline_points(inv.sweep_window)
+            for zone, times in points.items():
+                selected = {times[0], times[len(times) // 2], times[-1]}
+                selected.update(set(times).intersection([*anchors, *baselines.get(zone, [])]))
+                points[zone] = sorted(selected)
         tw = ws / ".tw"
         tw.mkdir(exist_ok=True)
         (tw / f"points-{ex.id}.json").write_text(json.dumps(points), encoding="utf-8")
-        (tw / f"baseline-{ex.id}.json").write_text(json.dumps(S.baseline_points()), encoding="utf-8")
+        (tw / f"baseline-{ex.id}.json").write_text(json.dumps(S.baseline_points(inv.sweep_window)), encoding="utf-8")
         ex.status, ex.claim, ex.fields, ex.invariants = "designed", out.claim, out.fields, invs
         ex.anchors = [S.iso(a) for a in anchors]
         ex.zones, ex.point_count = list(points), sum(len(v) for v in points.values())
@@ -1129,7 +1749,16 @@ class Engine:
         caps = inv.capabilities
         assert caps
         ws = self._ws(inv)
-        logs = sandbox.sweep(self.s, ws, caps, [e.harness_path or "" for e in exps], zones, set_name)
+        configs = {e.harness_path: e.runner_config for e in exps if e.harness_path and e.runner_config}
+        logs = sandbox.sweep(
+            self.s,
+            ws,
+            caps,
+            [e.harness_path or "" for e in exps],
+            zones,
+            set_name,
+            **({"runner_configs": configs} if configs else {}),
+        )
         result: dict[str, tuple[S.Outputs, list[str]]] = {}
         for e in exps:
             outputs: S.Outputs = {}
@@ -1139,9 +1768,56 @@ class Engine:
                 try:
                     outputs[z] = json.loads(f.read_text(encoding="utf-8"))
                 except OSError, ValueError:
-                    errors.append(f"{z}: no harness output. {logs.get(z, '')[-300:]}".strip())
+                    diagnostic = logs.get(f"{z}:{e.harness_path}", logs.get(z, ""))
+                    diagnostic = re.sub(r"\x1b\[[0-9;]*m", "", diagnostic)
+                    errors.append(f"{z}: no harness output. {diagnostic[:2000]}".strip())
             result[e.id] = (outputs, errors)
         return result
+
+    def _run_python(self, inv: Investigation, rt: A.AgentRuntime, plan: TestPlan, t0: float) -> None:
+        self._stage(inv, "installing", "Preparing the isolated Python 3.14 pytest worker")
+        self._check(inv, t0)
+        image = sandbox.prepare_pytest(self.s.install_timeout_s)
+        if image.code:
+            raise Stop("sandbox_unavailable", f"Could not prepare the pytest worker: {image.out[-500:]}")
+        self._stage(inv, "experimenting", "Running repository pytest assertions at the planned clocks")
+        for ex in plan.experiments:
+            sweep = SweepResult(experiment_id=ex.id, points_run=0, zones=[])
+            inv.sweeps.append(sweep)
+            assert ex.harness_path
+            for zone in ex.zones:
+                for instant in ex.anchors:
+                    self._check(inv, t0)
+                    result = python_adapter.run(self.s, self._ws(inv), ex.harness_path, instant, zone)
+                    sweep.pytest_results.append(result)
+                    if result.outcome in {"failed", "passed"}:
+                        sweep.points_run += 1
+                        if zone not in sweep.zones:
+                            sweep.zones.append(zone)
+                    if result.outcome == "failed":
+                        self._raise_status(inv, "observed-anomaly")
+                    if result.outcome in {"blocked", "skipped"}:
+                        sweep.errors.append(f"{zone} {instant}: {result.outcome}")
+                    self._event(
+                        inv,
+                        "spider-weaver",
+                        "step",
+                        f"{ex.harness_path}: {result.outcome} at {instant} in {zone}",
+                        data={"experiment_id": ex.id, "outcome": result.outcome},
+                    )
+                    self.store.save(inv)
+            ex.status = "swept" if sweep.points_run else "not_run"
+        results = [r for sweep in inv.sweeps for r in sweep.pytest_results]
+        completed = sum(r.outcome in {"passed", "failed"} for r in results)
+        failed = sum(r.outcome == "failed" for r in results)
+        if not failed and completed < len(results):
+            inv.status = "inconclusive"
+        inv.notes.append(
+            f"Python pytest executed {completed} of {len(results)} clock conditions. "
+            f"{failed} had failing tests. Python failures require independent review."
+        )
+        self._reveal(inv, rt)
+        self._finish(inv)
 
     def _phase_two(self, inv: Investigation, t0: float | None = None) -> None:
         t0 = t0 or time.monotonic()
@@ -1149,28 +1825,67 @@ class Engine:
         caps, plan = inv.capabilities, inv.test_plan
         assert caps and plan
         designed = [e for e in plan.experiments if e.status == "designed"]
-        if not designed:
+        python_plan = caps.test_runner == "pytest" and any(e.adapter == "python_crew" for e in plan.experiments)
+        if not designed and not python_plan:
             inv.notes.append("No experiments were designed, so nothing ran (Kiro agent runtime required)")
             self._finish(inv)
             return
         ok, why = sandbox.docker_available()
         if not ok:
             raise Stop("sandbox_unavailable", f"Execution not run: {why}")
+        if caps.test_runner == "pytest":
+            if python_plan:
+                try:
+                    python_crew.execute(self, inv, rt, t0)
+                    if inv.bugs:
+                        self._stage(inv, "fixing", "Doctor Stitch is preparing Python fixes")
+                    for index, bug in enumerate(inv.bugs):
+                        if index >= self.s.max_bugs_to_fix:
+                            bug.fix = Fix(state="skipped", label="Fix budget reached")
+                            continue
+                        ex = next(e for e in plan.experiments if e.id == bug.experiment_id)
+                        try:
+                            python_fix.fix(self, inv, rt, bug, ex, t0)
+                        except Stop as exc:
+                            if exc.code != "budget_time":
+                                raise
+                            for pending in inv.bugs[index:]:
+                                pending.fix.state, pending.fix.label = "skipped", "Fix time budget reached"
+                            break
+                        except (A.AgentUnavailable, OSError, ValueError, IngestError) as exc:
+                            bug.fix.state, bug.fix.label = "no-safe-fix", f"Python fix incomplete: {exc}"
+                        self.store.save(inv)
+                except A.AgentUnavailable as exc:
+                    inv.notes.append(str(exc))
+                if inv.status == "planned":
+                    inv.status = "inconclusive"
+                self._reveal(inv, rt)
+                self._finish(inv)
+            else:
+                self._run_python(inv, rt, plan, t0)
+            return
         if not caps.package_manager:
             inv.notes.append("Execution not run: no lockfile, so the install is not reproducible")
             self._finish(inv)
             return
-        ws = self._ws(inv)
-
         # 4 Controlled execution
         self._stage(inv, "installing", "Installing dependencies in an isolated container")
         self._install(inv, rt, t0)
         self._check(inv, t0)
-        self._stage(inv, "experimenting", "Checking adapters, then sweeping clock points in 13 time zones")
+        self._stage(
+            inv, "experimenting", "Checking the test environment, then the adapters, then sweeping clock points"
+        )
+        if not self._environment(inv, rt, designed, t0):
+            self._run_health(inv)
+            self._finish(inv)
+            return
         self._validate(inv, rt, designed, t0)
         valid = [e for e in designed if e.status == "designed"]
         if not valid:
-            inv.notes.append("No adapter ran cleanly at baseline; no sweep was run")
+            inv.status = "inconclusive"
+            why = self._unrun_reasons(designed)
+            inv.notes.append(f"Inconclusive: no experiment ran cleanly at baseline, so no sweep was run. {why}")
+            self._run_health(inv)
             self._finish(inv)
             return
         baseline_keys: set[VKey] = set()
@@ -1183,25 +1898,7 @@ class Engine:
 
         # Follow-on: Fix
         if inv.bugs:
-            self._stage(inv, "fixing", "Doctor Stitch is preparing fixes; every fix must pass eight gates")
-            base_suite = sandbox.run_suite(self.s, ws, caps)
-            base_static = sandbox.static_checks(self.s, ws, caps)
-            try:
-                for bug in inv.bugs[: self.s.max_bugs_to_fix]:
-                    self._check(inv, t0)
-                    self._fix(inv, rt, bug, valid, base_suite, base_static, baseline_keys, t0)
-                    self.store.save(inv)
-            except Stop as e:
-                # Running out of time while fixing keeps the case: the bugs and their regression tests stand.
-                if e.code != "budget_time":
-                    raise
-                self._clean_tree(ws)
-                for b in inv.bugs:
-                    if b.fix.state in {"not-started", "in-progress"}:
-                        b.fix.state = "no-safe-fix" if b.fix.attempts else "skipped"
-                        b.fix.label = "Fix not finished: time budget reached"
-                inv.notes.append("The time budget ran out during the fix step; the reproduced bugs are kept")
-                self._event(inv, "watchtower-warden", "note", "Time budget reached during the fix step", phase="fix")
+            self._fix_bugs(inv, rt, inv.bugs[: self.s.max_bugs_to_fix], valid, baseline_keys, t0)
             for bug in inv.bugs[self.s.max_bugs_to_fix :]:
                 bug.fix.state, bug.fix.label = "skipped", "Fix not attempted: fix budget reached"
         elif inv.intended:
@@ -1210,18 +1907,60 @@ class Engine:
             inv.notes.append(text)
             self._event(inv, "raven-archivist", "note", text, phase="verification")
         elif not any(r.violations for r in inv.sweeps):
-            inv.notes.append("No anomaly observed in tested cases")
-            self._event(inv, "raven-archivist", "note", "No anomaly observed in tested cases", phase="verification")
+            self._report_no_anomaly(inv)
+        self._run_health(inv)
         self._reveal(inv, rt)
         self._finish(inv)
+
+    def _fix_bugs(
+        self,
+        inv: Investigation,
+        rt: A.AgentRuntime,
+        bugs: list[Bug],
+        valid: list[Experiment],
+        baseline_keys: set[VKey],
+        t0: float,
+    ) -> None:
+        """Doctor Stitch works on each bug in turn. Running out of time keeps the case: the bugs and their regression
+        tests stand, and the ones not reached say so."""
+        caps = inv.capabilities
+        assert caps
+        ws = self._ws(inv)
+        self._stage(inv, "fixing", "Doctor Stitch is preparing fixes; every fix must pass eight gates")
+        base_suite = sandbox.run_suite(self.s, ws, caps)
+        base_static = sandbox.static_checks(self.s, ws, caps)
+        try:
+            for bug in bugs:
+                self._check(inv, t0)
+                self._fix(inv, rt, bug, valid, base_suite, base_static, baseline_keys, t0)
+                self.store.save(inv)
+        except Stop as e:
+            if e.code != "budget_time":
+                raise
+            self._clean_tree(ws)
+            for b in inv.bugs:
+                if b.fix.state in {"not-started", "in-progress"}:
+                    b.fix.state = "no-safe-fix" if b.fix.attempts else "skipped"
+                    b.fix.label = "Fix not finished: time budget reached"
+            inv.notes.append("The time budget ran out during the fix step; the reproduced bugs are kept")
+            self._event(inv, "watchtower-warden", "note", "Time budget reached during the fix step", phase="fix")
 
     def _sweep_and_verify(
         self, inv: Investigation, rt: A.AgentRuntime, exps: list[Experiment], baseline_keys: set[VKey]
     ) -> None:
-        """Sweep the experiments in every zone, record violations, and verify the first one of each experiment.
+        """Sweep the experiments in every zone, record violations, and review representatives of each failure kind.
         `baseline_keys` collects every violation seen, for the no_new_anomalies gate."""
         valid = exps
         full = self._sweep(inv, valid, S.SWEEP_ZONES)
+        if getattr(rt, "supports_sessions", False):
+            t0 = self._started.get(inv.id, time.monotonic())
+            for e in valid:
+                _, errors = full[e.id]
+                if not errors:
+                    continue
+                if self._workshop(inv, rt, e, errors[:4], t0):
+                    self._check(inv, t0)
+                    full[e.id] = self._sweep(inv, [e], S.SWEEP_ZONES)[e.id]
         new: list[SweepResult] = []
         for e in valid:
             outputs, errors = full[e.id]
@@ -1257,15 +1996,29 @@ class Engine:
         self.store.save(inv)
         # 5 Independent bug verification, for the violations of this round
         need = (self.s.verify_session_s if getattr(rt, "supports_sessions", False) else 120) + 180
-        for res in new:
-            if not res.violations:
-                continue
-            if not self._preflight(inv, need, "verification of the remaining violations"):
-                break
-            ex = next(e for e in valid if e.id == res.experiment_id)
-            bug = self._verify(inv, rt, ex, res.violations[0])
-            if bug:
-                inv.bugs.append(bug)
+        queues = []
+        for ex, res in zip(valid, new, strict=True):
+            groups: dict[tuple[str, str], Violation] = {}
+            for violation in res.violations:
+                groups.setdefault((violation.invariant, violation.failure_kind), violation)
+            res.pending_review = len(groups)
+            queues.append((ex, res, list(groups.values())))
+        self.store.save(inv)
+        # Review one group from each experiment before starting its next group.
+        for index in range(max((len(group) for _, _, group in queues), default=0)):
+            for ex, res, group in queues:
+                if index >= len(group):
+                    continue
+                reserve_calls = 2 if inv.bugs else 0
+                reserve_seconds = self.s.fix_session_s + 600 if inv.bugs else 0
+                if inv.budget.agent_calls + reserve_calls >= self.s.max_agent_calls or not self._preflight(
+                    inv, need + reserve_seconds, "verification of the remaining failure groups"
+                ):
+                    return
+                bug = self._verify(inv, rt, ex, group[index])
+                if bug:
+                    inv.bugs.append(bug)
+                res.pending_review = len(group) - index - 1
                 self.store.save(inv)
 
     # ---------- the planner loop: Wraith Director and the coverage ledger ----------
@@ -1281,8 +2034,14 @@ class Engine:
         for c in fm.candidates[: self.s.max_review_candidates]:
             mine = [e for e in exps if e.candidate_id == c.id]
             edges, outcomes = [], []
+            incomplete = False
             for e in mine:
                 res = sweeps.get(e.id)
+                if res and (res.errors or res.points_run == 0 or res.points_run < e.point_count):
+                    incomplete = True
+                    outcomes.append(f"Partial coverage: {res.points_run} of {e.point_count} clock points recorded")
+                if res and res.pending_review:
+                    outcomes.append(f"Awaiting verification: {res.pending_review} failure group(s)")
                 for v in res.violations if res else []:
                     edges.append(f"{v.invariant} @ {v.zone} ({_edge_kind(v)})")
                 outcomes += [f"bug: {b.title}" for b in inv.bugs if b.experiment_id == e.id]
@@ -1291,11 +2050,13 @@ class Engine:
                 if judged and not any(b.experiment_id == e.id for b in inv.bugs):
                     outcomes.append(judged[-1].rule[:120])
             statuses = {e.status for e in mine}
-            status: Literal["not_selected", "not_designed", "adapter_invalid", "clean", "violations"]
+            status: Literal["not_selected", "not_designed", "adapter_invalid", "partial", "clean", "violations"]
             if not mine:
                 status = "not_selected"
             elif edges:
                 status = "violations"
+            elif incomplete:
+                status = "partial"
             elif "swept" in statuses:
                 status = "clean"
             elif "adapter_invalid" in statuses:
@@ -1317,7 +2078,13 @@ class Engine:
         return rows
 
     def _plan_rounds(
-        self, inv: Investigation, rt: A.AgentRuntime, valid: list[Experiment], baseline_keys: set[VKey], t0: float
+        self,
+        inv: Investigation,
+        rt: A.AgentRuntime,
+        valid: list[Experiment],
+        baseline_keys: set[VKey],
+        t0: float,
+        first_round: int = 1,
     ) -> None:
         """Wraith Director reads the ledger and proposes new directions; code designs, checks, sweeps and verifies
         them, and the loop goes on until he finds no new direction, or the rounds or the time budget run out."""
@@ -1325,7 +2092,7 @@ class Engine:
         if not fm or not plan:
             return
         known = {c.id: c for c in fm.candidates[: self.s.max_review_candidates]}
-        for rnd in range(1, self.s.max_plan_rounds + 1):
+        for rnd in range(first_round, self.s.max_plan_rounds + 1):
             self._check(inv, t0)
             # Leave room for one more design, sweep and verification, and for the fix step if there are bugs.
             reserve = 600 + self.s.verify_session_s + (self.s.fix_session_s + 600 if inv.bugs else 0)
@@ -1338,6 +2105,10 @@ class Engine:
                 "bugs": [{"title": b.title, "rule": b.invariant, "at": f"{b.clock.time_zone}@{b.clock.instant}"}
                          for b in inv.bugs],
                 "intended": [f.title for f in inv.intended],
+                "tested_inputs_and_checks": [
+                    {"candidate_id": e.candidate_id, "claim": e.claim, "rules": [i.id for i in e.invariants]}
+                    for e in plan.experiments if e.status == "swept"
+                ],
                 "previous_intents": [{"candidate_id": i.candidate_id, "focus": i.focus, "status": i.status}
                                      for i in inv.intents],
             }  # fmt: skip
@@ -1348,8 +2119,8 @@ class Engine:
                 max_intents=self.s.max_intents_per_round,
                 ledger=json.dumps([r.model_dump() for r in inv.coverage], indent=1)[:12000],
                 candidates=json.dumps(cands, indent=1)[:6000],
-                findings=json.dumps(findings, indent=1)[:4000],
-                catalog=S.catalog_text(),
+                findings=json.dumps(findings, indent=1)[:10000],
+                catalog=S.catalog_text() + _window_hint(inv),
             )
             try:
                 out = self._agent(inv, rt, "wraith-director", "plan_round", prompt, A.PlanOut)
@@ -1447,7 +2218,10 @@ class Engine:
             raise Stop("not_found", "Bug not found")
         caps = inv.capabilities
         ws = self._ws(inv)
-        if not caps or not (ws / bug.regression_test_path).is_file():
+        experiments = inv.test_plan.experiments if inv.test_plan else []
+        ex = next((e for e in experiments if e.id == bug.experiment_id), None)
+        python_ex = ex if ex and ex.adapter == "python_crew" else None
+        if not caps or not ws.is_dir() or (not python_ex and not (ws / bug.regression_test_path).is_file()):
             raise Stop("workspace_missing", "The case's workspace or regression test is no longer there")
         ok, why = sandbox.docker_available()
         if not ok:
@@ -1461,8 +2235,27 @@ class Engine:
             rev = git(ws, ["rev-parse", "FETCH_HEAD"]).strip()
             changed = git(ws, ["diff", "--name-only", "HEAD", "FETCH_HEAD"]).split()
             git(ws, ["checkout", "-q", "FETCH_HEAD", "--", "."])
-            runs = [sandbox.run_test_file(self.s, ws, caps, bug.regression_test_path, [bug.clock])[0]
-                    for _ in range(self.s.repeat_runs)]  # fmt: skip
+            if python_ex and python_ex.adapter_path:
+                runs = []
+                for _ in range(self.s.repeat_runs):
+                    result = python_adapter.run(
+                        self.s,
+                        ws,
+                        python_ex.adapter_path,
+                        bug.clock.instant,
+                        bug.clock.time_zone,
+                        code=bug.regression_test,
+                        environment=inv.python_environment,
+                    )
+                    outcome_name = python_crew.behavioral_outcome(result)
+                    runs.append(sandbox.TestOutcome(outcome_name, result.detail, set(), result.passed + result.failed))
+            else:
+                runs = [
+                    sandbox.run_test_file(
+                        self.s, ws, caps, bug.regression_test_path, [bug.clock], **_runner_options(ex)
+                    )[0]
+                    for _ in range(self.s.repeat_runs)
+                ]
         finally:
             try:
                 git(ws, ["reset", "-q", "--hard", "HEAD"])  # back to the pinned commit; untracked files stay
@@ -1514,6 +2307,8 @@ class Engine:
                 if r.timed_out or attempt == self.s.install_retries:
                     break
                 self._check(inv, t0)
+                if getattr(rt, "supports_sessions", False):
+                    break  # Send the original failure to the mechanic's shell.
                 pick = self._install_action(inv, opts, log)
                 if pick is None:
                     break
@@ -1670,7 +2465,8 @@ class Engine:
     def _validate(self, inv: Investigation, rt: A.AgentRuntime, exps: list[Experiment], t0: float) -> None:
         """An adapter must run cleanly at ordinary instants; otherwise violations could be adapter mistakes."""
         checked: set[str] = set()
-        for attempt in (1, 2):
+        rounds = max(1, self.s.adapter_repair_rounds)
+        for attempt in range(1, rounds + 2):  # the last pass only decides: keep, drop the broken rules, or reject
             pending = [e for e in exps if e.status == "designed" and e.id not in checked]
             if not pending:
                 return
@@ -1679,6 +2475,38 @@ class Engine:
             for e in pending:
                 outputs, errors = results[e.id]
                 other, rules = self._baseline_issues(outputs, errors, e)
+                other = [*self._unit_problems(inv, e), *other]
+                supported = [i for i in e.invariants if i.id in rules and i.expectation_ref]
+                if supported and not other:
+                    # Preserve the original adapter so repair cannot erase the observed behavior.
+                    backed = {i.id for i in supported}
+                    unsupported = rules.keys() - backed
+                    e.invariants = [i for i in e.invariants if i.id not in unsupported]
+                    checked.add(e.id)
+                    citations = []
+                    for i in supported:
+                        ref = i.expectation_ref
+                        assert ref
+                        kind: Literal["test", "doc"] = "test" if is_test_file(ref.rsplit(":", 1)[0]) else "doc"
+                        citations.append(Evidence(kind=kind, ref=ref, why=i.reason))
+                    self._decide(
+                        inv,
+                        agent="pumpkin-mechanic",
+                        step="baseline_check",
+                        subject=e.id,
+                        claim=e.claim or "",
+                        evidence=citations,
+                        dropped=0,
+                        checks=[
+                            *(f"{i.id}: {rules[i.id]} ({i.expectation_ref})" for i in supported),
+                            *(f"Dropped uncited failing rule: {name}" for name in sorted(unsupported)),
+                        ],
+                        decision="accepted",
+                        rule="Ordinary-date failure has a cited repository expectation; "
+                        "keep it for the sweep and independent verification",
+                        phase="execution",
+                    )
+                    continue
                 problems = other + [_rule_problem(i, d) for i, d in rules.items()]
                 if not problems:
                     checked.add(e.id)
@@ -1695,7 +2523,10 @@ class Engine:
                         rule="Adapter ran cleanly at ordinary baseline instants",
                         phase="execution",
                     )
-                elif attempt == 1:
+                elif attempt <= rounds:
+                    problems = [*E.hints_for(e.adapter_code or "", inv.environment), *problems]
+                    if earlier := self._repair_notes.pop(e.id, None):
+                        problems = [*problems, f"Your previous repair was rejected: {earlier}"]
                     if getattr(rt, "supports_sessions", False):
                         self._workshop(inv, rt, e, problems, t0)
                     else:
@@ -1720,7 +2551,12 @@ class Engine:
                         phase="execution",
                     )
                 else:
-                    e.status, e.executability_reason = "adapter_invalid", "; ".join(problems)[:300]
+                    reason = "; ".join(problems)
+                    if earlier := self._repair_notes.pop(e.id, None):
+                        reason += f" | last repair rejected: {earlier}"
+                    e.status, e.executability_reason = "adapter_invalid", reason[:500]
+                    if e.failure_kind != "throttled":
+                        e.failure_kind = E.classify(reason, inv.environment)  # type: ignore[assignment]
                     self._decide(
                         inv,
                         agent="pumpkin-mechanic",
@@ -1745,7 +2581,97 @@ class Engine:
 
     # ---------- agentic adapter repair: Pumpkin Mechanic with tools ----------
 
-    def _workshop(self, inv: Investigation, rt: A.AgentRuntime, ex: Experiment, problems: list[str], t0: float) -> None:
+    def _repair_workspace(
+        self,
+        ws: Path,
+        node: str,
+        runner: str | None = None,
+    ) -> tuple[Callable[[str, int], str], Callable[[str, str], str], Callable[[bool], None]]:
+        scratch = ws.parent / f"repair-{uuid.uuid4().hex}"
+        fixture_dir = Path(".tw") / f"fixtures-{uuid.uuid4().hex}"
+
+        def run_repair(command: str, left: int) -> str:
+            scratch.mkdir(exist_ok=True)
+            # Copy only once. The agent can freely edit this copy; host-side Git and
+            # subsequent verification continue to use the pinned checkout.
+            setup = (
+                "if [ ! -e /repair/.ready ]; then "
+                "mkdir -p /repair/repo && "
+                "tar -C /work --exclude=./.git --exclude=./node_modules -cf - . "
+                "| tar -C /repair/repo -xf -; "
+                "ln -s /work/node_modules /repair/repo/node_modules && touch /repair/.ready || exit 1; fi; "
+                "cd /repair/repo || exit 1\n"
+            )
+            result = sandbox.run(
+                self.s,
+                ws,
+                node,
+                setup + command,
+                network=False,
+                readonly=True,
+                repair_workspace=scratch,
+                scratch=sandbox.runner_caches(runner, ws),
+                timeout=min(left, self.s.test_timeout_s),
+            )
+            return f"{'Timed out' if result.timed_out else f'Exit code {result.code}'}\n{result.out}"
+
+        def save_fixture(name: str, content: str) -> str:
+            destination = fixture_dir / name
+            (ws / fixture_dir).mkdir(exist_ok=True)
+            (ws / destination).write_text(content, encoding="utf8")
+            return destination.as_posix()
+
+        def cleanup(keep: bool) -> None:
+            _force_rmtree(scratch)
+            if not keep:
+                _force_rmtree(ws / fixture_dir)
+
+        return run_repair, save_fixture, cleanup
+
+    def _attach_repair_tools(
+        self,
+        session: fixsession.FixSession | verifysession.VerifySession,
+        caps: CapabilityReport,
+        ex: Experiment,
+    ) -> Callable[[bool], None]:
+        run, fixture, cleanup = self._repair_workspace(session.ws, caps.node_version, caps.test_runner)
+        previous = ex.runner_config
+        config_path = f".tw/runner-{uuid.uuid4().hex}.mjs"
+        config_file = session.ws / config_path
+
+        def configure(args: dict[str, Any]) -> str:
+            code = args.get("code")
+            if not isinstance(code, str) or len(code) > designsession.MAX_ADAPTER_CHARS:
+                raise fixsession.ToolError("Give a Vitest configuration as an ES module")
+            if code.strip():
+                config_file.write_text(code, encoding="utf8")
+            ex.runner_config = config_path if code.strip() else None
+            if isinstance(session, fixsession.FixSession):
+                session.runner_config = ex.runner_config
+            return "Runner configuration updated. Rerun the failing test."
+
+        def command(args: dict[str, Any]) -> str:
+            return designsession.repair_shell_command(run, args.get("command"), session.deadline)
+
+        def save(args: dict[str, Any]) -> str:
+            return designsession.repair_fixture(fixture, args.get("name"), args.get("content"))
+
+        session.tools = [*session.tools, *designsession.REPAIR_SHELL_TOOLS]
+        session.repair_tools.update(run_command=command, save_fixture=save)
+        if caps.test_runner == "vitest":
+            session.tools.append(designsession.VITEST_CONFIG_TOOL)
+            session.repair_tools["write_runner_config"] = configure
+
+        def finish(keep: bool) -> None:
+            cleanup(keep)
+            if not keep:
+                ex.runner_config = previous
+            if ex.runner_config != config_path:
+                config_file.unlink(missing_ok=True)
+
+        return finish
+
+    def _workshop(self, inv: Investigation, rt: A.AgentRuntime, ex: Experiment, problems: list[str], t0: float) -> bool:
         """Pumpkin repairs an adapter that failed its baseline check: he reads the code, runs the adapter at points
         he picks, rewrites it and rechecks. Code reruns the baseline check on submit; problems go back to him."""
         caps, fm = inv.capabilities, inv.feature_map
@@ -1756,10 +2682,11 @@ class Engine:
         probe_rel = f"{S.PROBE_TEST}{'.ts' if ts else '.js'}"
         runner = caps.test_runner
         if inv.budget.agent_calls >= self.s.max_agent_calls:
-            return
+            self._repair_skipped(inv, ex, f"the limit of {self.s.max_agent_calls} agent calls is used up")
+            return False
         self._check(inv, t0)
         if not self._preflight(inv, self.s.design_session_s + 120, f"adapter repair for {ex.id}"):
-            return
+            return False
 
         def write(code: str) -> None:
             if ts and not any("@ts-nocheck" in ln for ln in code.splitlines()[:3]):
@@ -1767,10 +2694,27 @@ class Engine:
             (ws / (ex.adapter_path or "")).write_text(code, encoding="utf-8")
             ex.adapter_code = code
 
+        run_repair, save_fixture, cleanup = self._repair_workspace(ws, caps.node_version, caps.test_runner)
+        original_config = ex.runner_config
+        original_adapter = (ws / ex.adapter_path).read_bytes()
+        original_code = ex.adapter_code
+        config_path = f".tw/runner-{uuid.uuid4().hex}.mjs"
+
+        def configure_runner(code: str) -> None:
+            if code.strip():
+                (ws / config_path).write_text(code, encoding="utf-8")
+                ex.runner_config = config_path
+            else:
+                ex.runner_config = None
+
         def run_once(zone: str, ms: int) -> sandbox.ProbeResult:
+            if inv.sweep_window and not inv.sweep_window.contains(ms):
+                return sandbox.ProbeResult("error", ["Probe date is outside the case window"])
+            if inv.sweep_window and "clock_jumps" in ex.fields and not S.clock_jump_fits(inv.sweep_window, ms):
+                return sandbox.ProbeResult("error", ["Clock shift would leave the case window"])
             (ws / probe_rel).parent.mkdir(parents=True, exist_ok=True)
             (ws / probe_rel).write_text(S.probe_code(runner, designsession.run_body(ex.adapter_path or "")), "utf-8")
-            return sandbox.probe(self.s, ws, caps, probe_rel, zone, ms)
+            return sandbox.probe(self.s, ws, caps, probe_rel, zone, ms, **_runner_options(ex))
 
         def baseline(fields: list[OutputField]) -> list[str]:
             invs, _ = _derive_invariants(ex.invariants, fields, ex.adapter_code or "")
@@ -1778,12 +2722,41 @@ class Engine:
             other, rules = self._baseline_issues(
                 outputs, errors, ex.model_copy(update={"fields": fields, "invariants": invs})
             )
-            return other + [_rule_problem(i, d) for i, d in rules.items()]
+            return [*self._unit_problems(inv, ex), *other] + [
+                _rule_problem(i, d)
+                for i, d in rules.items()
+                if not any(rule.id == i and rule.expectation_ref for rule in invs)
+            ]
+
+        def blocked_check(reason: str) -> str | None:
+            """The referee for report_blocked: the adapter as it stands must fail for a reason this environment
+            explains, and a missing global must be one the code under test really uses."""
+            now = baseline(list(ex.fields))
+            if not now:
+                return "the baseline is clean now, so there is nothing blocking it. Submit the adapter."
+            try:
+                unit_text: str | None = (ws / cand.unit.path).read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                unit_text = None
+            text = " ".join(now)
+            if E.explains_by_environment(text, inv.environment, unit_text):
+                return None
+            return f"the adapter's own failure is one it can still fix: {text[:300]}"
+
+        experiments = inv.test_plan.experiments if inv.test_plan else []
+        reusable_configs = {
+            other.runner_config
+            for other in experiments
+            if other.id != ex.id
+            and other.runner_config
+            and re.fullmatch(r"\.tw/runner-[a-f0-9]{32}\.mjs", other.runner_config)
+            and (ws / other.runner_config).is_file()
+        }
 
         session = designsession.open_session(
             ws=ws,
             tracked=frozenset(ln for ln in git(ws, ["ls-files", "-z"]).split("\0") if ln),
-            extra_readable=frozenset({p for p in (ex.adapter_path, ex.harness_path) if p}),
+            extra_readable=frozenset({p for p in (ex.adapter_path, ex.harness_path) if p} | reusable_configs),
             adapter_path=ex.adapter_path,
             on_event=lambda text, data: self._event(
                 inv, "pumpkin-mechanic", "tool", text, phase="execution", data={"experiment_id": ex.id, **data}
@@ -1795,6 +2768,10 @@ class Engine:
             write=write,
             run_once=run_once,
             baseline=baseline,
+            configure_runner=configure_runner if runner == "vitest" else None,
+            repair_command=run_repair,
+            save_fixture=save_fixture,
+            blocked_check=blocked_check,
         )
         prompt = A.prompt_design_session(
             unit=cand.unit.name,
@@ -1805,29 +2782,84 @@ class Engine:
             fields=list(ex.fields),
             rules=[i.id for i in ex.invariants],
             problems=problems,
-            catalog=S.catalog_text(),
+            catalog=S.catalog_text() + _window_hint(inv),
             tool_calls=self.s.max_design_calls,
+            environment=E.facts_text(inv.environment),
         )
+        prompt += (
+            "\nUse run_command to diagnose the failure and try changes in the writable checkout copy. "
+            "Carry working changes into the experiment with write_adapter, save_fixture, or "
+            "write_runner_config where available. Check the baseline before submitting."
+        )
+        if runner == "vitest":
+            prompt += (
+                "\nInspect the repository's Vitest files if the harness fails to load or collect. "
+                "Use write_runner_config to try a configuration for this experiment, then check_baseline."
+            )
+            if reusable_configs:
+                prompt += (
+                    "\nThese configurations passed a workshop baseline in this checkout. Read a compatible one, "
+                    "use write_runner_config to adapt it to this harness if needed, then check_baseline. "
+                    "On collection errors, try this before rewriting the adapter.\n"
+                    + A._data("Existing runner configurations", "\n".join(sorted(reusable_configs)))
+                )
         inv.budget.agent_calls += 1
         self._event(inv, "pumpkin-mechanic", "dispatch", f"Pumpkin is repairing the adapter for {cand.title}",
                     phase="execution", data={"experiment_id": ex.id, "problems": problems[:4]})  # fmt: skip
         self.sessions.add(session)
+        waits = list(self.s.throttle_waits_s)
         try:
-            rt.run_session("pumpkin-mechanic", "repair_adapter", prompt, session, self.s.design_session_s + 120)
+            while True:
+                try:
+                    rt.run_session("pumpkin-mechanic", "repair_adapter", prompt, session, self.s.design_session_s + 120)
+                    break
+                except A.AgentQuotaReached:
+                    raise
+                except A.AgentUnavailable as busy:
+                    if not waits or not E.is_throttled(str(busy)) or self._remaining(inv) < self.s.design_session_s:
+                        raise
+                    self._wait(inv, waits.pop(0), f"the repair of {ex.id}")
         except A.AgentUnavailable as e:
             if isinstance(e, A.AgentQuotaReached):
                 self._quota_note(inv, str(e))
-            return
+            self._repair_skipped(inv, ex, f"the agent was unavailable: {e}")
+            return False
         finally:
             self.sessions.close(session)
             (ws / probe_rel).unlink(missing_ok=True)
+            if session.submitted is None or session.rejected_reason:
+                ex.runner_config = original_config
+                ex.adapter_code = original_code
+                (ws / (ex.adapter_path or "")).write_bytes(original_adapter)
+            cleanup(session.submitted is not None and not session.rejected_reason)
+            if ex.runner_config != config_path:
+                (ws / config_path).unlink(missing_ok=True)
         use = f"{session.calls} tool calls, {session.runs} runs, {session.rewrites} rewrites"
+        if session.blocked is not None:
+            # The agent says the cause is outside the adapter and code agreed (see blocked_check). The experiment is
+            # recorded as not run, with the agent's reason, and is not repaired again: nothing it can write will run.
+            ex.status, ex.failure_kind = "not_run", "environment"
+            ex.executability_reason = f"Blocked by the environment: {session.blocked}"[:500]
+            self._repair_notes.pop(ex.id, None)
+            self._decide(inv, agent="pumpkin-mechanic", step="repair_adapter", subject=ex.id, claim=ex.claim or "",
+                         evidence=[], dropped=0, checks=[use, f"Blocked: {session.blocked}"], decision="not_run",
+                         rule="Pumpkin reported the experiment blocked by the environment, and the failure he sees "
+                         "is one this environment explains", phase="execution")  # fmt: skip
+            return False
         if session.submitted is None:
             self._decide(inv, agent="pumpkin-mechanic", step="repair_adapter", subject=ex.id, claim=ex.claim or "",
                          evidence=[], dropped=0, checks=[use], decision="not_run",
                          rule="Pumpkin did not submit; the baseline check decides on the adapter as it stands",
                          phase="execution")  # fmt: skip
-            return
+            return False
+        if session.rejected_reason:
+            self._repair_notes[ex.id] = session.rejected_reason
+            self._decide(inv, agent="pumpkin-mechanic", step="repair_adapter", subject=ex.id, claim=ex.claim or "",
+                         evidence=[], dropped=0, checks=[use, session.rejected_reason], decision="rejected",
+                         rule="The repaired adapter still fails the baseline check; the earlier adapter was kept",
+                         phase="execution")  # fmt: skip
+            return False
+        self._repair_notes.pop(ex.id, None)
         fields, claim = session.submitted
         invs, notes = _derive_invariants(ex.invariants, fields, ex.adapter_code or "")
         ex.fields, ex.invariants, ex.claim = fields, invs, claim
@@ -1847,19 +2879,29 @@ class Engine:
             "ordinary instants",
             phase="execution",
         )
+        return True
 
-    def _verify(self, inv: Investigation, rt: A.AgentRuntime, ex: Experiment, v: Violation) -> Bug | None:
+    def _verify(
+        self,
+        inv: Investigation,
+        rt: A.AgentRuntime,
+        ex: Experiment,
+        v: Violation,
+        *,
+        verification_feedback: str = "",
+    ) -> Bug | None:
         caps, fm = inv.capabilities, inv.feature_map
         assert caps and fm and caps.test_runner and ex.adapter_path
         ws = self._ws(inv)
         cand = next(c for c in fm.candidates if c.id == ex.candidate_id)
         zones = [v.zone] + (["UTC"] if v.invariant == "instant_zone_independent" and v.zone != "UTC" else [])
-        key = (v.invariant, v.zone, v.instant)
+        key = (v.invariant, v.zone, v.instant, v.failure_kind)
         hits = 0
         last_outputs: S.Outputs = {}
         for _ in range(self.s.repeat_runs):
             last_outputs, _err = self._sweep(inv, [ex], zones)[ex.id]
-            if any((x.invariant, x.zone, x.instant) == key for x in S.check(last_outputs, ex.invariants)):
+            repeats = S.check(last_outputs, ex.invariants)
+            if any((x.invariant, x.zone, x.instant, x.failure_kind) == key for x in repeats):
                 hits += 1
         clock = _reading(v.zone, v.instant, cand.unit.name)
         if hits < self.s.repeat_runs:
@@ -1892,7 +2934,7 @@ class Engine:
         tracked = [ln for ln in git(ws, ["ls-files", "-z"]).split("\0") if ln]
         at_ms = S.parse_instant(v.instant)
         near = S.situation(v.zone, at_ms) if at_ms is not None else None
-        snippets = intent.find(ws, tracked, cand.unit.name, cand.unit.path, v.zone, near)
+        snippets = intent.find(ws, tracked, _expectation_subject(cand), cand.unit.path, v.zone, near)
         self._event(
             inv,
             "raven-archivist",
@@ -1900,9 +2942,15 @@ class Engine:
             f"Read {len(snippets)} passage(s) of the repository's own tests and docs about time behaviour",
             data={"passages": [f"{s.path}:{s.start}-{s.end}" for s in snippets]},
         )
+        cited = next((i for i in ex.invariants if i.id == v.invariant and i.expectation_ref), None)
+        passages = [s.render() for s in snippets]
+        if cited:
+            passages.insert(0, f"Check the claimed expectation at {cited.expectation_ref}: {cited.reason}")
+        intent_text = "\n\n".join(passages)
         if getattr(rt, "supports_sessions", False):
-            intent_text = "\n\n".join(s.render() for s in snippets)
-            return self._verify_with_tools(inv, rt, ex, cand, v, ctx_rows, intent_text, hits, clock)
+            return self._verify_with_tools(
+                inv, rt, ex, cand, v, ctx_rows, intent_text, hits, clock, verification_feedback=verification_feedback
+            )
         try:
             j = self._agent(
                 inv,
@@ -1918,7 +2966,7 @@ class Engine:
                     adapter=ex.adapter_code or "",
                     path=cand.unit.path,
                     source=(ws / cand.unit.path).read_text(encoding="utf-8", errors="ignore"),
-                    intent="\n\n".join(s.render() for s in snippets),
+                    intent=intent_text,
                 ),
                 A.JudgeOut,
             )
@@ -1970,13 +3018,13 @@ class Engine:
             )
             return None
         title = j.title or f"{cand.unit.name}: {v.invariant.replace('_', ' ')}"
-        bid = f"bug_{ex.id[4:]}"
+        bid = _next_bug_id(inv, ex)
         reg_rel = (Path(ex.adapter_path).parent / f"{bid}.regression.test{Path(ex.adapter_path).suffix}").as_posix()
         target = f"{inv.target.owner}/{inv.target.repo}@{(inv.target.revision or '')[:12]}"
         code = S.regression_code(exp_id=ex.id, runner=caps.test_runner, v=v, title=title, target=target)
         (ws / reg_rel).write_text(code, encoding="utf-8")
         cc = ClockConfig(instant=v.instant, time_zone=v.zone, label=f"{v.invariant} at {v.local}")
-        first = sandbox.run_test_file(self.s, ws, caps, reg_rel, [cc])[0]
+        first = sandbox.run_test_file(self.s, ws, caps, reg_rel, [cc], **_runner_options(ex))[0]
         if first.outcome != "assertion_failed":
             (ws / reg_rel).unlink(missing_ok=True)
             self._decide(
@@ -2047,6 +3095,7 @@ class Engine:
         intent_text: str,
         hits: int,
         clock: ServerClockReading,
+        verification_feedback: str = "",
     ) -> Bug | None:
         """Raven investigates the repeated violation herself: she reads the code, probes it through its own API at
         clock points she picks, runs the repository's tests and searches issues, then submits a verdict. Code checks
@@ -2057,7 +3106,7 @@ class Engine:
         runner = caps.test_runner
         ext = ".ts" if Path(cand.unit.path).suffix in {".ts", ".tsx", ".mts", ".cts"} else ".js"
         probe_rel = f"{S.PROBE_TEST}{ext}"
-        bid = f"bug_{ex.id[4:]}"
+        bid = _next_bug_id(inv, ex)
         folder = Path(ex.adapter_path).parent
         reg_rel = (folder / f"{bid}.regression.test{ext}").as_posix()
         prefix = "../" * len(folder.parts)
@@ -2068,20 +3117,24 @@ class Engine:
         state: dict[str, object] = {}
 
         def probe(code: str, zone: str, ms: int) -> sandbox.ProbeResult:
+            if inv.sweep_window and not inv.sweep_window.contains(ms):
+                return sandbox.ProbeResult("error", ["Probe date is outside the case window"])
+            if inv.sweep_window and v.invariant == "elapsed_clock_jump" and not S.clock_jump_fits(inv.sweep_window, ms):
+                return sandbox.ProbeResult("error", ["Clock shift would leave the case window"])
             (ws / probe_rel).parent.mkdir(parents=True, exist_ok=True)
             (ws / probe_rel).write_text(S.probe_code(runner, code), encoding="utf-8")
-            return sandbox.probe(self.s, ws, caps, probe_rel, zone, ms)
+            return sandbox.probe(self.s, ws, caps, probe_rel, zone, ms, **_runner_options(ex))
 
         def run_test(path: str) -> str:
             as_written = ClockConfig(instant=v.instant, time_zone="UTC", label="repository test, as written")
-            r = sandbox.run_test_file(self.s, ws, caps, path, [as_written])[0]
+            r = sandbox.run_test_file(self.s, ws, caps, path, [as_written], **_runner_options(ex))[0]
             return f"{r.outcome.upper()}" + (f"\n{r.failure[:2000]}" if r.failure else "")
 
         def find_issues(terms: list[str]) -> list[dict[str, object]]:
             return github.search_issues(tgt.owner, tgt.repo, terms, self.s.github_token, exclude=hidden)
 
         def check(vd: verifysession.Verdict) -> tuple[str | None, list[str]]:
-            return self._check_verdict(inv, cand, v, vd, probe, reg_rel, prefix, target, state)
+            return self._check_verdict(inv, cand, v, vd, probe, reg_rel, prefix, target, state, ex)
 
         session = verifysession.open_session(
             ws=ws,
@@ -2150,8 +3203,22 @@ class Engine:
         inv.budget.agent_calls += 1
         self._event(inv, "raven-archivist", "dispatch", f"Raven is investigating {cand.title} with tools",
                     phase="verification", clock=clock)  # fmt: skip
+        cleanup_repair = self._attach_repair_tools(session, caps, ex)
         self.sessions.add(session)
         try:
+            prompt += _window_hint(inv) + _REPAIR_PROMPT
+            if v.invariant == "calendar_contract":
+                contract = next((i for i in ex.invariants if i.id == "calendar_contract"), None)
+                if contract and contract.expectation_ref:
+                    prompt += A._data("Candidate contract citation", contract.expectation_ref)
+                prompt += (
+                    "\nCheck whether the cited contract covers the exact argument shapes. "
+                    "Use the actual and expected values to identify the case. Write an independent "
+                    "public API check and a passing control before submitting a defect."
+                )
+            if verification_feedback:
+                prompt += A._data("Regression repair feedback", verification_feedback)
+
             rt.run_session("raven-archivist", "verify_violation", prompt, session, self.s.verify_session_s + 120)
         except A.AgentUnavailable as e:
             if isinstance(e, A.AgentQuotaReached):
@@ -2160,6 +3227,8 @@ class Engine:
             return None
         finally:
             self.sessions.close(session)
+            verdict = session.verdict
+            cleanup_repair(bool(verdict and verdict.verdict == "defect" and not session.rejected_reason))
             (ws / probe_rel).unlink(missing_ok=True)
         tool_use = f"{session.calls} tool calls, {session.probes} probes, {session.tests} test runs"
         vd = session.verdict
@@ -2207,6 +3276,7 @@ class Engine:
                 "code": rep.code,
                 "failing": f"{rep.failing.zone}@{rep.failing.instant}",
                 "control": f"{rep.control.zone}@{rep.control.instant}",
+                **({"control_code": str(state["control_code"])} if "control_code" in state else {}),
                 "user_check": vd.user_check.code if vd.user_check else "",
                 "user_failing": f"{vd.user_check.failing.zone}@{vd.user_check.failing.instant}"
                 if vd.user_check
@@ -2247,6 +3317,7 @@ class Engine:
         prefix: str,
         target: str,
         state: dict[str, object],
+        ex: Experiment | None = None,
     ) -> tuple[str | None, list[str]]:
         """What code requires before Raven's verdict counts. Returns (reason to reject, or None; checks)."""
         caps = inv.capabilities
@@ -2292,7 +3363,54 @@ class Engine:
                 [],
             )
         runs = [probe(rep.code, rep.failing.zone, fail_ms) for _ in range(self.s.repeat_runs)]
-        control = probe(rep.code, rep.control.zone, ctrl_ms)
+        control_code = rep.code
+        if v.invariant == "retry_cancelled":
+            # Change only the intervention. The same repository scheduling function must deliver one
+            # callback when the cancellation is omitted, even for bugs present at every wall date.
+            control_code, substitutions = re.subn(
+                r"\bcheck\(\s*await\s+cancelledRetry\(\s*schedule\s*\)\s*===\s*0\s*,",
+                "check(await retryCalls(schedule, false) === 1,",
+                rep.code,
+            )
+            if substitutions != 1:
+                return "Use the retry cancellation check from the probe instructions with the repository API", []
+        if v.invariant in S.TIMER_DELIVERY:
+            expected = json.dumps(S.TIMER_DELIVERY[v.invariant][1], separators=(",", ":"))
+            # Use the same public scheduling function for the control. Confirm that it can deliver
+            # a callback independently of the failing assertion about exact times or duplicates.
+            if not re.search(r"\bconst\s+trace\s*=\s*await\s+timerTrace\(\s*schedule\s*\)\s*;", rep.code):
+                return "Capture const trace = await timerTrace(schedule); from the repository API", []
+            assertion = re.compile(
+                r"""\bcheck\(\s*JSON\.stringify\(\s*trace\s*\)\s*===\s*(["'])"""
+                + re.escape(expected)
+                + r"""\1\s*,\s*(["'])[^
+]*?\2\s*\)\s*;?\s*\Z"""
+            )
+            control_code, count = assertion.subn("check(trace.length > 0, 'observed callback delivery');", rep.code)
+            if count != 1:
+                return f"End with check(JSON.stringify(trace) === '{expected}', 'callback timing')", []
+        if v.invariant == "expiry_deadline":
+            index = S.EXPIRY_STEPS.index(v.failure_kind)
+            if v.expected not in {"true", "false"} or "await expiryTrace(" not in rep.code:
+                return "Capture const trace = await expiryTrace(create, isExpired) using the repository API", []
+            assertion = re.compile(
+                rf"""\bcheck\(\s*trace\[{index}\]\s*===\s*{v.expected}\s*,\s*(["'])[^
+]*?\1\s*\)\s*;?\s*\Z"""
+            )
+            # The neighbouring checkpoint gives a passing control even when an equality bug occurs on every date.
+            other, expected = (0, "false") if v.expected == "true" else (2, "true")
+            control_code, count = assertion.subn(f"check(trace[{other}] === {expected}, 'expiry control');", rep.code)
+            if count != 1:
+                return f"End with check(trace[{index}] === {v.expected}, 'expiry boundary')", []
+        if v.invariant == "elapsed_clock_jump":
+            direction = v.failure_kind
+            if direction not in {"forward", "backward"}:
+                return "Unknown direction for the wall-clock shift", []
+            shift_call = re.compile(rf"""\bawait\s+clockJumpTrace\(\s*schedule\s*,\s*(["']){direction}\1\s*\)""")
+            control_code, count = shift_call.subn("await clockJumpTrace(schedule, 'none')", rep.code)
+            if count != 1 or ctrl_ms != fail_ms or rep.control.zone != rep.failing.zone:
+                return f"Use clockJumpTrace(schedule, '{direction}') with matching reproduction/control points", []
+        control = probe(control_code, rep.control.zone, ctrl_ms)
         checks = [
             f"reproduction at {rep.failing.zone}@{S.iso(fail_ms)}: {', '.join(r.status for r in runs)}",
             f"control at {rep.control.zone}@{S.iso(ctrl_ms)}: {control.status}",
@@ -2331,9 +3449,19 @@ class Engine:
                 checks,
             )
         title = vd.title or f"{cand.unit.name}: {v.invariant.replace('_', ' ')}"
+        cases = [(title, rep.code, fail_ms), (f"{title[:70]} (through the public API)", uc.code, uc_ms)]
+        if control_code != rep.code:
+            if rep.control.zone != rep.failing.zone:
+                return "Use the same zone for the timer control", []
+            label = "uncancelled control" if v.invariant == "retry_cancelled" else "delivery control"
+            if v.invariant == "expiry_deadline":
+                label = "expiry control"
+            elif v.invariant == "elapsed_clock_jump":
+                label = "unshifted clock control"
+            cases.append((f"{title[:70]} ({label})", control_code, ctrl_ms))
         code = S.reproduction_test_code(
             runner=caps.test_runner,
-            cases=[(title, rep.code, fail_ms), (f"{title[:70]} (through the public API)", uc.code, uc_ms)],
+            cases=cases,
             zone=rep.failing.zone,
             target=target,
             prefix=prefix,
@@ -2341,7 +3469,7 @@ class Engine:
         (ws / reg_rel).parent.mkdir(parents=True, exist_ok=True)
         (ws / reg_rel).write_text(code, encoding="utf-8")
         cc = ClockConfig(instant=S.iso(fail_ms), time_zone=rep.failing.zone, label="reproduction")
-        first = sandbox.run_test_file(self.s, ws, caps, reg_rel, [cc])[0]
+        first = sandbox.run_test_file(self.s, ws, caps, reg_rel, [cc], **_runner_options(ex))[0]
         checks.append(f"regression test from the reproduction: {first.outcome}")
         if first.outcome != "assertion_failed":
             (ws / reg_rel).unlink(missing_ok=True)
@@ -2351,6 +3479,8 @@ class Engine:
                 checks,
             )
         state["test"], state["failure"] = code, runs[0].out[-1] if runs[0].out else v.detail
+        if control_code != rep.code:
+            state["control_code"] = control_code
         return None, checks
 
     def _issue_from_session(
@@ -2576,6 +3706,7 @@ class Engine:
         )
         feedback: str | None = None
         previous_diff: str | None = None
+        reviewed_regression = False
         for attempt in range(1, self.s.max_fix_attempts + 1):
             self._check(inv, t0)
             # A fix attempt is a session plus the 8 gates (several sweeps and the full suite).
@@ -2607,6 +3738,28 @@ class Engine:
                 on_event=lambda text, data: self._event(inv, "doctor-stitch", "tool", text, phase="fix", data=data),
                 zone_check=lambda: self._zone_check(inv, bug, ex),
             )
+            session.runner_config = ex.runner_config
+            cleanup_repair = self._attach_repair_tools(session, caps, ex)
+
+            def request_review(args: dict[str, Any], active: fixsession.FixSession = session) -> str:
+                reason = str(args.get("reason", "")).strip()
+                if not reason:
+                    raise fixsession.ToolError("Explain which part of the regression needs independent review")
+                active.regression_review = reason[:1500]
+                return "Raven will review the regression on the original checkout after this session."
+
+            session.tools.append(
+                {
+                    "name": "request_regression_review",
+                    "description": "Ask Raven to inspect or rewrite a broken regression test independently.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"reason": {"type": "string"}},
+                        "required": ["reason"],
+                    },
+                }
+            )
+            session.repair_tools["request_regression_review"] = request_review
             try:
                 rt.run_session(
                     "doctor-stitch",
@@ -2623,7 +3776,8 @@ class Engine:
                         tool_calls=self.s.max_tool_calls,
                         previous_diff=previous_diff,
                         feedback=feedback,
-                    ),
+                    )
+                    + _REPAIR_PROMPT,
                     session,
                     self.s.fix_session_s + 120,
                 )
@@ -2634,10 +3788,36 @@ class Engine:
                 return
             finally:
                 self.sessions.close(session)
+                cleanup_repair(session.submission is not None)
             sub = session.submission
             diff = git(ws, ["diff"]) if sub else ""
             self._clean_tree(ws)
+            if session.regression_review and not reviewed_regression:
+                reviewed_regression = True
+                cleanup_repair(False)
+                self._event(
+                    inv,
+                    "doctor-stitch",
+                    "fix",
+                    "Doctor Stitch asked Raven to revalidate the regression on the original revision",
+                    phase="fix",
+                    data={"bug_id": bug.id, "reason": session.regression_review},
+                )
+                report = bug.violation.model_copy()
+                replacement = self._verify(inv, rt, ex, report, verification_feedback=session.regression_review)
+                if replacement:
+                    bug.regression_test_path = replacement.regression_test_path
+                    bug.regression_test = replacement.regression_test
+                    bug.reproduction = replacement.reproduction
+                    bug.clock = replacement.clock
+                    bug.failure = replacement.failure
+                    feedback = "Raven produced and verified a replacement regression. Use it for the next attempt."
+                    self.store.save(inv)
+                else:
+                    feedback = "Raven could not validate a replacement regression. Check the original diagnostics."
+                continue
             if not sub or not diff.strip():
+                cleanup_repair(False)
                 why = "did not submit a change" if not sub else "submitted no change"
                 feedback = (
                     f"You {why} within the tool budget. Find the cause, change it, run the regression test, "
@@ -2664,6 +3844,7 @@ class Engine:
                 continue
             kept, dropped = self._evidence(inv, sub.evidence)
             if not any(e.kind == "source" for e in kept):
+                cleanup_repair(False)
                 feedback = "root_cause must cite the responsible source lines as path:line evidence that exists"
                 previous_diff = diff
                 bug.fix.attempts.append(
@@ -2690,7 +3871,11 @@ class Engine:
                     phase="fix",
                 )
                 continue
-            gates = self._gates(inv, rt, bug, diff, exps, base_suite, base_static, baseline_keys)
+            try:
+                gates = self._gates(inv, rt, bug, diff, exps, base_suite, base_static, baseline_keys)
+            except BaseException:
+                cleanup_repair(False)
+                raise
             self._clean_tree(ws)  # the workspace returns to the original revision either way
             fa = FixAttempt(
                 attempt=attempt,
@@ -2713,6 +3898,8 @@ class Engine:
                     data={"bug_id": bug.id, "attempt": attempt, **g.model_dump()},
                 )
             failed = [g for g in gates if not g.passed]
+            if not fa.accepted_by_gates:
+                cleanup_repair(False)
             self._decide(
                 inv,
                 agent="doctor-stitch",
@@ -2772,11 +3959,16 @@ class Engine:
         """For Doctor Stitch's check_all_zones tool: the bug's experiment in every sweep zone, as the `fixed` gate
         runs it, on his working copy. Only guidance: the gate runs it again on a clean tree."""
         outputs, errors = self._sweep(inv, [ex], S.SWEEP_ZONES)[ex.id]
-        if not outputs:
-            return "ERROR: the experiment did not run. " + (errors[0][:400] if errors else "")
-        broken = [v for v in S.check(outputs, ex.invariants) if v.invariant == bug.invariant]
+        if errors or set(outputs) != set(S.SWEEP_ZONES) or sum(map(len, outputs.values())) != ex.point_count:
+            return "ERROR: incomplete sweep. " + (errors[0][:400] if errors else "")
+        broken = [
+            v
+            for v in S.check(outputs, ex.invariants)
+            if v.invariant == bug.invariant
+            and (not bug.violation.failure_kind or v.failure_kind == bug.violation.failure_kind)
+        ]
         if not broken:
-            return f"PASSED: rule {bug.invariant} holds in all {len(outputs)} zones"
+            return f"PASSED: targeted failure cleared in all {len(outputs)} zones"
         zones = sorted({v.zone for v in broken})
         lines = [f"{v.zone} at {v.local}: {v.detail}" for v in broken[:8]]
         return f"FAILED in {len(zones)} of {len(outputs)} zones: {', '.join(zones)}\n" + "\n".join(lines)
@@ -2801,8 +3993,16 @@ class Engine:
         """The 8 gates on a clean tree with only `diff_text` applied. The caller cleans the tree afterwards."""
         caps = inv.capabilities
         assert caps
+        ex = next((item for item in exps if item.id == bug.experiment_id), None)
         ws = self._ws(inv)
         n = self.s.repeat_runs
+        if ex and ex.runner_config:
+            originals = [
+                sandbox.run_test_file(self.s, ws, caps, bug.regression_test_path, [bug.clock], **_runner_options(ex))[0]
+                for _ in range(n)
+            ]
+            if any(r.outcome != "assertion_failed" for r in originals):
+                return [GateResult(gate="test_first", passed=False, detail="Regression did not fail on original code")]
         gates = [
             GateResult(
                 gate="test_first",
@@ -2850,18 +4050,34 @@ class Engine:
         git(ws, ["apply", "--whitespace=nowarn", "-"], stdin=diff_text)
 
         # fixed: regression test passes n times, and the full 13-zone sweep shows the invariant holds
-        res = [sandbox.run_test_file(self.s, ws, caps, bug.regression_test_path, [bug.clock])[0] for _ in range(n)]
+        res = [
+            sandbox.run_test_file(self.s, ws, caps, bug.regression_test_path, [bug.clock], **_runner_options(ex))[0]
+            for _ in range(n)
+        ]
         reg_ok = all(r.outcome == "passed" for r in res)
         full = self._sweep(inv, exps, S.SWEEP_ZONES) if reg_ok else {}
         after: dict[str, list[Violation]] = {e.id: S.check(full[e.id][0], e.invariants) for e in exps if e.id in full}
-        still = [v for v in after.get(bug.experiment_id, []) if v.invariant == bug.invariant]
-        ok = reg_ok and not still
+        still = [
+            v
+            for v in after.get(bug.experiment_id, [])
+            if v.invariant == bug.invariant
+            and (not bug.violation.failure_kind or v.failure_kind == bug.violation.failure_kind)
+        ]
+        complete = reg_ok and all(
+            not full[e.id][1]
+            and set(full[e.id][0]) == set(S.SWEEP_ZONES)
+            and sum(map(len, full[e.id][0].values())) == e.point_count
+            for e in exps
+        )
+        ok = complete and not still
         detail = (
             f"Regression test: {', '.join(r.outcome for r in res)}"
             if not reg_ok
-            else f"Invariant still violated in {', '.join(v.zone for v in still[:4])}"
+            else "Incomplete sweep after the patch"
+            if not complete
+            else f"Failure still reproduced in {', '.join(v.zone for v in still[:4])}"
             if still
-            else f"Regression test passed {n}/{n}; invariant holds in all {len(S.SWEEP_ZONES)} zones"
+            else f"Regression test passed {n}/{n}; targeted failure cleared in all {len(S.SWEEP_ZONES)} zones"
         )
         gates.append(GateResult(gate="fixed", passed=ok, detail=detail))
         if not ok:
@@ -2869,7 +4085,7 @@ class Engine:
 
         # mutation_check: undo only the source change; the test must fail again
         self._clean_tree(ws)
-        m = sandbox.run_test_file(self.s, ws, caps, bug.regression_test_path, [bug.clock])[0]
+        m = sandbox.run_test_file(self.s, ws, caps, bug.regression_test_path, [bug.clock], **_runner_options(ex))[0]
         git(ws, ["apply", "--whitespace=nowarn", "-"], stdin=diff_text)
         gates.append(
             GateResult(
@@ -2942,7 +4158,9 @@ class Engine:
         """Source change plus the adapter and the regression test as new files."""
         d = self.s.artifacts / inv.id
         d.mkdir(parents=True, exist_ok=True)
-        new_files = [(ex.adapter_path or "", ex.adapter_code or ""), (bug.regression_test_path, bug.regression_test)]
+        new_files = [(bug.regression_test_path, bug.contribution_test or bug.regression_test)]
+        if ex.adapter == "js_sweep":
+            new_files.insert(0, (ex.adapter_path or "", ex.adapter_code or ""))
         extra = "".join(
             "".join(difflib.unified_diff([], text.splitlines(True), "/dev/null", f"b/{path}"))
             for path, text in new_files
@@ -2979,6 +4197,10 @@ class Engine:
         self._event(inv, "wraith-director", "stage", "Case filed", data={"stage": "completed"})
 
 
+def _runner_options(experiment: Experiment | None) -> dict[str, str]:
+    return {"runner_config": experiment.runner_config} if experiment and experiment.runner_config else {}
+
+
 def _edge_kind(v: Violation) -> str:
     """The clock situation of a violation: a DST change near it, a month end, or something else."""
     ms = S.parse_instant(v.instant)
@@ -3011,7 +4233,7 @@ def _pr_text(
             level=level, summary=attempt.summary, root_cause=attempt.root_cause, diff=attempt.diff,
             sources=src_paths, zone=bug.violation.zone, instant=bug.violation.instant,
             local=bug.violation.local, detail=bug.violation.detail, count=bug.violation.count,
-            reproduction=(bug.reproduction or {}).get("code", ""), source_ref=source_ref,
+            reproduction=bug.contribution_test or (bug.reproduction or {}).get("code", ""), source_ref=source_ref,
             checks=[(c.name, c.command, c.passed or c.preexisting) for c in checks], test_path=test_path,
             related=related, with_diff=with_diff,
         )  # fmt: skip
@@ -3094,6 +4316,13 @@ def _force_rmtree(path: Path) -> None:
         shutil.rmtree(path, onexc=retry)
 
 
+def _expectation_subject(candidate: Candidate) -> str:
+    if candidate.unit.name != "(module)":
+        return candidate.unit.name
+    path = Path(candidate.unit.path)
+    return path.parent.name if path.stem == "index" and path.parent.name else path.stem
+
+
 def _rule_problem(inv_id: str, detail: str) -> str:
     return (
         f"rule {inv_id} breaks at an ordinary instant ({detail}): the field it reads probably does not mean what "
@@ -3116,13 +4345,22 @@ def _derive_invariants(
     implied = [
         InvariantUse.model_validate({"id": i, "reason": f"Added by code: the adapter returns `{need}`"})
         for i in S.ORDER
-        if (need := S.INVARIANTS[i][0]) and i not in S.ALWAYS and i not in chosen and need in fields
+        if (need := S.INVARIANTS[i][0])
+        and i not in S.ALWAYS
+        and i != "calendar_contract"
+        and i not in chosen
+        and need in fields
     ]
     if implied:
         checks.append(f"added by code from the returned fields: {', '.join(i.id for i in implied)}")
     zone_input = S.passes_zone(adapter_code)
     invs: list[InvariantUse] = []
     for iu in [*chosen_list, *implied]:
+        if iu.id not in S.INVARIANTS:
+            continue
+        if iu.id == "calendar_contract" and not iu.expectation_ref:
+            checks.append("Skipped the calendar contract: no repository test or documentation citation was resolved")
+            continue
         need = S.INVARIANTS[iu.id][0]
         if iu.id in S.ALWAYS or any(x.id == iu.id for x in invs):
             continue
@@ -3176,8 +4414,19 @@ def _tracked_changes(ws: Path) -> list[str]:
         return []
 
 
+def _next_bug_id(inv: Investigation, ex: Experiment) -> str:
+    base = f"bug_{ex.id[4:]}"
+    taken = {bug.id for bug in inv.bugs}
+    candidate = base
+    index = 1
+    while candidate in taken:
+        index += 1
+        candidate = f"{base}_{index}"
+    return candidate
+
+
 def _keys(exp_id: str, vs: list[Violation]) -> set[VKey]:
-    return {(exp_id, v.invariant, v.zone, v.instant) for v in vs}
+    return {(exp_id, v.invariant, v.zone, v.instant, v.failure_kind) for v in vs}
 
 
 def _reading(zone: str, instant: str, unit: str) -> ServerClockReading:

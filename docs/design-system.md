@@ -80,7 +80,7 @@ Line heights: display 0.88, tight 0.95, snug 1.3, body 1.65. The body measure to
 
 ## Layout of the site
 
-- `#/` shows the clock landing. The lantern and clock intro play, and Skip or the lantern enters the Home page. The top bar is hidden on this page.
+- `#/` shows the clock landing. The lantern and clock intro play, and Skip or the lantern enters the Home page. The shared top bar is hidden on this page.
 - `#/home` is the Home page. It has the hero with the repository field, the workflow tabs, the list of time bugs, and a footer.
 - The other pages (`#/new`, `#/cases`, `#/cases/:id`, `#/crew`, `#/about`) share the top bar and the footer. The footer holds the sound toggle, the Reduce Motion toggle and the replay link.
 

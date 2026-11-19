@@ -21,6 +21,8 @@ from timewraith.models import (
     CodeUnit,
     CreateInvestigation,
     Evidence,
+    Experiment,
+    InvariantUse,
     Investigation,
     Target,
     Violation,
@@ -163,6 +165,37 @@ def case(engine: Engine) -> tuple[Investigation, Candidate]:
     return inv, cand
 
 
+@pytest.mark.parametrize("budget", [1, 2])
+def test_reviews_distinct_scheduling_failures(engine: Engine, monkeypatch: pytest.MonkeyPatch, budget: int) -> None:
+    inv, cand = case(engine)
+    ex = Experiment(
+        id="exp_1",
+        candidate_id=cand.id,
+        categories=[],
+        executability="ready",
+        invariants=[InvariantUse(id="next_after_now", reason="bounded interval", max_gap_ms=1000)],
+    )
+    now = 1800000000000
+    values = [(now, now), (now + 1, now), (now + 2, now + 5000)]
+    rows = [{"t": t, "r0": {"next": n}, "r1": {"next": n}} for t, n in values]
+    monkeypatch.setattr(engine, "_sweep", lambda *_: {ex.id: ({"UTC": rows}, [])})
+    reviewed = []
+
+    def verify(*args: Any) -> None:
+        reviewed.append(args[-1].failure_kind)
+        inv.budget.agent_calls += 1
+
+    monkeypatch.setattr(engine, "_verify", verify)
+    monkeypatch.setattr(engine.s, "max_agent_calls", budget)
+    engine._sweep_and_verify(inv, engine._runtime(inv), [ex], set())
+    saved = engine.store.get(inv.id)
+    assert saved is not None
+    result = saved.sweeps[0]
+    assert [v.count for v in result.violations] == [2, 1]
+    assert reviewed == ["not_after_now", "exceeds_gap"][:budget]
+    assert result.pending_review == 2 - budget
+
+
 def verdict(kind: str = "defect", **over: Any) -> V.Verdict:
     base: dict[str, Any] = {
         "verdict": kind,
@@ -213,6 +246,75 @@ def test_defect_needs_failing_reruns_a_passing_control_and_a_failing_test(
     assert reason is None, reason
     assert len(probe.calls) == 2 * engine.s.repeat_runs + 1, "reproduction 3x, control once, user check 3x"
     assert ran == ["src/__tw__/bug_1.regression.test.ts"] and "setSystemTime" in str(state["test"])
+
+
+@pytest.mark.parametrize(
+    ("invariant", "assertion", "control", "label"),
+    [
+        (
+            "retry_cancelled",
+            "check(await cancelledRetry(schedule) === 0, 'callback after cancellation');",
+            "retryCalls(schedule, false)",
+            "uncancelled control",
+        ),
+        (
+            "timeout_delivery",
+            "const trace = await timerTrace(schedule); check(JSON.stringify(trace) === '[10]', 'timing');",
+            "trace.length > 0",
+            "delivery control",
+        ),
+        (
+            "expiry_deadline",
+            "const trace = await expiryTrace(create, isExpired); check(trace[1] === true, 'boundary');",
+            "trace[0] === false",
+            "expiry control",
+        ),
+        (
+            "elapsed_clock_jump",
+            "const trace = await clockJumpTrace(schedule, 'forward'); "
+            "check(JSON.stringify(trace) === '[10]', 'elapsed timer');",
+            "clockJumpTrace(schedule, 'none')",
+            "unshifted clock control",
+        ),
+        (
+            "interval_delivery",
+            "const trace = await timerTrace(schedule); check(JSON.stringify(trace) === '[10,20,30]', 'timing');",
+            "trace.length > 0",
+            "delivery control",
+        ),
+    ],
+)
+def test_timer_verdict_replays_both_paths(
+    engine: Engine, monkeypatch: pytest.MonkeyPatch, invariant: str, assertion: str, control: str, label: str
+) -> None:
+    inv, cand = case(engine)
+    point = {"zone": VIOLATION.zone, "instant": VIOLATION.instant}
+    body = "const mod = await load('src/hour'); const schedule = mod.retry; " + assertion
+    vd = verdict(
+        reproduction={"code": body, "failing": point, "control": point}, user_check={"code": body, "failing": point}
+    )
+    seen = []
+
+    def probe(code: str, zone: str, ms: int) -> ProbeResult:
+        seen.append(code)
+        return ProbeResult("passed" if control in code else "check_failed", [])
+
+    monkeypatch.setattr(
+        pipeline.sandbox, "run_test_file", lambda *_: [sandbox.TestOutcome("assertion_failed", "", set(), 1)]
+    )
+    state: dict[str, object] = {}
+    violation = VIOLATION.model_copy(update={"invariant": invariant})
+    if invariant == "expiry_deadline":
+        violation.failure_kind, violation.expected = "at_deadline", "true"
+    elif invariant == "elapsed_clock_jump":
+        violation.failure_kind = "forward"
+    reason, _ = engine._check_verdict(
+        inv, cand, violation, vd, probe, "src/__tw__/timer.test.ts", "../../", "org/repo@rev", state
+    )
+    assert reason is None
+    assert seen.count(body) == 2 * engine.s.repeat_runs
+    assert state["control_code"] in seen
+    assert label in str(state["test"])
 
 
 @pytest.mark.parametrize(

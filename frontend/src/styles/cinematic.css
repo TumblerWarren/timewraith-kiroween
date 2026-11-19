@@ -1,4 +1,34 @@
 /* The supplied artwork is the focal point. All light is anchored to its lantern. */
+.archive-reveal {
+  position: relative;
+  isolation: isolate;
+  --archive-ghost-size: clamp(132px, 17vw, 216px);
+}
+.archive-reveal__content {
+  position: relative;
+  z-index: 1;
+}
+.archive-reveal__art {
+  position: absolute;
+  inset: 0 0 auto auto;
+  width: var(--archive-ghost-size);
+  aspect-ratio: 1312 / 1199;
+  z-index: 0;
+  pointer-events: none;
+}
+.archive-reveal__art svg { display: block; width: 100%; height: auto; }
+html[data-reduce-motion="false"] .archive-reveal:has(> .archive-reveal__skip[hidden]) .archive-reveal__art svg {
+  animation: archive-ghost-hover 4s ease-in-out infinite;
+}
+@keyframes archive-ghost-hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.archive-reveal__skip { position: absolute; inset: 0 auto auto 0; z-index: 3; }
+.archive-reveal__skip[hidden] { display: none; }
+#cases-footer-skip { display: none; }
+body:has(.archive-reveal__skip:not([hidden])) #cases-footer-skip { display: inline-flex; }
+body:has(.archive-reveal__skip:not([hidden])):has(#cases-footer-skip) #page-animation-replay { display: none; }
 .clock-landing {
   position: fixed;
   inset: 0;
@@ -8,6 +38,11 @@
   color: var(--midnight-ink);
 }
 .clock-landing__fallback { color: var(--midnight-violet); }
+.clock-landing__footer {
+  position: absolute;
+  inset: auto 0 var(--space-4);
+  text-align: center;
+}
 body:has(.cinema[open]) .clock-landing__fallback { visibility: hidden; }
 .cinema {
   position: fixed;

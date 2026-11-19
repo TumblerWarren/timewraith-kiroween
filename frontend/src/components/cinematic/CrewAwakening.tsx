@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useReduceMotion } from "../../a11y/ReduceMotionProvider";
+import { hasSeenIntro, markIntroSeen } from "../../animation/introSession";
 import eye from "../../assets/cinematic/crew-eye.svg?raw";
 import umbrella from "../../assets/cinematic/umbrella-ghost.svg?raw";
 import {
@@ -11,36 +12,9 @@ import {
   toggleSoundEnabled,
 } from "../../audio/soundEffects";
 
-const CREW_INTRO_KEY = "tw:crew-awakening-shown";
-let crewIntroShown = false;
-
-function hasShownCrewIntro(): boolean {
-  if (crewIntroShown) return true;
-  try {
-    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(CREW_INTRO_KEY) === "1") {
-      crewIntroShown = true;
-      return true;
-    }
-  } catch {
-    // Ignore storage errors
-  }
-  return false;
-}
-
-function markCrewIntroShown(): void {
-  crewIntroShown = true;
-  try {
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem(CREW_INTRO_KEY, "1");
-    }
-  } catch {
-    // Ignore storage errors
-  }
-}
-
 export function CrewAwakening() {
   const { reduceMotion } = useReduceMotion();
-  const [playing, setPlaying] = useState(() => !reduceMotion && !hasShownCrewIntro());
+  const [playing, setPlaying] = useState(() => !reduceMotion && !hasSeenIntro("crew"));
   const [sound, setSound] = useState(isSoundEnabled);
   const [soundFailed, setSoundFailed] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -64,7 +38,7 @@ export function CrewAwakening() {
   useEffect(() => {
     const element = dialog.current;
     if (!open || typeof element?.showModal !== "function") return;
-    markCrewIntroShown();
+    markIntroSeen("crew");
     element.showModal();
     playEyeAwakening();
     const previousOverflow = document.body.style.overflow;
@@ -76,7 +50,6 @@ export function CrewAwakening() {
   }, [open]);
 
   function finish() {
-    markCrewIntroShown();
     setPlaying(false);
     requestAnimationFrame(() => {
       const target = document.getElementById(replaying.current ? "page-animation-replay" : "page-title");

@@ -64,17 +64,26 @@ def run(
     readonly: bool = False,
     writable: tuple[str, ...] = (),
     scratch: tuple[str, ...] = (),
+    repair_workspace: Path | None = None,
+    python_worker: bool = False,
+    python_environment: int | None = None,
 ) -> Exec:
     """`readonly` mounts the workspace read-only; `writable` are workspace subfolders mounted back read-write,
     `scratch` are workspace subfolders replaced by an empty in-memory folder (runner caches)."""
     work = _mount(s, ws, "/work", readonly)
     extra: list[str] = []
+    if repair_workspace is not None:
+        extra += ["--mount", _mount(s, repair_workspace, "/repair", False)]
+    if python_environment is not None:
+        env_path = ws.parent / f"python-env-{int(python_environment)}"
+        env_path.mkdir(exist_ok=True)
+        extra += ["--mount", _mount(s, env_path, "/deps", readonly=not network)]
     for rel in writable:
         (ws / rel).mkdir(parents=True, exist_ok=True)
         extra += ["--mount", _mount(s, ws / rel, f"/work/{rel}", False)]
     for rel in scratch:
         (ws / rel).mkdir(parents=True, exist_ok=True)
-        extra += ["--tmpfs", f"/work/{rel}:rw,size=256m"]
+        extra += ["--tmpfs", f"/work/{rel}:rw,size=256m,mode=1777"]  # the sandbox user is not root
     name = f"tw-sbx-{uuid.uuid4().hex[:12]}"
     args = [
         "docker",
@@ -105,7 +114,7 @@ def run(
         "-w",
         "/work",
         "--user",
-        "node",
+        "1000:1000" if python_worker else "node",
         "-e",
         "HOME=/tmp",
         "-e",
@@ -115,9 +124,14 @@ def run(
         "-e",
         "COREPACK_HOME=/tmp/corepack",
     ]
+    if not python_worker and (ws / PRELOAD).is_file():
+        # TimeWraith supplies a global Node lacks (Temporal) to every test it runs here. The file is looked for on the
+        # host at the moment of the call: while the repository installs, `.tw` is moved aside, so nothing is preloaded.
+        args += ["-e", f"NODE_OPTIONS=--import=/work/{PRELOAD}"]
     for k, v in (env or {}).items():
         args += ["-e", f"{k}={v}"]
-    args += [f"node:{node}-bookworm-slim", "sh", "-c", script]
+    image = PYTEST_IMAGE if python_worker else f"node:{node}-bookworm-slim"
+    args += [image, "sh", "-c", script]
     try:
         r = subprocess.run(
             args, capture_output=True, text=True, timeout=timeout, check=False, encoding="utf-8", errors="replace"
@@ -129,11 +143,46 @@ def run(
     return Exec(code=r.returncode, out=(r.stdout + r.stderr)[-8000:])
 
 
+PYTEST_IMAGE = "timewraith-pytest:3.14-8.4.2-v2"
+
+
+def prepare_pytest(timeout: int) -> Exec:
+    """Build only the trusted worker recipe; the target checkout never enters the build context."""
+    recipe = "FROM python:3.14-slim-bookworm\nRUN python -m pip install --no-cache-dir pytest==8.4.2 uv==0.8.22\n"
+    try:
+        r = subprocess.run(
+            ["docker", "build", "-t", PYTEST_IMAGE, "-"],
+            input=recipe,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+            encoding="utf8",
+            errors="replace",
+        )
+    except subprocess.TimeoutExpired:
+        return Exec(124, "Timed out preparing the pytest image", True)
+    return Exec(r.returncode, (r.stdout + r.stderr)[-3000:])
+
+
 def _kill(name: str) -> None:
     """Stop a sandbox container by name. Killing the `docker run` client on a timeout leaves the container
     running, so a looping test would keep a CPU busy long after the case moved on."""
     with contextlib.suppress(OSError, subprocess.TimeoutExpired):
         subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=30, check=False)
+
+
+PRELOAD = ".tw/deps/temporal-global.mjs"  # makes the polyfill the global Temporal (environment.preload_source)
+DEPS = ".tw/deps"
+
+
+def install_polyfill(s: Settings, ws: Path, node: str, package: str) -> Exec:
+    """Install a polyfill into `.tw/deps`, outside the repository: its own folder, no scripts run at install, and the
+    repository's manifest and lockfile are never touched. The test runs that use it have no network."""
+    (ws / DEPS).mkdir(parents=True, exist_ok=True)
+    spec = shlex.quote(package)
+    script = f"npm install --prefix /work/{DEPS} --no-audit --no-fund --ignore-scripts --no-package-lock {spec}"
+    return run(s, ws, node, script, network=True, timeout=min(s.install_timeout_s, 300))
 
 
 def install(s: Settings, ws: Path, caps: CapabilityReport, opts: InstallOptions | None = None) -> Exec:
@@ -151,11 +200,12 @@ def _own_match(paths: list[str]) -> str:
     return " --testMatch '**/__tw__/**'" if own else ""
 
 
-def _runner_cmd(caps: CapabilityReport, test_path: str | None, out: str) -> str:
+def _runner_cmd(caps: CapabilityReport, test_path: str | None, out: str, *, runner_config: str | None = None) -> str:
     q = shlex.quote
     if caps.test_runner == "vitest":
+        config = f" --config {q(runner_config)}" if runner_config else ""
         target = f" {q(test_path)}" if test_path else ""
-        return f"node_modules/.bin/vitest run{target} --reporter=json --outputFile={q(out)}"
+        return f"node_modules/.bin/vitest run{config}{target} --reporter=json --outputFile={q(out)}"
     target = f" --runTestsByPath {q(test_path)}" if test_path else ""
     match = _own_match([test_path] if test_path else [])
     return f"node_modules/.bin/jest{target}{match} --json --outputFile={q(out)} --ci"
@@ -199,7 +249,13 @@ def _parse(report_file: Path, ex: Exec) -> TestOutcome:
 
 
 def run_test_file(
-    s: Settings, ws: Path, caps: CapabilityReport, test_path: str, clocks: list[ClockConfig]
+    s: Settings,
+    ws: Path,
+    caps: CapabilityReport,
+    test_path: str,
+    clocks: list[ClockConfig],
+    *,
+    runner_config: str | None = None,
 ) -> list[TestOutcome]:
     """Run one test file once per clock point, in one fresh container without network."""
     tw = ws / ".tw"
@@ -209,20 +265,28 @@ def run_test_file(
         out = f".tw/run-{i}.json"
         (ws / out).unlink(missing_ok=True)
         env = f"TZ={shlex.quote(c.time_zone)} TW_INSTANT={shlex.quote(c.instant)} TW_TZ={shlex.quote(c.time_zone)}"
-        parts.append(f"{env} {_runner_cmd(caps, test_path, out)} >/dev/null 2>&1 || true")
+        parts.append(f"{env} {_runner_cmd(caps, test_path, out, runner_config=runner_config)} >/dev/null 2>&1 || true")
     ex = run(s, ws, caps.node_version, "; ".join(parts), network=False, timeout=s.test_timeout_s * max(1, len(clocks)))
     return [_parse(ws / f".tw/run-{i}.json", ex) for i in range(len(clocks))]
 
 
-def _files_cmd(caps: CapabilityReport, paths: list[str]) -> str:
+def _files_cmd(caps: CapabilityReport, paths: list[str], *, runner_config: str | None = None) -> str:
     files = " ".join(shlex.quote(p) for p in paths)
     if caps.test_runner == "vitest":
-        return f"node_modules/.bin/vitest run {files}"
+        config = f" --config {shlex.quote(runner_config)}" if runner_config else ""
+        return f"node_modules/.bin/vitest run{config} {files}"
     return f"node_modules/.bin/jest --ci{_own_match(paths)} --runTestsByPath {files}"
 
 
 def sweep(
-    s: Settings, ws: Path, caps: CapabilityReport, harness_paths: list[str], zones: list[str], set_name: str
+    s: Settings,
+    ws: Path,
+    caps: CapabilityReport,
+    harness_paths: list[str],
+    zones: list[str],
+    set_name: str,
+    *,
+    runner_configs: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Run all harness files once per zone in one fresh no-network container.
 
@@ -242,16 +306,24 @@ def sweep(
         jobs = []
         for i, path in enumerate(harness_paths):
             log = f".tw/out/log-{safe}.{i}.txt"
-            run_one = f"timeout -k 5 {limit} {_files_cmd(caps, [path])}"
+            runner = _files_cmd(caps, [path], runner_config=(runner_configs or {}).get(path))
+            run_one = f"timeout -k 5 {limit} {runner}"
             skip = f".tw/out/skip-{i}"  # a file that timed out is not run again in the remaining zones
             note = f"{{ echo 'TIMEOUT: {path} exceeded {limit} s' >> {log}; touch {skip}; }}"
-            jobs.append(f"[ -e {skip} ] || ( {env} {run_one} > {log} 2>&1; [ $? -ge 124 ] && {note} ) &")
+            # `timeout` exits 124 when it stopped the command, 137 when it had to kill it. Other high codes are not
+            # timeouts: 127 is a runner that is not there, and that must not be reported as a slow test.
+            ended = "rc=$?; { [ $rc -eq 124 ] || [ $rc -eq 137 ]; }"
+            jobs.append(f"[ -e {skip} ] || ( {env} {run_one} > {log} 2>&1; {ended} && {note} ) &")
         parts.append("\n".join(jobs) + f"\nwait; cat .tw/out/log-{safe}.*.txt > .tw/out/log-{safe}.txt 2>&1 || true")
     ex = run(s, ws, caps.node_version, "\n".join(parts), network=False, timeout=(limit + 15) * len(zones))
     logs: dict[str, str] = {}
     for z in zones:
         p = out / f"log-{z.replace('/', '_')}.txt"
-        logs[z] = p.read_text(encoding="utf-8", errors="replace")[-1500:] if p.exists() else ""
+        logs[z] = p.read_text(encoding="utf-8", errors="replace")[:4000] if p.exists() else ""
+        for i, path in enumerate(harness_paths):
+            file_log = out / f"log-{z.replace('/', '_')}.{i}.txt"
+            if file_log.is_file():
+                logs[f"{z}:{path}"] = file_log.read_text(encoding="utf-8", errors="replace")[:4000]
         if ex.timed_out and not logs[z]:
             logs[z] = "timed out"
     return logs
@@ -266,15 +338,46 @@ class ProbeResult:
 PROBE_DIR = ".tw/probe"
 
 
-def probe(s: Settings, ws: Path, caps: CapabilityReport, test_rel: str, zone: str, now_ms: int) -> ProbeResult:
+def runner_caches(runner: str | None, ws: Path | None = None) -> tuple[str, ...]:
+    """Workspace folders a runner writes while it starts. The repository is mounted read-only for probes and repair
+    shells, so each gets an empty in-memory folder. Vite writes `.vite-temp` while loading ANY config, the repository's
+    own included: without it the runner dies with EROFS before it reads a single setting, and nobody can diagnose why
+    the harness is not collected."""
+    if runner != "vitest":
+        return ()
+    roots = {"."}
+    if ws is not None:
+        # A monorepo has a config per package, and vite writes `.vite-temp` beside each one it loads.
+        for config in ws.glob("**/vitest.config.*"):
+            rel = config.relative_to(ws).parts
+            if "node_modules" not in rel and not any(p.startswith(".") for p in rel[:-1]) and len(rel) <= 5:
+                roots.add(config.parent.relative_to(ws).as_posix())
+    return tuple(
+        f"{'' if r == '.' else r + '/'}node_modules/{d}"
+        for r in sorted(roots)
+        for d in (".vite", ".vitest", ".vite-temp")
+    )
+
+
+def probe(
+    s: Settings,
+    ws: Path,
+    caps: CapabilityReport,
+    test_rel: str,
+    zone: str,
+    now_ms: int,
+    *,
+    runner_config: str | None = None,
+) -> ProbeResult:
     """Run one probe file (sweep.probe_code) with the clock frozen at `now_ms` in process zone `zone`, no network,
     the repository read-only: only the probe's result folder is writable."""
     out = ws / PROBE_DIR / "out.json"
     out.unlink(missing_ok=True)
     q = shlex.quote
     log = f"/work/{PROBE_DIR}/log.txt"
-    script = f"TZ={q(zone)} TW_NOW={int(now_ms)} {_files_cmd(caps, [test_rel])} > {log} 2>&1 || true"
-    caches = ("node_modules/.vite", "node_modules/.vitest") if caps.test_runner == "vitest" else ()
+    runner = _files_cmd(caps, [test_rel], runner_config=runner_config)
+    script = f"TZ={q(zone)} TW_NOW={int(now_ms)} {runner} > {log} 2>&1 || true"
+    caches = runner_caches(caps.test_runner, ws)
     ex = run(
         s, ws, caps.node_version, script, network=False, timeout=s.test_timeout_s,
         readonly=True, writable=(PROBE_DIR,), scratch=caches,

@@ -72,7 +72,16 @@ PROBE_HELP = (
     "from the repository root (TypeScript works). `print(...)` records output. `check(condition, message)` "
     "states what correct behaviour is; a false condition marks the bug as present. If the code may throw, catch "
     "it and check, so a failure is a check and not an error. The clock (Date.now, new Date()) is frozen at "
-    "`instant`, and the process time zone is `zone`. No network, no file writes."
+    "`instant`, and the process time zone is `zone`. For retry_cancelled, define schedule(notify, delayMs) "
+    "using the actual API and return its cancel function. End the reproduction with "
+    "check(await cancelledRetry(schedule) === 0, 'callback after cancellation'). "
+    "For timeout_delivery and interval_delivery, use const trace = await timerTrace(schedule); "
+    "then end with check(JSON.stringify(trace) === '[10]', 'callback timing') for one-shot or '[10,20,30]' "
+    "for intervals. For elapsed_clock_jump, use await clockJumpTrace(schedule, 'forward') or 'backward' matching "
+    "the reported direction; check the trace equals [10]. Give the same start point for reproduction and control. "
+    "For expiry_deadline, capture const trace = await expiryTrace(create, isExpired); "
+    "using the public API. Index 0 is before, 1 at, and 2 after expiry. End with check(trace[index] === expected, "
+    "'expiry boundary'), using the literal index and boolean for the reported failure. No network, no file writes."
 )
 VERIFY_TOOLS: list[dict[str, Any]] = [
     *READ_TOOLS,
@@ -189,6 +198,7 @@ class VerifySession(RepoReader):
     rejected_reason: str | None = None  # set when the final verdict did not pass the checks
     checks: list[str] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock)
+    repair_tools: dict[str, Callable[[dict[str, Any]], str]] = field(default_factory=dict)
     tools: list[dict[str, Any]] = field(default_factory=lambda: VERIFY_TOOLS)
 
     # ---------- tools ----------
@@ -280,7 +290,8 @@ class VerifySession(RepoReader):
                 "search_issues": lambda: self.search_issues(args.get("terms")),
                 "submit_verdict": lambda: self.submit_verdict(args),
             }
-            fn = handlers.get(name)
+            repair = self.repair_tools.get(name)
+            fn = (lambda: repair(args)) if repair else handlers.get(name)
             if fn is None:
                 raise ToolError(f"Unknown tool {name}")
             try:

@@ -5,7 +5,7 @@ You give it a public GitHub repository and a ref. Kiro agents propose and code d
 | # | Step | Owner | Kind | What happens | Who decides |
 |---|---|---|---|---|---|
 | 1 | Repository | Wraith Director | code | Clones one commit with hardened Git (no hooks, submodules, LFS or symlinks) and builds the capability report | Code |
-| 2 | Time-sensitive code discovery | Bat Scout | Kiro agent | A deterministic scan finds time signals and groups them into candidates; Bat Scout keeps or drops the top 15 | A keep counts only if it cites one of the candidate's own signals |
+| 2 | Time-sensitive code discovery | Bat Scout | Kiro agent | Bat reviews the top 15 scanner candidates and can choose up to six JS/TS source files to inspect for additional leads | Scanner selections cite their own signals. Source leads cite a matching line and quote, and take priority within the experiment budget |
 | 3 | Autonomous experiment design | Pumpkin Mechanic | Kiro agent | Writes an **adapter** (how to call the code, which output fields to read) and picks invariants from a fixed catalog | Code drops invariants the adapter cannot feed and checks the adapter at baseline. The harness picks the clock points |
 | — | Plan approval | you | | Skipped when `auto` is set | |
 | 4 | Controlled execution | Spider Weaver | code | Sweeps about 2,600 clock points per experiment in 13 zones: every DST transition 2024–2026 (±1 ms to ±1 h), month ends, leap day, and anchors. Runs in no-network Docker | Invariant oracles in `sweep.py` |
@@ -54,7 +54,7 @@ After install, an adapter must run at ordinary instants in UTC and New York, ret
 
 ## Verification sessions (Raven Archivist with tools)
 
-With the Kiro Crew container runtime, each repeated violation gets one Kiro CLI session with the profile `tw-raven-archivist`. Her tools (`verifysession.py`) read the repository, run probes against the real code with a frozen clock in a read-only sandbox, run repository tests, search issues and pull requests, and submit a verdict. A defect is accepted only when code reruns her reproduction: its check fails 3/3 at the failing point, passes at a control point, and the regression test made from it fails with an assertion. The full rules are in [docs/agent-flow.md](../docs/agent-flow.md#agentic-verification-raven-with-tools). Limits: `TW_VERIFY_SESSION_S` (600), `TW_MAX_VERIFY_CALLS` (30), `TW_MAX_PROBES` (12).
+With the Kiro Crew container runtime, selected repeated violations can receive a Kiro CLI session when budget permits with the profile `tw-raven-archivist`. Her tools (`verifysession.py`) read the repository, run probes against the real code with a frozen clock in a read-only sandbox, run repository tests, search issues and pull requests, and submit a verdict. A defect is accepted only when code reruns her reproduction: its check fails 3/3 at the failing point, passes at a control point, and the regression test made from it fails with an assertion. The full rules are in [docs/agent-flow.md](../docs/agent-flow.md#agentic-verification-raven-with-tools). Limits: `TW_VERIFY_SESSION_S` (600), `TW_MAX_VERIFY_CALLS` (30), `TW_MAX_PROBES` (12).
 
 ## Dependency install and self-healing
 
@@ -104,7 +104,7 @@ With the default `TW_AGENT_RUNTIME=auto`, agent calls go to the container as soo
 
 ## Agent runtime
 
-The agent profiles are in `backend/agents/` (`bat-scout.md`, `pumpkin-mechanic.md`, `raven-archivist.md`, `doctor-stitch.md`). Judgment agents get no tools: source goes into the prompt as quoted untrusted data, and each reply must validate against a Pydantic schema (2 retries). The exception is Doctor Stitch's fix session, which works through TimeWraith's tools only (see above).
+The profiles in `backend/agents/` include Bat Scout, Pumpkin Mechanic, Raven Archivist, Doctor Stitch, Wraith Director and the install mechanic. Initial review, design and planning use structured responses. With the container runtime, Pumpkin and Raven can also use scoped tools in repair and verification sessions, and Doctor Stitch uses scoped fix tools. Repository content supplied to agents is treated as untrusted data.
 
 Settings are read from `TW_*` environment variables or `backend/.env`. The ones you are most likely to change:
 
@@ -133,7 +133,8 @@ Runtimes:
 
 ## Limits of the MVP
 
-- JavaScript and TypeScript with Vitest or Jest only, run from the repository root. Harness files live in `__tw__/` next to the source. With Jest, runs of TimeWraith's own files pass `--testMatch '**/__tw__/**'`, so a narrow `testMatch` does not skip them. With Vitest, an `include` pattern that excludes them still leads to "No output: the runner did not collect the harness".
+- Python cases use a Python 3.14 worker. The Crew reads repository source, selects a supported setup (uv lock, requirements file, root package or dependency-free source), and designs a pytest experiment. Each probe runs offline in a fresh container with read-only source and dependencies. The worker sets the process time zone and controls Python’s Unix, date/datetime, and monotonic clocks. Probes can use `timewraith_clock.advance(seconds, wall=True, monotonic=True)` to move wall and elapsed time independently. Published regression tests run with ordinary pytest and supply their own time inputs. Raven checks that the selected source ran, the assertion fails repeatedly, and the control passes. The Director can propose another lead within the case budget. Older approved plans can still replay existing pytest files.
+- JavaScript and TypeScript with Vitest or Jest, run from the repository root. Harness files live in `__tw__/` next to the source. With Jest, runs of TimeWraith's own files pass `--testMatch '**/__tw__/**'`, so a narrow `testMatch` does not skip them. With Vitest, an `include` pattern that excludes them still leads to "No output: the runner did not collect the harness".
 - TypeScript adapters get a `// @ts-nocheck` header, so a strict typecheck does not reject agent-written test glue.
 - Regex detectors plus a brace-depth scope finder (Tree-sitter fallback B8).
 - The intent search is plain text. It finds the repository's tests and docs by file name and by mention of the code, so a project that documents its behaviour somewhere else is not found.

@@ -87,7 +87,8 @@
         {
           "enum": [
             "vitest",
-            "jest"
+            "jest",
+            "pytest"
           ],
           "type": "string"
         },

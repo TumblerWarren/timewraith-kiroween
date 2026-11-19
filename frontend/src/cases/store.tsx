@@ -23,6 +23,7 @@ export interface CaseStoreValue {
   readonly cases: readonly Case[];
   readonly drafts: readonly DraftCase[];
   readonly live: readonly LiveCase[];
+  readonly awaitingFirstList: boolean;
   readonly selectedId: string | null;
   readonly selected: Case | null;
   readonly limitReached: boolean;
@@ -34,7 +35,8 @@ export interface CaseStoreValue {
   readonly select: (id: string) => boolean;
 }
 
-const CaseStoreContext = createContext<CaseStoreValue | null>(null);
+/** Exported so a test can hand a component a fixed case list. */
+export const CaseStoreContext = createContext<CaseStoreValue | null>(null);
 
 export interface CaseStoreProviderProps {
   readonly children: ReactNode;
@@ -51,6 +53,7 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
   const [store] = useState<StorageLike | null>(() => (storage === undefined ? browserStorage() : storage));
   const [drafts, setDrafts] = useState<readonly DraftCase[]>(() => loadDrafts(store).drafts);
   const [live, setLive] = useState<readonly LiveCase[]>([]);
+  const [firstListSettled, setFirstListSettled] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // The latest drafts and live cases, so actions see the next list at once (outside a state updater).
   const draftsRef = useRef(drafts);
@@ -98,7 +101,8 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
       api
         .list()
         .then((list) => alive && setLiveList(list.filter((s) => !removedIds.current.has(s.id)).map((s) => liveFromSummary(s, areas.current.get(s.id)))))
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => { if (alive) setFirstListSettled(true); });
     void load();
     const timer = window.setInterval(load, LIST_REFRESH_MS);
     return () => {
@@ -152,6 +156,7 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
       cases,
       drafts,
       live,
+      awaitingFirstList: !!api && !firstListSettled,
       selectedId: selected?.id ?? null,
       selected,
       limitReached: drafts.length >= MAX_DRAFTS,
@@ -161,7 +166,7 @@ export function CaseStoreProvider({ children, storage, now = Date.now }: CaseSto
       upsertLive,
       select,
     };
-  }, [cases, drafts, live, selectedId, createDraft, removeDraft, removeLive, upsertLive, select]);
+  }, [cases, drafts, live, api, firstListSettled, selectedId, createDraft, removeDraft, removeLive, upsertLive, select]);
 
   return <CaseStoreContext.Provider value={value}>{children}</CaseStoreContext.Provider>;
 }
@@ -174,6 +179,7 @@ const STANDALONE: CaseStoreValue = {
   cases: [],
   drafts: [],
   live: [],
+  awaitingFirstList: false,
   selectedId: null,
   selected: null,
   limitReached: false,

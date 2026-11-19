@@ -1,5 +1,6 @@
 import { NAV } from "../content/app";
 import { href, type Route } from "./router";
+import { useReadiness } from "./SetupProvider";
 
 export function Arrow({ diagonal = false }: { readonly diagonal?: boolean }) {
   return (
@@ -33,19 +34,24 @@ const LINKS = [
 
 /** Unified top navigation bar shared across all pages. */
 export function AppBar({ route }: { readonly route: Route }) {
+  const { ready } = useReadiness();
   return (
     <header className="appbar">
       <div className="midnight-wrap appbar__inner midnight-nav">
         <Brand className="appbar__wordmark" current={route.page === "home"} />
         <nav className="appbar__nav" aria-label={NAV.label}>
           <ul role="list">
-            {LINKS.map((l) => (
-              <li key={l.page}>
-                <a href={href({ page: l.page })} aria-current={(l.match as readonly string[]).includes(route.page) ? "page" : undefined}>
-                  {l.label}
-                </a>
-              </li>
-            ))}
+            {LINKS.map((l) => {
+              const locked = !ready && (l.page === "cases" || l.page === "new");
+              return (
+                <li key={l.page}>
+                  <a href={href({ page: l.page })} aria-current={(l.match as readonly string[]).includes(route.page) ? "page" : undefined}>
+                    {l.label}
+                    {locked && <> <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="1" /><path d="M5.5 7V5a2.5 2.5 0 1 1 5 0v2" /></svg><span className="visually-hidden"> (setup required)</span></>}
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </nav>
       </div>

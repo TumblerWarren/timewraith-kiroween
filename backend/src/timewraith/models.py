@@ -82,9 +82,33 @@ EventKind = Literal[
     "tool",
 ]
 InvariantId = Literal[
-    "well_formed", "deterministic", "local_date_matches", "instant_zone_independent", "flag_monotonic", "next_after_now"
+    "well_formed",
+    "deterministic",
+    "local_date_matches",
+    "instant_zone_independent",
+    "flag_monotonic",
+    "next_after_now",
+    "retry_cancelled",
+    "timeout_delivery",
+    "interval_delivery",
+    "expiry_deadline",
+    "elapsed_clock_jump",
+    "python_assertion",
+    "calendar_contract",
 ]
-OutputField = Literal["instant", "next", "flag", "date", "value"]
+OutputField = Literal[
+    "instant",
+    "next",
+    "flag",
+    "date",
+    "value",
+    "after_cancel",
+    "timeout_trace",
+    "interval_trace",
+    "expiry_trace",
+    "clock_jumps",
+    "calendar_cases",
+]
 
 
 class FlowStep(BaseModel):
@@ -186,7 +210,7 @@ class CapabilityReport(BaseModel):
     kind: Literal["Capability report"] = "Capability report"
     items: list[CapabilityItem] = []
     package_manager: Literal["npm", "pnpm", "yarn"] | None = None
-    test_runner: Literal["vitest", "jest"] | None = None
+    test_runner: Literal["vitest", "jest", "pytest"] | None = None
     node_version: str = "22"
     scripts: dict[str, str] = {}
 
@@ -273,6 +297,8 @@ class ClockConfig(BaseModel):
 
 
 class InvariantUse(BaseModel):
+    expired_at_deadline: bool | None = Field(default=None, description="Explicit cited expiry policy at equality")
+    expectation_ref: str | None = Field(default=None, description="Repository test or doc passage supporting this rule")
     id: InvariantId
     reason: str
     max_gap_ms: int | None = Field(default=None, ge=1)
@@ -282,8 +308,8 @@ class Experiment(BaseModel):
     id: str
     candidate_id: str
     categories: list[BugCategory]
-    adapter: Literal["js_sweep"] = "js_sweep"
-    status: Literal["planned", "designed", "not_designed", "adapter_invalid", "swept"] = "planned"
+    adapter: Literal["js_sweep", "python_pytest", "python_crew"] = "js_sweep"
+    status: Literal["planned", "designed", "not_designed", "adapter_invalid", "not_run", "swept"] = "planned"
     executability: Literal["ready", "needs_setup", "not_controllable"]
     executability_reason: str | None = None
     claim: str | None = None
@@ -295,6 +321,10 @@ class Experiment(BaseModel):
     adapter_path: str | None = None
     harness_path: str | None = None
     adapter_code: str | None = None
+    runner_config: str | None = None
+    # Why an experiment that could not run did not: the experiment itself (adapter), the place it runs (environment), or
+    # the agent service refusing requests (throttled). Set with status adapter_invalid / not_run.
+    failure_kind: Literal["adapter", "environment", "throttled"] | None = None
 
 
 class TestPlan(BaseModel):
@@ -307,6 +337,7 @@ Evidences = Annotated[list[Evidence], keep_first(6)]
 
 
 class Violation(BaseModel):
+    failure_kind: str = ""
     invariant: InvariantId
     zone: str
     instant: str  # ISO UTC
@@ -317,7 +348,22 @@ class Violation(BaseModel):
     expected: str | None = None
 
 
+class PytestResult(BaseModel):
+    assertion_failure: bool = False
+    exercised_source: bool = False
+    runtime: str | None = None
+    instant: str
+    zone: str
+    outcome: Literal["passed", "failed", "skipped", "blocked"]
+    passed: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+    skipped: int = Field(default=0, ge=0)
+    detail: str = ""
+
+
 class SweepResult(BaseModel):
+    pytest_results: list[PytestResult] = []
+    pending_review: int | None = None  # Older cases did not track review groups.
     experiment_id: str
     points_run: int
     zones: list[str]
@@ -455,6 +501,7 @@ class Bug(BaseModel):
     evidence: list[Evidence] = []
     regression_test_path: str
     regression_test: str
+    contribution_test: str | None = None  # standalone regression included in the upstream patch
     issue_match: dict[str, str] | None = None
     issue_match_label: str = "No matching public issue found"
     fix: Fix = Fix()
@@ -526,7 +573,7 @@ class CoverageRow(BaseModel):
     candidate_id: str
     unit: str
     path: str
-    status: Literal["not_selected", "not_designed", "adapter_invalid", "clean", "violations"]
+    status: Literal["not_selected", "not_designed", "adapter_invalid", "partial", "clean", "violations"]
     experiments: list[str] = []
     rules: list[str] = []
     edges: list[str] = []  # violations as "rule @ zone (fall-back | spring-forward | month end | other)"
@@ -546,7 +593,46 @@ class Intent(BaseModel):
     reason: str = ""
 
 
+class SweepWindow(BaseModel):
+    start_ms: int
+    end_ms: int  # Exclusive UTC boundary.
+
+    def contains(self, ms: int) -> bool:
+        return self.start_ms <= ms < self.end_ms
+
+
+class EnvironmentCheck(BaseModel):
+    """Can this repository's test runner run a generated test at all? Checked once per case with a canary, before any
+    experiment is judged, because the answer is the same for every experiment (pipeline._environment)."""
+
+    status: Literal["ok", "failed", "skipped"] = "skipped"
+    runner_config: str | None = (
+        None  # the repo-wide runner profile the experiments use, when the repo's own config can't
+    )
+    how: str = ""  # which step made it work: the repository's own setup, the default profile, or an agent repair
+    node: str | None = None
+    missing_globals: list[str] = []  # globals this Node does not have (for example Temporal)
+    provided: list[str] = []  # globals TimeWraith supplies from a polyfill it installed outside the repository
+    polyfills: list[str] = []  # installed packages that supply some of them
+    attempts: list[str] = []
+    reason: str | None = None  # why it failed, when it did
+
+
+class RunSummary(BaseModel):
+    """How a finished run went, in counts, so runs and repositories can be compared (pipeline._run_health)."""
+
+    experiments: int = 0
+    ran: int = 0
+    adapter: int = 0
+    environment: int = 0
+    throttled: int = 0
+    repairs_rejected: int = 0
+    environment_check: str = "skipped"
+
+
 class Investigation(BaseModel):
+    python_environment: int | None = Field(default=None, ge=1)
+    sweep_window: SweepWindow | None = None
     id: str
     created_at: str
     request: CreateInvestigation
@@ -571,6 +657,11 @@ class Investigation(BaseModel):
     notes: list[str] = []
     coverage: list[CoverageRow] = []
     intents: list[Intent] = []
+    environment: EnvironmentCheck | None = None
+    run_summary: RunSummary | None = None
+
+
+ATTENTION_PREFIX = "Attention: "  # a note with this prefix tells the page the run finished with problems
 
 
 class InvestigationSummary(BaseModel):
@@ -584,6 +675,7 @@ class InvestigationSummary(BaseModel):
     bug_count: int
     fix_verified_count: int = 0
     intended_count: int = 0
+    attention: str | None = None  # the notice a finished run left (see pipeline._run_health), without its prefix
     replay_label: str
     runtime_label: str
     error: str | None = None

@@ -16,8 +16,30 @@ export function observedAnomalies(inv: Investigation, events: readonly ReplayEve
       ? [{ step: data.step, subject: data.subject, decision: data.decision, rule: typeof data.rule === "string" ? data.rule : "" }]
       : [];
   })];
-  return inv.sweeps.flatMap((sweep) => {
-    // The pipeline verifies only the first violation for each experiment.
+  type Observation = {
+    id: string;
+    experimentId: string;
+    violation: Bug["violation"];
+    state: "checking" | "intended" | "reproduced" | "notReported" | "awaitingReview";
+    reason?: string;
+  };
+  return inv.sweeps.flatMap<Observation>((sweep) => {
+    if (sweep.pending_review != null) {
+      const groups = new Map<string, Bug["violation"]>();
+      for (const point of sweep.violations) {
+        const key = JSON.stringify([point.invariant, point.failure_kind]);
+        if (!groups.has(key)) groups.set(key, point);
+      }
+      const reviewed = groups.size - sweep.pending_review;
+      const findings = [...inv.bugs, ...(inv.intended ?? [])];
+      return Array.from(groups).flatMap<Observation>(([key, violation], index) => {
+        if (findings.some((item) => item.experiment_id === sweep.experiment_id &&
+          item.violation.invariant === violation.invariant && item.violation.failure_kind === violation.failure_kind)) return [];
+        return [{ id: sweep.experiment_id + key, experimentId: sweep.experiment_id, violation,
+          state: index < reviewed ? "notReported" : "awaitingReview", reason: violation.detail }];
+      });
+    }
+    // Historical cases recorded one review per experiment.
     const violation = sweep.violations[0];
     if (!violation) return [];
     const matches = (finding: Bug | NonNullable<Investigation["intended"]>[number]) =>
@@ -34,7 +56,7 @@ export function observedAnomalies(inv: Investigation, events: readonly ReplayEve
       ? "notReported" : "checking";
     if (verdict?.decision === "accepted" && verdict.subject.startsWith("int_")) state = "intended";
     if (verdict?.decision === "accepted" && verdict.subject.startsWith("bug_")) state = "reproduced";
-    return [{ id: sweep.experiment_id, violation, state, reason: verdict?.rule ?? repeat?.rule }];
+    return [{ id: sweep.experiment_id, experimentId: sweep.experiment_id, violation, state, reason: verdict?.rule ?? repeat?.rule }];
   });
 }
 

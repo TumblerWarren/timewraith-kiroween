@@ -21,7 +21,7 @@ export const LANDING_STAGES = [
     "label": "Test",
     "kicker": "03 / REPRODUCTION",
     "title": "Make the bug happen on demand.",
-    "copy": "The crew creates a controlled test for the exact expiry instant. A failing assertion demonstrates the behavior rather than merely guessing at a bug.",
+    "copy": "The crew sweeps controlled clock settings, repeats selected violations and checks a reproduction before reporting a defect.",
     "file": "tests/session.test.ts",
     "code": "expect(isExpired(1000, 1000))\n  .toBe(true);\n\n// Expected: true\n// Received: false",
     "note": "Example failure · at now === expiresAt"
@@ -30,7 +30,7 @@ export const LANDING_STAGES = [
     "label": "Fix",
     "kicker": "04 / REPAIR",
     "title": "Change only what is necessary.",
-    "copy": "Review a minimal proposed patch with the source evidence and failing test. Apply the change only according to your approval policy.",
+    "copy": "Doctor Stitch proposes a patch after a defect is reproduced. Review the evidence and accept or reject a fix that passes verification.",
     "file": "src/session.ts:42 · proposed diff",
     "code": "- return now > expiresAt;\n+ return now >= expiresAt;",
     "note": "Illustrative patch · review before applying"
@@ -39,7 +39,7 @@ export const LANDING_STAGES = [
     "label": "Verify",
     "kicker": "05 / VERIFICATION",
     "title": "Prove the fix holds.",
-    "copy": "Rerun the original failing test and relevant regressions. The report distinguishes verified repairs from unresolved findings.",
+    "copy": "A proposed fix must pass eight gates, including the original reproduction, regression checks and independent review. Accepted fixes can be checked against repository rules and shared on GitHub.",
     "file": "tests/session.test.ts · result",
     "code": "PASS  before expiry\nPASS  exactly at expiry\nPASS  after expiry",
     "note": "Illustrative results · not executed in this preview"

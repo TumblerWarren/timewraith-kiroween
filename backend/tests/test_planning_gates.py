@@ -54,6 +54,18 @@ def test_anchor_adds_boundary_points() -> None:
         assert T0 + d in pts
 
 
+def test_future_window_reaches_leap_day_and_excludes_outside_points() -> None:
+    window = S.future_window(datetime(2026, 11, 19, 23, 59, tzinfo=UTC))
+    assert S.iso(window.start_ms) == "2026-11-20T00:00:00.000Z"
+    assert S.iso(window.end_ms) == "2031-11-20T00:00:00.000Z"
+    points = S.build_points([window.start_ms, window.end_ms], window)
+    assert S.parse_instant("2028-02-29T00:00:00Z") in points["UTC"]
+    assert all(window.contains(ms) for series in points.values() for ms in series)
+    assert all(
+        len(series) == 2 and all(window.contains(ms) for ms in series) for series in S.baseline_points(window).values()
+    )
+
+
 def test_parse_instant_requires_offset() -> None:
     assert S.parse_instant("2025-06-11T12:00:00Z") == T0
     assert S.parse_instant("2025-06-11T12:00:00") is None
@@ -202,3 +214,20 @@ def test_extract_json_from_fenced_reply() -> None:
     assert _extract_json('Sure: {"a": 1}') == {"a": 1}
     with pytest.raises(ValueError):
         _extract_json("no json here")
+
+
+def test_cited_calendar_contract_detects_valid_but_wrong_result() -> None:
+    output = {
+        "calendar_cases": [
+            {"name": "string-offset", "actual": "2028-03-12", "expected": "2028-03-03"},
+            {"name": "number-control", "actual": "2028-03-03", "expected": "2028-03-03"},
+        ]
+    }
+    samples = {"UTC": [{"t": T0, "r0": output, "r1": output}]}
+    assert S.check(samples, []) == []
+    rule = InvariantUse(id="calendar_contract", reason="Date representation equivalence", expectation_ref="README.md:1")
+    [violation] = S.check(samples, [rule])
+    assert violation.failure_kind == "string-offset"
+    assert violation.expected == '"2028-03-03"'
+    test = S.regression_code(exp_id="exp_fixture", runner="vitest", v=violation, title="calendar", target="fixture")
+    assert 'c.name === "string-offset"' in test and 'toEqual("2028-03-03")' in test

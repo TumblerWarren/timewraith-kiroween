@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { LiveAnnouncer, useLiveAnnouncer } from "./a11y/LiveAnnouncer";
+import { useEffect, useRef } from "react";
+import { LiveAnnouncer } from "./a11y/LiveAnnouncer";
 import { useReduceMotion } from "./a11y/ReduceMotionProvider";
 import { AppBar } from "./app/AppBar";
+import { FinishedNotices } from "./app/FinishedNotices";
 import { href, useRoute, type Route } from "./app/router";
-import { SetupProvider } from "./app/SetupProvider";
-import { installGlobalUiSounds, isSoundEnabled, subscribeSoundState, toggleSoundEnabled } from "./audio/soundEffects";
+import { SetupProvider, useReadiness } from "./app/SetupProvider";
+import { installGlobalUiSounds } from "./audio/soundEffects";
 import { AboutPage } from "./pages/AboutPage";
 import { CasePage } from "./pages/case/CasePage";
 import { CasesPage } from "./pages/CasesPage";
@@ -25,9 +26,35 @@ const TITLES: Readonly<Record<Route["page"], string>> = {
 };
 
 function Page({ route }: { readonly route: Route }) {
+  const { ready, status, docker, crew, login } = useReadiness();
+  if (!ready && (route.page === "cases" || route.page === "case" || route.page === "new")) {
+    const pending = [
+      docker !== "done" && "Start Docker",
+      crew !== "done" && "Start the Kiro Crew container",
+      login !== "done" && "Sign in to Kiro",
+    ].filter((step) => step !== false);
+
+    return (
+      <article className="page" aria-labelledby="page-title">
+        <header className="page__head">
+          <h1 id="page-title" className="page__title" tabIndex={-1}>Complete Crew setup</h1>
+          <p className="page__lead">Cases and New Case unlock once Docker is running, the Crew container is running, and you’re signed in to Kiro.</p>
+        </header>
+        <section className="panel" aria-label="Crew setup status">
+          {status ? (
+            <ul>
+              {pending.map((step) => <li key={step}>{step}</li>)}
+            </ul>
+          ) : <p>Crew readiness hasn’t been confirmed. Check the status on the Crew setup page.</p>}
+          <a className="btn" href={href({ page: "crew" })}>Go to Crew setup</a>
+        </section>
+      </article>
+    );
+  }
+
   switch (route.page) {
     case "landing":
-      return <LandingPage />;
+      return <LandingPage key={String(!!route.replay)} replayOnEntry={route.replay} />;
     case "home":
       return <HomePage />;
     case "new":
@@ -63,49 +90,34 @@ function Page({ route }: { readonly route: Route }) {
 }
 
 function ShellFooter({ page }: { readonly page: Route["page"] }) {
-  const { reduceMotion, toggle } = useReduceMotion();
-  const { announce } = useLiveAnnouncer();
-  const [sound, setSound] = useState(isSoundEnabled);
-
-  useEffect(() => subscribeSoundState(setSound), []);
+  const { reduceMotion } = useReduceMotion();
+  const { ready } = useReadiness();
 
   return (
     <footer className="footer">
       <div className="midnight-wrap midnight-footer">
         <span>TimeWraith / A Kiro Crew agent team for date-sensitive code</span>
         <div>
-          <button
+          {ready && page === "cases" && !reduceMotion && <button
+            id="cases-footer-skip"
             type="button"
             className="footer__control"
-            data-sound-toggle
-            aria-pressed={sound}
-            onClick={() => void toggleSoundEnabled()}
+            onClick={() => window.dispatchEvent(new Event("tw:skip-cases"))}
           >
-            {sound ? "Sound on" : "Sound off"}
-          </button>
-          <button
-            type="button"
-            className="footer__control"
-            aria-pressed={reduceMotion}
-            onClick={() => announce(toggle() ? "Reduced motion on" : "Reduced motion off")}
-          >
-            {reduceMotion ? "Reduce motion: on" : "Reduce motion"}
-          </button>
-          {(page === "new" || page === "crew") && <button
+            Skip animation
+          </button>}
+          {((ready && (page === "new" || page === "cases")) || page === "crew") && <button
             id="page-animation-replay"
             type="button"
             className="footer__control"
             disabled={reduceMotion}
             onClick={() => window.dispatchEvent(new Event(`tw:replay-${page}`))}
           >
-            {page === "new" ? "Replay the trap animation" : "Replay the crew animation"}
+            {page === "new" ? "Replay the trap animation" : page === "cases" ? "Replay the case reveal" : "Replay the crew animation"}
           </button>}
-          {page !== "new" && page !== "crew" && <a className="landing-replay" href={href({ page: "landing" })}>
+          {page !== "new" && page !== "crew" && page !== "cases" && <a className="landing-replay" href={href({ page: "landing", replay: true })}>
             Replay the midnight intro
           </a>}
-          <a className="landing-replay" href="https://kiroween.devpost.com/">
-            Kiroween 2026
-          </a>
         </div>
       </div>
     </footer>
@@ -143,6 +155,7 @@ export function App() {
           Skip to content
         </a>
         {route.page !== "landing" && <AppBar route={route} />}
+        {route.page !== "landing" && <FinishedNotices openCaseId={route.page === "case" ? route.id : undefined} />}
         <main id="main" tabIndex={-1} className="main">
           <Page route={route} />
         </main>

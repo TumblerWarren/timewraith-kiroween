@@ -8,12 +8,13 @@ const copy = CASE_ADDITIONS;
 export function PlanCoverage({ inv }: { readonly inv: Investigation }) {
   const id = useId();
   const coverage = inv.coverage ?? [];
-  if (coverage.length === 0) return null;
+  if (coverage.length === 0 && !inv.sweep_window) return null;
   const tested = coverage.filter((row) => row.status === "clean" || row.status === "violations").length;
   const violations = coverage.filter((row) => row.status === "violations").length;
   return (
     <section className="case-section" aria-labelledby={id}>
       <h3 id={id} className="panel__title">{copy.coverage.title}</h3>
+      {inv.sweep_window && <p className="case-note">Testing window · {new Date(inv.sweep_window.start_ms).toISOString().slice(0, 10)} through {new Date(inv.sweep_window.end_ms - 1).toISOString().slice(0, 10)} UTC</p>}
       <p className="case-note">{copy.coverage.summary(tested, coverage.length, violations)}</p>
       <div className="case-table-scroll" role="region" aria-label={copy.coverage.tableLabel} tabIndex={0}>
         <table className="case-coverage">

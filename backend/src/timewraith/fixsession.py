@@ -247,9 +247,13 @@ class FixSession(RepoReader):
     warned_unpassed: bool = False
     submission: Submission | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
+    repair_tools: dict[str, Callable[[dict[str, Any]], str]] = field(default_factory=dict)
     tools: list[dict[str, Any]] = field(default_factory=lambda: TOOLS)
 
     # ---------- paths (reads come from RepoReader) ----------
+
+    runner_config: str | None = None
+    regression_review: str | None = None
 
     def _editable(self, path: object) -> str:
         p = self._readable(path)
@@ -329,8 +333,20 @@ class FixSession(RepoReader):
         if self.tests >= self.max_tests:
             raise ToolError(f"The regression test has been run {self.max_tests} times; submit your best change")
         self.tests += 1
-        r = sandbox.run_test_file(self.settings, self.ws, self.caps, self.bug.regression_test_path, [self.bug.clock])[0]
+        r = sandbox.run_test_file(
+            self.settings,
+            self.ws,
+            self.caps,
+            self.bug.regression_test_path,
+            [self.bug.clock],
+            **({"runner_config": self.runner_config} if self.runner_config else {}),
+        )[0]
         self.last_test_passed = r.outcome == "passed"
+        if self.last_test_passed:
+            self.regression_review = None
+        elif r.outcome == "error":
+            self.regression_review = r.failure or "The regression could not run"
+
         return _outcome(r, f"run {self.tests} of {self.max_tests}")
 
     def check_all_zones(self) -> str:
@@ -382,10 +398,11 @@ class FixSession(RepoReader):
                 raise ToolError("The tool budget for this attempt is used up. Call submit now with your best change.")
             self.calls += 1
             fn = _HANDLERS.get(name)
-            if fn is None:
+            repair = self.repair_tools.get(name)
+            if fn is None and repair is None:
                 raise ToolError(f"Unknown tool {name}")
             try:
-                result = fn(self, args)
+                result = repair(args) if repair else fn(self, args)  # type: ignore[misc]
             except ToolError as e:
                 self.on_event(f"{name}: {e}"[:300], self._data(name, ok=False))
                 raise

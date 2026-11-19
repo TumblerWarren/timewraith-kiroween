@@ -15,7 +15,7 @@ const props = (s: { properties?: Record<string, unknown> } | undefined) => Objec
 
 const USED: Record<string, readonly string[]> = {
   Investigation: ["id", "created_at", "request", "target", "stage", "phase", "error", "status", "runtime_label", "replay_label", "capabilities", "feature_map", "test_plan", "bugs", "intended", "sweeps", "decisions", "budget", "notes", "coverage", "intents"],
-  InvestigationSummary: ["id", "created_at", "target", "mode", "stage", "phase", "status", "bug_count", "fix_verified_count", "intended_count", "replay_label", "runtime_label", "error", "message"],
+  InvestigationSummary: ["id", "created_at", "target", "mode", "stage", "phase", "status", "bug_count", "fix_verified_count", "intended_count", "attention", "replay_label", "runtime_label", "error", "message"],
   CreateInvestigation: ["repository_url", "ref", "mode", "issue_url", "area", "auto"],
   ReplayEvent: ["id", "seq", "actor", "kind", "phase", "text", "status", "data", "serverClock"],
   DecisionRecord: ["id", "phase", "agent", "step", "runtime", "subject", "claim", "evidence", "dropped_evidence", "checks", "decision", "rule"],
@@ -23,7 +23,7 @@ const USED: Record<string, readonly string[]> = {
 };
 
 const DEFS: Record<string, readonly string[]> = {
-  Bug: ["id", "title", "category", "invariant", "status", "violation", "evidence", "regression_test_path", "regression_test", "issue_match", "issue_match_label", "fix", "retests", "reproduction"],
+  Bug: ["id", "title", "category", "invariant", "status", "violation", "evidence", "regression_test_path", "regression_test", "contribution_test", "issue_match", "issue_match_label", "fix", "retests", "reproduction"],
   Retest: ["at", "ref", "revision", "outcome", "detail", "runs"],
   CoverageRow: ["candidate_id", "unit", "path", "status", "experiments", "rules", "edges", "outcome"],
   Intent: ["id", "round", "candidate_id", "focus", "rationale", "status", "experiment_id", "reason"],

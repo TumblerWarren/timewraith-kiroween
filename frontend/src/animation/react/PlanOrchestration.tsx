@@ -1,6 +1,7 @@
 import { gsap } from "gsap";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { PumpkinGhost } from "./PumpkinGhost";
+import { createAnimationSounds } from "../../audio/soundEffects";
 
 /** The pumpkin releases its ghost, whose first conducting gesture reveals the plan. */
 export function PlanOrchestration({ children, title, headingId, state }: {
@@ -16,6 +17,7 @@ export function PlanOrchestration({ children, title, headingId, state }: {
   useLayoutEffect(() => {
     const stage = root.current;
     if (!stage) return;
+    const sounds = createAnimationSounds();
     const head = stage.querySelector(".pumpkin-ghost__head");
     const emergence = stage.querySelector(".pumpkin-ghost__emergence");
     const left = stage.querySelector(".pumpkin-ghost__arm-left");
@@ -38,6 +40,7 @@ export function PlanOrchestration({ children, title, headingId, state }: {
       if (disposed) return;
       started = true;
       timeline?.kill();
+      sounds.stop();
       clearTimeout(loadDeadline);
       const restoreFocus = document.activeElement === stage.querySelector(".plan-stage__skip");
       clear();
@@ -50,12 +53,13 @@ export function PlanOrchestration({ children, title, headingId, state }: {
       started = true;
       stage.dataset.phase = "pumpkin";
       timeline = gsap.timeline({ onComplete: finish })
+        .call(() => sounds.play("pumpkin"))
         .to(head, { autoAlpha: 1, scale: .82, duration: .3, ease: "power2.out" })
         .to(head, { rotation: 5, duration: .12, repeat: 1, yoyo: true }, .25)
-        .call(() => { stage.dataset.phase = "emerging"; }, [], .5)
+        .call(() => { stage.dataset.phase = "emerging"; sounds.play("materialize"); }, [], .5)
         .to(head, { y: 0, scale: 1, rotation: 0, duration: .75, ease: "power3.out" }, .5)
         .to(emergence, { y: 0, scale: 1, autoAlpha: 1, duration: .9, ease: "power3.out" }, .5)
-        .call(() => { stage.dataset.phase = "conducting"; }, [], 1.15)
+        .call(() => { stage.dataset.phase = "conducting"; sounds.play("conduct"); }, [], 1.15)
         .to(left, { rotation: 0, scale: 1, duration: .5, ease: "power2.out" }, 1.1)
         .to(right, { rotation: 0, scale: 1, duration: .5, ease: "power2.out" }, 1.15)
         .to(left, { rotation: 14, duration: .25, ease: "sine.inOut" }, 1.6)
@@ -65,6 +69,7 @@ export function PlanOrchestration({ children, title, headingId, state }: {
         .to(right, { rotation: 6, duration: .45, ease: "power2.out" }, 1.85);
       const stagger = cards.length > 1 ? Math.min(.16, 1.1 / (cards.length - 1)) : 0;
       cards.forEach((card, index) => {
+        timeline?.call(() => sounds.play("reveal"), [], 1.85 + index * stagger);
         timeline?.to(card, {
           autoAlpha: 1, y: 0, scale: 1, clipPath: "inset(0% 0% 0% 0% round 12px)",
           duration: .45, ease: "power3.out",
@@ -77,6 +82,7 @@ export function PlanOrchestration({ children, title, headingId, state }: {
       else {
         start();
         timeline?.paused(document.hidden || !visible);
+        if (document.hidden || !visible) sounds.stop();
       }
     };
 
@@ -120,6 +126,7 @@ export function PlanOrchestration({ children, title, headingId, state }: {
       disposed = true;
       clearTimeout(loadDeadline);
       timeline?.kill();
+      sounds.stop();
       clear();
       observer?.disconnect();
       settings.disconnect();

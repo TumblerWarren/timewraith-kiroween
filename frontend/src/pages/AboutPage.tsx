@@ -6,8 +6,8 @@ import { CREW, CREW_BY_ID } from "../content/crew";
 import { FLOW_STEPS } from "../content/flow";
 import { Mascot } from "../mascots/Mascot";
 
-/** The four Kiro agents (backend/agents/*.md); every other mascot stands for plain code. */
-const KIRO_AGENTS: ReadonlySet<string> = new Set(FLOW_STEPS.filter((s) => s.kind === "kiro-agent").map((s) => s.lead));
+/** The Director also plans follow-up rounds; repository setup itself is code. */
+const KIRO_AGENTS: ReadonlySet<string> = new Set(["wraith-director", ...FLOW_STEPS.filter((s) => s.kind === "kiro-agent").map((s) => s.lead)]);
 
 /** `#/about`: the failure class, the six steps, the Crew and the evidence ladder. */
 export function AboutPage() {

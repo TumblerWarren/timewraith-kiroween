@@ -97,5 +97,12 @@ export const INVARIANT_LABELS: Readonly<Record<string, string>> = {
   local_date_matches: "Today is the local calendar date",
   instant_zone_independent: "Stored instant does not depend on the zone",
   flag_monotonic: "Once expired, stays expired",
+  calendar_contract: "Expected calendar result",
+  python_assertion: "Python calendar behavior",
+  elapsed_clock_jump: "Elapsed timer survives a wall-clock change",
+  expiry_deadline: "Expiry follows the documented deadline",
+  timeout_delivery: "One-shot timer fires once at its deadline",
+  interval_delivery: "Interval follows its configured cadence",
+  retry_cancelled: "Cancelled retry stays cancelled",
   next_after_now: "Next run is after now and never goes back",
 };

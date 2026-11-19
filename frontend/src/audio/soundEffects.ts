@@ -9,6 +9,7 @@ type Listener = (enabled: boolean) => void;
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let enabled = true;
+const MASTER_VOLUME = 1.35;
 const listeners = new Set<Listener>();
 let globalListenersAttached = false;
 
@@ -30,7 +31,7 @@ function ensureContext(): AudioContext | null {
     try {
       ctx = new Ctor();
       masterGain = ctx.createGain();
-      masterGain.gain.value = 0.9;
+      masterGain.gain.value = MASTER_VOLUME;
       masterGain.connect(ctx.destination);
     } catch {
       ctx = null;
@@ -70,7 +71,7 @@ export async function setSoundEnabled(next: boolean): Promise<boolean> {
   try {
     if (next) {
       enabled = true;
-      if (masterGain) masterGain.gain.setValueAtTime(0.9, context.currentTime);
+      if (masterGain) masterGain.gain.setValueAtTime(MASTER_VOLUME, context.currentTime);
       if (context.state === "suspended") await context.resume();
       notify();
     } else {
@@ -703,10 +704,11 @@ export function installGlobalUiSounds(): void {
   );
 }
 
-export type SpiderSoundCue = "weave" | "wake" | "legs" | "transform" | "bounce";
+export type AnimationSoundCue = "weave" | "wake" | "legs" | "transform" | "bounce"
+  | "search" | "reveal" | "materialize" | "pumpkin" | "conduct";
 
 /** Short, cancellable silk and spider cues; share the app's sound switch and output. */
-export function createSpiderSounds() {
+export function createAnimationSounds() {
   const voices = new Set<AudioScheduledSourceNode>();
   const track = (source: AudioScheduledSourceNode, nodes: AudioNode[]) => {
     voices.add(source);
@@ -716,7 +718,7 @@ export function createSpiderSounds() {
       nodes.forEach(node => node.disconnect());
     };
   };
-  const play = (cue: SpiderSoundCue) => {
+  const play = (cue: AnimationSoundCue) => {
     if (typeof document === "undefined" || document.hidden) return;
     const context = activeContext();
     // Do not queue sounds behind the browser's initial audio-unlock gesture.
@@ -758,6 +760,11 @@ export function createSpiderSounds() {
         case "legs": silk(.16, 1200, .035); tone(320, 170, .12, .02); break;
         case "transform": silk(.8, 1800, .045); tone(147, 294, .7, .035); break;
         case "bounce": tone(390, 260, .2, .012); break;
+        case "search": silk(.35, 950, .065); tone(196, 247, .3, .045); break;
+        case "reveal": tone(523, 659, .25, .065); tone(784, 880, .32, .03, .06); break;
+        case "materialize": silk(.65, 1400, .07); tone(165, 330, .7, .07); tone(494, 659, .5, .035, .16); break;
+        case "pumpkin": tone(98, 65, .28, .11); silk(.2, 650, .07); break;
+        case "conduct": silk(.25, 1800, .045); tone(294, 440, .3, .055); break;
       }
     } catch {
       // Audio must never interrupt the form or its animation.
@@ -773,3 +780,5 @@ export function createSpiderSounds() {
     },
   };
 }
+
+export const createSpiderSounds = createAnimationSounds;

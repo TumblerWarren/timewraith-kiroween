@@ -26,14 +26,14 @@ export const CREW: readonly CrewMember[] = [
     name: "Wraith Director",
     tier: 1,
     kind: "agent",
-    job: "Clones the pinned commit and runs the investigation from start to end.",
+    job: "Proposes follow-up experiments from the coverage ledger when time and budget allow; code orchestrates the run.",
   },
   {
     id: "watchtower-warden",
     name: "Watchtower Warden",
     tier: 1,
     kind: "agent",
-    job: "Holds the queue, waits for your plan approval and enforces the limits.",
+    job: "Enforces run limits and waits for plan approval unless automatic mode is selected.",
   },
   {
     id: "bat-scout",
@@ -47,14 +47,14 @@ export const CREW: readonly CrewMember[] = [
     name: "Pumpkin Mechanic",
     tier: 1,
     kind: "agent",
-    job: "Kiro agent: writes a small adapter for each experiment and picks the rules it must keep.",
+    job: "Kiro agent: designs and repairs experiment adapters; a separate install role can help repair dependency installation.",
   },
   {
     id: "raven-archivist",
     name: "Raven Archivist",
     tier: 1,
     kind: "agent",
-    job: "Kiro agent: judges each reproduced violation and blind-reviews every fix.",
+    job: "Kiro agent: investigates selected repeated violations and independently reviews proposed fixes.",
   },
   {
     id: "doctor-stitch",
@@ -96,7 +96,7 @@ export const CREW: readonly CrewMember[] = [
     name: "Two-Faced Jack",
     tier: 2,
     kind: "system",
-    job: "Searches the public issues to tell a known bug from a new one.",
+    job: "Represents issue comparison and blind-hunt reveal; Raven and code search and assess public reports.",
   },
   {
     id: "skeleton-scribe",

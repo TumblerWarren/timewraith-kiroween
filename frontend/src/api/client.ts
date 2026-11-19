@@ -35,6 +35,7 @@ export interface Api {
   create(body: CreateInvestigation): Promise<InvestigationSummary>;
   approvePlan(id: string): Promise<InvestigationSummary>;
   cancel(id: string): Promise<InvestigationSummary>;
+  continueCase(id: string): Promise<InvestigationSummary>;
   deleteCase(id: string): Promise<{ deleted: string }>;
   decideFix(id: string, bugId: string, accept: boolean): Promise<InvestigationSummary>;
   makeBranch(id: string, bugId: string): Promise<FixBranch>;
@@ -101,6 +102,7 @@ export function createApi(base: string = import.meta.env.VITE_TW_API_BASE ?? "/a
     create: (body) => post<InvestigationSummary>("/investigations", body),
     approvePlan: (id) => post<InvestigationSummary>(`/investigations/${enc(id)}/approve-plan`),
     cancel: (id) => post<InvestigationSummary>(`/investigations/${enc(id)}/cancel`),
+    continueCase: (id) => post<InvestigationSummary>(`/investigations/${enc(id)}/continue`),
     deleteCase: (id) => post<{ deleted: string }>(`/investigations/${enc(id)}/delete`),
     decideFix: (id, bugId, accept) =>
       post<InvestigationSummary>(`/investigations/${enc(id)}/bugs/${enc(bugId)}/fix/${accept ? "accept" : "reject"}`),

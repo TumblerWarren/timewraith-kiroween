@@ -40,7 +40,7 @@ import { FindingsBat } from "../../animation/react/FindingsBat";
 import { PumpkinGhost } from "../../animation/react/PumpkinGhost";
 import { PlanOrchestration } from "../../animation/react/PlanOrchestration";
 import { CASE_ADDITIONS, CASE_LIVE } from "../../content/copy";
-import { isKiroAccountNote } from "../../app/status";
+import { ATTENTION_PREFIX, isKiroAccountNote } from "../../app/status";
 import { PlanCoverage, PlannerRounds } from "./PlanEvidence";
 import { BugReproduction } from "./BugReproduction";
 import { BugRetest } from "./BugRetest";
@@ -111,7 +111,7 @@ export function OverviewTab({ inv, runDetails }: { readonly inv: Investigation; 
   const intended = inv.intended?.length ?? 0;
   const assessment = inv.feature_map?.note.trim();
   const notes = [...new Set(inv.notes.map((note) => note.trim()).filter((note) =>
-    note && !note.startsWith(CASE_ADDITIONS.wrapUp.prefix) && !isKiroAccountNote(note)))];
+    note && !note.startsWith(CASE_ADDITIONS.wrapUp.prefix) && !note.startsWith(ATTENTION_PREFIX) && !isKiroAccountNote(note)))];
   const latestNote = notes.at(-1);
   return (
     <div className="tab-stack">
@@ -224,7 +224,7 @@ export function PlanTab({ inv, view, onApprove, busy }: {
               <li key={e.id} className="case-card" data-status={e.status}>
                 <div className="case-card__head">
                   <h4>{candTitle(inv, e.candidate_id)}</h4>
-                  <span className="tag">{{ planned: "Planned", designed: "Ready", not_designed: "Skipped", adapter_invalid: "Invalid adapter", swept: "Tested" }[e.status] ?? e.status}</span>
+                  <span className="tag">{{ planned: "Planned", designed: "Ready", not_designed: "Skipped", adapter_invalid: "Invalid adapter", not_run: "No tests executed", swept: "Tested" }[e.status] ?? e.status}</span>
                 </div>
                 {e.invariants[0] && <p>{label(INVARIANT_LABELS, e.invariants[0].id)}</p>}
                 {e.point_count > 0 && <p className="case-note">{INV_POINTS(e.point_count, e.zones.length)}</p>}
@@ -340,7 +340,7 @@ function BugFinding({ bug, invId, replay, flightDelay = 0 }: { readonly bug: Bug
       </ul>}
       {bug.regression_test && <CaseDisclosure label={INV_TEST_TERM}>
         <p className="case-note mono">{bug.regression_test_path}</p>
-        <pre className="code mono">{bug.regression_test}</pre>
+        <pre className="code mono">{bug.contribution_test ?? bug.regression_test}</pre>
       </CaseDisclosure>}
       </CaseDisclosure>
     </li>
@@ -398,7 +398,13 @@ function SweepList({ inv }: { readonly inv: Investigation }) {
       {inv.sweeps.map((sweep) => (
         <li key={sweep.experiment_id} className="row">
           <strong>{candTitle(inv, experiments.find((experiment) => experiment.id === sweep.experiment_id)?.candidate_id ?? sweep.experiment_id)}</strong>
-          <p className="row__meta">{INV_SWEEP_LINE(sweep.points_run, sweep.zones.length, sweep.violations.length)}</p>
+          {sweep.pytest_results?.length ? <ul className="row__sub">
+            {sweep.pytest_results.map((run, index) => <li key={run.zone + run.instant + index}>
+              <strong>{run.outcome}</strong> · {run.instant} · {run.zone}
+              <p>{run.passed} passed · {run.failed} failed · {run.skipped} skipped{run.runtime && ` · ${run.runtime}`}</p>
+              {run.detail && <pre className="code mono">{run.detail}</pre>}
+            </li>)}
+          </ul> : <p className="row__meta">{INV_SWEEP_LINE(sweep.points_run, sweep.zones.length, sweep.violations.length)}</p>}
         </li>
       ))}
     </ul>
@@ -418,8 +424,8 @@ export function FindingsTab({ inv, events = [] }: { readonly inv: Investigation;
       {anomalies.length > 0 && (
         <Panel id="find-anomalies" title={CASE_LIVE.checkingTitle}>
           <ul role="list" className="case-card-grid">
-            {anomalies.map(({ id, violation, state, reason }) => {
-              const candidate = experiments.find((experiment) => experiment.id === id)?.candidate_id;
+            {anomalies.map(({ id, experimentId, violation, state, reason }) => {
+              const candidate = experiments.find((experiment) => experiment.id === experimentId)?.candidate_id;
               return (
                 <li key={id} className="case-card">
                   <div className="case-card__head">

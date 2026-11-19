@@ -20,6 +20,7 @@ def _bug() -> SimpleNamespace:
     return SimpleNamespace(
         title="Default dtstart shifts by one hour",
         issue_match=None,
+        contribution_test=None,
         evidence=[SimpleNamespace(kind="source", ref="src/parseoptions.ts:43")],
         violation=SimpleNamespace(
             zone="America/Los_Angeles", instant="2026-11-01T09:00:00.000Z", local="2026-11-01T01:00:00.000-08:00",

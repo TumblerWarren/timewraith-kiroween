@@ -2,11 +2,10 @@ import { Button } from "@astryxdesign/core/Button";
 import { Tab, TabList } from "@astryxdesign/core/TabList";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { defineTheme, Theme } from "@astryxdesign/core/theme";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useReduceMotion } from "../a11y/ReduceMotionProvider";
 import { Arrow } from "../app/AppBar";
 import { href, navigate } from "../app/router";
-import { isSoundEnabled, subscribeSoundState, toggleSoundEnabled } from "../audio/soundEffects";
 import { validateField } from "../cases/form/validate";
 import { LanternWraith } from "../components/cinematic/LanternWraith";
 import { LANDING_STAGES, TIME_BUGS } from "../content/landing";
@@ -102,16 +101,14 @@ function Workflow() {
 }
 
 export function HomePage() {
-  const { reduceMotion, toggle } = useReduceMotion();
+  const { reduceMotion } = useReduceMotion();
   const [paused, setPaused] = useState(false);
-  const [sound, setSound] = useState(isSoundEnabled);
   const [repo, setRepo] = useState("");
   const [error, setError] = useState<string>();
   const input = useRef<HTMLInputElement>(null);
   const page = useRef<HTMLElement>(null);
   const artwork = useRef<HTMLDivElement>(null);
 
-  useEffect(() => subscribeSoundState(setSound), []);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -214,22 +211,12 @@ export function HomePage() {
                 variant="ghost"
                 className="midnight-quiet"
                 data-lantern-reveal
-                data-sound-toggle
-                aria-pressed={sound}
-                label={sound ? "Sound on" : "Sound off"}
-                onClick={() => void toggleSoundEnabled()}
-              />
-              <Button
-                variant="ghost"
-                className="midnight-quiet"
-                data-lantern-reveal
                 aria-pressed={paused}
                 isDisabled={reduceMotion}
                 label={paused ? "Resume ghost" : "Pause ghost"}
                 onClick={() => setPaused(!paused)}
               />
-              <Button variant="ghost" className="midnight-quiet" data-lantern-reveal aria-pressed={reduceMotion} label="Reduce motion" onClick={toggle} />
-              <a className="landing-replay" data-lantern-reveal href={href({ page: "landing" })}>
+              <a className="landing-replay" data-lantern-reveal href={href({ page: "landing", replay: true })}>
                 Replay the midnight intro
               </a>
             </div>

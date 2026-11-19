@@ -3,8 +3,12 @@
     "Experiment": {
       "properties": {
         "adapter": {
-          "const": "js_sweep",
           "default": "js_sweep",
+          "enum": [
+            "js_sweep",
+            "python_pytest",
+            "python_crew"
+          ],
           "title": "Adapter",
           "type": "string"
         },
@@ -91,6 +95,23 @@
           "default": null,
           "title": "Executability Reason"
         },
+        "failure_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "adapter",
+                "environment",
+                "throttled"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Kind"
+        },
         "fields": {
           "default": [],
           "items": {
@@ -99,7 +120,13 @@
               "next",
               "flag",
               "date",
-              "value"
+              "value",
+              "after_cancel",
+              "timeout_trace",
+              "interval_trace",
+              "expiry_trace",
+              "clock_jumps",
+              "calendar_cases"
             ],
             "type": "string"
           },
@@ -135,6 +162,18 @@
           "title": "Point Count",
           "type": "integer"
         },
+        "runner_config": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runner Config"
+        },
         "status": {
           "default": "planned",
           "enum": [
@@ -142,6 +181,7 @@
             "designed",
             "not_designed",
             "adapter_invalid",
+            "not_run",
             "swept"
           ],
           "title": "Status",
@@ -167,6 +207,32 @@
     },
     "InvariantUse": {
       "properties": {
+        "expectation_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository test or doc passage supporting this rule",
+          "title": "Expectation Ref"
+        },
+        "expired_at_deadline": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Explicit cited expiry policy at equality",
+          "title": "Expired At Deadline"
+        },
         "id": {
           "enum": [
             "well_formed",
@@ -174,7 +240,14 @@
             "local_date_matches",
             "instant_zone_independent",
             "flag_monotonic",
-            "next_after_now"
+            "next_after_now",
+            "retry_cancelled",
+            "timeout_delivery",
+            "interval_delivery",
+            "expiry_deadline",
+            "elapsed_clock_jump",
+            "python_assertion",
+            "calendar_contract"
           ],
           "title": "Id",
           "type": "string"

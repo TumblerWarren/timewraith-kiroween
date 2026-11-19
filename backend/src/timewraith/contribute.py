@@ -287,7 +287,9 @@ def describe(
             f"- What goes wrong: {detail}" + (f" (seen {count} times in the sweep)" if count > 1 else "")]  # fmt: skip
     if related:
         out.append(f"- Known report: {', '.join(related)}")
-    if reproduction.strip():
+    if reproduction.strip() and test_path.endswith(".py"):
+        out += ["", "Standalone pytest regression", "", "```python", reproduction.strip(), "```"]
+    elif reproduction.strip():
         out += ["", "The regression test reproduces it with (`load` and `check` are its helpers):", "",
                 "```js", reproduction.strip(), "```"]  # fmt: skip
     out += ["", f"{h} Cause", ""]
@@ -328,6 +330,6 @@ def commit_message(title: str, summary: str, root_cause: str, test_path: str, re
 
 
 DISCLOSURE = (
-    "\n_Disclosure: this change was found and drafted by TimeWraith, an automated tool, and checked with this "
-    "repository's own tests, linter and formatter. Please review it as you would any contribution._\n"
+    "\n_Disclosure: this change was found and drafted by TimeWraith, an automated tool, and verified with "
+    "the checks listed above. Please review it as you would any contribution._\n"
 )

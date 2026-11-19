@@ -6,15 +6,11 @@ import { App } from "../App";
 
 const renderAt = (hash: string) => {
   window.location.hash = hash;
-  // Shell checks inspect the settled page; entrance choreography is verified in Chrome.
-  if (hash === "#/new") localStorage.setItem("tw.reduceMotion", "on");
-  const result = render(
+  return render(
     <ReduceMotionProvider>
       <App />
     </ReduceMotionProvider>,
   );
-  if (hash === "#/new") localStorage.removeItem("tw.reduceMotion");
-  return result;
 };
 
 afterEach(() => {
@@ -33,15 +29,19 @@ describe("app shell smoke test", () => {
 
   it.each([
     ["#/", "TimeWraith · The midnight hour"],
-    ["#/new", "Lay the trap"],
-    ["#/cases", "Cases"],
     ["#/crew", "Set up the Crew on this machine"],
     ["#/about", "How TimeWraith works"],
     ["#/nowhere", "Page not found"],
-  ])("renders %s with its own heading and marks the nav link", (hash, title) => {
+  ])("renders %s with its own heading", (hash, title) => {
     renderAt(hash);
     expect(screen.getByRole("heading", { level: 1, name: title })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it.each(["#/new", "#/cases", "#/cases/example"])("locks %s until Crew readiness is confirmed", (hash) => {
+    renderAt(hash);
+    expect(screen.getByRole("heading", { level: 1, name: "Complete Crew setup" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Crew setup" })).toHaveAttribute("href", "#/crew");
   });
 
   it("runs property tests (fast-check is wired)", () => {

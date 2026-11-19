@@ -9,13 +9,15 @@ Every DST point comes from the IANA database (zoneinfo).
 
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from .models import InvariantId, InvariantUse, OutputField, Violation
+from .models import InvariantId, InvariantUse, OutputField, SweepWindow, Violation
 
 SWEEP_ZONES = [
     "UTC",
@@ -38,6 +40,11 @@ YEARS = (2024, 2025, 2026)
 # id -> (required output field, statement, exceptions). Shown to Pumpkin Mechanic and Raven Archivist.
 INVARIANTS: dict[str, tuple[OutputField | None, str, str]] = {
     "well_formed": (None, "run() returns without throwing and no output field is NaN or an Invalid Date.", "None."),
+    "calendar_contract": (
+        "calendar_cases",
+        "Each named case returns the expected calendar result for its specific inputs.",
+        "Inputs outside the documented contract, or expectations inferred from the implementation under test.",
+    ),
     "deterministic": (
         None,
         "Two calls at the same instant and zone return the same output.",
@@ -60,6 +67,41 @@ INVARIANTS: dict[str, tuple[OutputField | None, str, str]] = {
         "With fixed inputs, `flag` changes at most once as `now` moves forward "
         "(for example: once expired, always expired).",
         "Recurring windows such as opening hours that legitimately toggle.",
+    ),
+    "elapsed_clock_jump": (
+        "clock_jumps",
+        "A relative 10 ms timeout keeps its elapsed-time deadline when wall time changes by an hour. "
+        "Return clock_jumps from await ctx.clockJumps(schedule), using the public API in schedule(notify, delayMs). "
+        "Cite the elapsed-time contract.",
+        "Absolute dates, calendar alarms, jittered timers, and wall-clock deadlines.",
+    ),
+    "expiry_deadline": (
+        "expiry_trace",
+        "An item is valid 1 ms before its deadline and expired 1 ms after. Return expiry_trace "
+        "from await ctx.expiryTrace(create, isExpired). create(deadlineMs) sets a fixed deadline via the real API; "
+        "isExpired(item) returns a boolean. Set expired_at_deadline only when a cited test or doc explicitly states "
+        "the equality policy. Otherwise leave it null.",
+        "Sliding expiry, grace periods, and coarse-resolution APIs.",
+    ),
+    "timeout_delivery": (
+        "timeout_trace",
+        "A one-shot timer due at 10 ms fires once, at 10 ms under the virtual clock. "
+        "Return timeout_trace from await ctx.timerTrace(schedule), where schedule(notify, delayMs) uses the "
+        "repository API.",
+        "Timers with documented jitter, coalescing, or variable retry delays.",
+    ),
+    "interval_delivery": (
+        "interval_trace",
+        "A fixed 10 ms interval fires at 10, 20 and 30 ms under the virtual clock. "
+        "Return interval_trace from await ctx.timerTrace(schedule).",
+        "Immediate-first, jittered, or backoff schedules.",
+    ),
+    "retry_cancelled": (
+        "after_cancel",
+        "No callback fires after cancelling a pending one-shot retry. Return after_cancel from "
+        "await ctx.cancelledRetry((notify, delayMs) => { /* schedule through the public API; return cancel fn */ }). "
+        "Each call must create a fresh retry. Cite its cancellation contract.",
+        "APIs that only cancel future retries after the current callback has started.",
     ),
     "next_after_now": (
         "next",
@@ -110,6 +152,7 @@ def parse_instant(s: str) -> int | None:
     return _ms(dt)
 
 
+@lru_cache(maxsize=512)
 def dst_transitions(zone: str, year: int) -> list[datetime]:
     """UTC instants where the zone's UTC offset changes during `year`: hourly scan, then minute refinement."""
     tz = ZoneInfo(zone)
@@ -142,47 +185,78 @@ def situation(zone: str, instant_ms: int, window_ms: int = 6 * 3_600_000) -> str
     return None
 
 
-def zone_points(zone: str, anchors: list[int]) -> set[int]:
+def future_window(reference: datetime) -> SweepWindow:
+    start = reference.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    year = start.year + 5
+    end = start.replace(year=year, day=min(start.day, calendar.monthrange(year, start.month)[1]))
+    return SweepWindow(start_ms=_ms(start), end_ms=_ms(end))
+
+
+def zone_points(zone: str, anchors: list[int], years: tuple[int, ...] = YEARS) -> set[int]:
     tz = ZoneInfo(zone)
     pts: set[int] = set()
-    for y in YEARS:
+    for y in years:
         for tr in dst_transitions(zone, y):
             base = _ms(tr)
             pts.update(base + d for d in (-3_600_000, -60_000, -1, 0, 1, 60_000, 1_800_000, 3_600_000))
         for m in range(1, 13):
             nxt = datetime(y + 1 if m == 12 else y, m % 12 + 1, 1, tzinfo=tz)
             pts.update((_ms(nxt) - 1, _ms(nxt), _ms(datetime(y, m, 15, 12, tzinfo=tz))))
-    for mo, d, h, mi, s, us in (
-        (2, 28, 23, 59, 59, 999_000),
-        (2, 29, 0, 0, 0, 0),
-        (2, 29, 12, 0, 0, 0),
-        (3, 1, 0, 0, 0, 0),
-    ):
-        pts.add(_ms(datetime(2024, mo, d, h, mi, s, us, tzinfo=tz)))
+    for year in years:
+        if calendar.isleap(year):
+            for mo, d, h, mi, s, us in (
+                (2, 28, 23, 59, 59, 999_000),
+                (2, 29, 0, 0, 0, 0),
+                (2, 29, 12, 0, 0, 0),
+                (3, 1, 0, 0, 0, 0),
+            ):
+                pts.add(_ms(datetime(year, mo, d, h, mi, s, us, tzinfo=tz)))
     for a in anchors:
         pts.update(a + d for d in (-60_000, -1000, -1, 0, 1, 1000, 60_000))
     return pts
 
 
-def shared_points() -> set[int]:
+def shared_points(window: SweepWindow | None = None) -> set[int]:
     """Instants present in every zone, so cross-zone invariants can compare like with like."""
     pts: set[int] = set()
     for zone in SWEEP_ZONES:
-        for tr in dst_transitions(zone, 2026):
-            pts.update((_ms(tr), _ms(tr) + 60_000))
-    for m in range(1, 13):
-        b = _ms(datetime(2025, m, 1, tzinfo=UTC))
-        pts.update((b - 1, b))
+        for year in window_years(window) if window else (2026,):
+            for tr in dst_transitions(zone, year):
+                pts.update((_ms(tr), _ms(tr) + 60_000))
+    for year in window_years(window) if window else (2025,):
+        for m in range(1, 13):
+            b = _ms(datetime(year, m, 1, tzinfo=UTC))
+            pts.update((b - 1, b))
     return pts
 
 
-def build_points(anchors: list[int]) -> dict[str, list[int]]:
-    shared = shared_points()
-    return {z: sorted(zone_points(z, anchors) | shared) for z in SWEEP_ZONES}
+def window_years(window: SweepWindow) -> tuple[int, ...]:
+    start = datetime.fromtimestamp(window.start_ms / 1000, UTC)
+    end = datetime.fromtimestamp(window.end_ms / 1000, UTC)
+    return tuple(range(start.year, end.year + 1))
 
 
-def baseline_points() -> dict[str, list[int]]:
-    pts = [_ms(datetime(2025, 6, 11, 12, tzinfo=UTC)), _ms(datetime(2025, 1, 15, 9, tzinfo=UTC))]
+def clock_jump_fits(window: SweepWindow, start_ms: int) -> bool:
+    return window.contains(start_ms + 4 - 3_600_000) and window.contains(start_ms + 31 + 3_600_000)
+
+
+def build_points(anchors: list[int], window: SweepWindow | None = None) -> dict[str, list[int]]:
+    shared = shared_points(window)
+    years = window_years(window) if window else YEARS
+    ordinary = baseline_points(window) if window else {}
+    result = {}
+    for zone in SWEEP_ZONES:
+        points = zone_points(zone, anchors, years) | shared | set(ordinary.get(zone, []))
+        result[zone] = sorted(ms for ms in points if window is None or window.contains(ms))
+    return result
+
+
+def baseline_points(window: SweepWindow | None = None) -> dict[str, list[int]]:
+    if window:
+        ordinary = (_ms(datetime(year, month, 15, 12, tzinfo=UTC)) for year in window_years(window) for month in (1, 6))
+        pts = [ms for ms in ordinary if window.contains(ms)][:2]
+    else:
+        pts = [_ms(datetime(2025, 6, 11, 12, tzinfo=UTC)), _ms(datetime(2025, 1, 15, 9, tzinfo=UTC))]
     return {z: pts for z in BASELINE_ZONES}
 
 
@@ -202,8 +276,38 @@ function twNorm(v) {
   v = v || {};
   if ('instant' in v) o.instant = twMs(v.instant);
   if ('next' in v) o.next = twMs(v.next);
+  if ('clock_jumps' in v) {
+    const traces = v.clock_jumps;
+    const valid = traces && ['forward', 'backward'].every(key => Array.isArray(traces[key])
+      && traces[key].length <= 8 && traces[key].every(Number.isSafeInteger));
+    o.clock_jumps = valid ? { forward: traces.forward, backward: traces.backward } : 'invalid';
+  }
+  if ('expiry_trace' in v) {
+    const a = v.expiry_trace;
+    o.expiry_trace = Array.isArray(a) && a.length === 3 && [0, 1, 2].every(i => typeof a[i] === 'boolean')
+      ? a : 'invalid';
+  }
+  for (const key of ['timeout_trace', 'interval_trace']) {
+    if (key in v) {
+      const trace = v[key];
+      o[key] = Array.isArray(trace) && trace.length <= 8 && trace.every(Number.isSafeInteger) ? trace : 'invalid';
+    }
+  }
+  if ('after_cancel' in v) {
+    o.after_cancel = Number.isSafeInteger(v.after_cancel) && v.after_cancel >= 0 ? v.after_cancel : 'invalid';
+  }
   if ('flag' in v) o.flag = Boolean(v.flag);
   if ('date' in v) o.date = v.date === null || v.date === undefined ? null : String(v.date);
+  if ('calendar_cases' in v) {
+    const cases = v.calendar_cases;
+    const scalar = x => x === null || typeof x === 'boolean' || Number.isSafeInteger(x)
+      || (typeof x === 'string' && x.length <= 160);
+    const valid = Array.isArray(cases) && cases.length > 0 && cases.length <= 8 && cases.every(c =>
+      c && typeof c.name === 'string' && /^[a-z0-9_-]{1,48}$/.test(c.name)
+      && scalar(c.actual) && scalar(c.expected))
+      && new Set(cases.map(c => c.name)).size === cases.length;
+    o.calendar_cases = valid ? cases.map(({ name, actual, expected }) => ({ name, actual, expected })) : 'invalid';
+  }
   if ('value' in v) {
     try { o.value = String(JSON.stringify(v.value)).slice(0, 300); } catch (e) { o.value = 'unserializable'; }
   }
@@ -224,6 +328,95 @@ def _timers(runner: str) -> str:
     return "vi" if runner == "vitest" else "jest"
 
 
+def _retry_helpers(runner: str) -> str:
+    t = _timers(runner)
+    return f"""
+class RetrySetupError extends Error {{}}
+async function clockJumpTrace(schedule, direction) {{
+  if (typeof {t}.advanceTimersByTimeAsync !== 'function' || typeof globalThis.performance?.now !== 'function')
+    throw new RetrySetupError('Virtual elapsed clock unavailable');
+  const shifts = {{ none: 0, forward: 3600000, backward: -3600000 }};
+  if (!Object.hasOwn(shifts, direction)) throw new RetrySetupError('Unknown wall clock shift');
+  const start = Date.now();
+  const origin = performance.now();
+  const elapsed = () => performance.now() - origin;
+  const trace = [];
+  try {{
+    schedule(() => {{ if (trace.length < 8) trace.push(elapsed()); }}, 10);
+    await {t}.advanceTimersByTimeAsync(4);
+    if (direction !== 'none') {t}.setSystemTime(start + 4 + shifts[direction]);
+    if (elapsed() !== 4 || Date.now() !== start + 4 + shifts[direction])
+      throw new RetrySetupError('Runner cannot independently control wall and elapsed time');
+    await {t}.advanceTimersByTimeAsync(27);
+    if (elapsed() !== 31) throw new RetrySetupError('Elapsed clock did not advance as requested');
+    return trace;
+  }} finally {{
+    {t}.clearAllTimers();
+    {t}.setSystemTime(start);
+  }}
+}}
+async function clockJumps(schedule) {{
+  const control = await clockJumpTrace(schedule, 'none');
+  if (control.length !== 1 || control[0] !== 10) throw new RetrySetupError('Unshifted timer must fire once at 10 ms');
+  return {{ forward: await clockJumpTrace(schedule, 'forward'), backward: await clockJumpTrace(schedule, 'backward') }};
+}}
+async function expiryTrace(create, isExpired) {{
+  if (typeof {t}.advanceTimersByTimeAsync !== 'function') throw new RetrySetupError('Async fake timers unavailable');
+  const start = Date.now();
+  try {{
+    const item = await create(start + 1000);
+    const states = [];
+    for (const step of [999, 1, 1]) {{
+      await {t}.advanceTimersByTimeAsync(step);
+      const expired = await isExpired(item);
+      if (typeof expired !== 'boolean') throw new RetrySetupError('Expiry check must return a boolean');
+      states.push(expired);
+    }}
+    return states;
+  }} finally {{
+    {t}.clearAllTimers();
+    {t}.setSystemTime(start);
+  }}
+}}
+async function timerTrace(schedule) {{
+  if (typeof {t}.advanceTimersByTimeAsync !== 'function') throw new RetrySetupError('Async fake timers unavailable');
+  const start = Date.now();
+  const trace = [];
+  try {{
+    schedule(() => {{ if (trace.length < 8) trace.push(Date.now() - start); }}, 10);
+    await {t}.advanceTimersByTimeAsync(31);
+    return trace;
+  }} finally {{
+    {t}.clearAllTimers();
+    {t}.setSystemTime(start);
+  }}
+}}
+async function retryCalls(schedule, cancel) {{
+  if (typeof {t}.advanceTimersByTimeAsync !== 'function') throw new RetrySetupError('Async fake timers unavailable');
+  let calls = 0;
+  const stop = schedule(() => {{ calls += 1; }}, 10);
+  if (typeof stop !== 'function') throw new RetrySetupError('Retry adapter must return a cancellation function');
+  await {t}.advanceTimersByTimeAsync(9);
+  if (calls !== 0) throw new RetrySetupError('Retry fired before the cancellation step');
+  if (cancel) await stop();
+  await {t}.advanceTimersByTimeAsync(11);
+  return calls;
+}}
+async function cancelledRetry(schedule) {{
+  const start = Date.now();
+  try {{
+    if (await retryCalls(schedule, false) !== 1) throw new RetrySetupError('Uncancelled retry must fire once');
+    {t}.clearAllTimers();
+    {t}.setSystemTime(start);
+    return await retryCalls(schedule, true);
+  }} finally {{
+    {t}.clearAllTimers();
+    {t}.setSystemTime(start);
+  }}
+}}
+"""
+
+
 def harness_code(exp_id: str, runner: str) -> str:
     """Generated sweep test. It records outputs only; it never asserts. A no-op unless TW_DIR is set."""
     t = _timers(runner)
@@ -231,6 +424,7 @@ def harness_code(exp_id: str, runner: str) -> str:
         "// @ts-nocheck\n// TimeWraith sweep harness (generated). Records outputs; the oracles run in the backend.\n"
         + _head(runner, exp_id, True)
         + _NORM_JS
+        + _retry_helpers(runner)
         + f"""
 const TW_ID = {json.dumps(exp_id)};
 const twA = twMod && twMod.default && typeof twMod.default.run === 'function' ? twMod.default : twMod;
@@ -247,8 +441,12 @@ test('timewraith sweep ' + TW_ID, async () => {{
       const rec = {{ t: ms }};
       for (const k of [0, 1]) {{
         {t}.setSystemTime(new Date(ms));
-        try {{ rec['r' + k] = twNorm(await twA.run({{ now: new Date(ms), tz: zone }})); }}
-        catch (e) {{ rec['r' + k] = {{ error: String((e && e.message) || e).slice(0, 300) }}; }}
+        const ctx = {{ now: new Date(ms), tz: zone, cancelledRetry, timerTrace, expiryTrace, clockJumps }};
+        try {{ rec['r' + k] = twNorm(await twA.run(ctx)); }}
+        catch (e) {{
+          if (e instanceof RetrySetupError) throw e;
+          rec['r' + k] = {{ error: String((e && e.message) || e).slice(0, 300) }};
+        }}
       }}
       out.push(rec);
     }}
@@ -281,6 +479,7 @@ def probe_code(runner: str, body: str) -> str:
     return (
         "// @ts-nocheck\n// TimeWraith probe (agent-written body, generated wrapper).\n"
         + head
+        + _retry_helpers(runner)
         + f"""
 const twOut = [];
 let twStatus = 'passed';
@@ -342,12 +541,15 @@ test({json.dumps(title[:100])}, async () => {{
 """
         for title, body, ms in cases
     )
+    helpers = ("cancelledRetry", "retryCalls", "timerTrace", "expiryTrace", "clockJumpTrace", "clockJumps")
+    uses_timers = any(name in body for _, body, _ in cases for name in helpers)
     when = ", ".join(iso(ms) for _, _, ms in cases)
     return (
         "// @ts-nocheck\n"
         "// TimeWraith regression test: Raven Archivist's reproduction, rerun by code before it was accepted.\n"
         f"// Failed on {target} at {when}. Run with TZ={zone}.\n"
         + head
+        + (_retry_helpers(runner) if uses_timers else "")
         + f"""
 function print() {{}}
 function check(cond, msg) {{
@@ -373,11 +575,29 @@ def regression_code(*, exp_id: str, runner: str, v: Violation, title: str, targe
         )
     elif v.invariant == "deterministic":
         body = f"const a = await twAt({t_ms});\n    const b = await twAt({t_ms});\n    expect(b).toEqual(a);"
+    elif v.invariant == "calendar_contract":
+        name = json.dumps(v.failure_kind)
+        body = (
+            f"const o = await twAt({t_ms});\n"
+            f"    const example = o.calendar_cases.find(c => c.name === {name});\n"
+            f"    expect(example.actual).toEqual({v.expected});"
+        )
     elif v.invariant == "local_date_matches":
         want = json.dumps(v.expected)
         body = f"const o = await twAt({t_ms});\n    expect(String(o.date ?? '').slice(0, 10)).toBe({want});"
     elif v.invariant == "instant_zone_independent":
         body = f"const o = await twAt({t_ms});\n    expect(o.instant).toBe({v.expected});  // result in UTC"
+    elif v.invariant == "elapsed_clock_jump":
+        key = json.dumps(v.failure_kind)
+        body = f"const o = await twAt({t_ms});\n    expect(o.clock_jumps[{key}]).toEqual([10]);"
+    elif v.invariant == "expiry_deadline":
+        index = EXPIRY_STEPS.index(v.failure_kind)
+        body = f"const o = await twAt({t_ms});\n    expect(o.expiry_trace[{index}]).toBe({v.expected});"
+    elif v.invariant in ("timeout_delivery", "interval_delivery"):
+        field, expected = TIMER_DELIVERY[v.invariant]
+        body = f"const o = await twAt({t_ms});\n    expect(o.{field}).toEqual({json.dumps(expected)});"
+    elif v.invariant == "retry_cancelled":
+        body = f"const o = await twAt({t_ms});\n    expect(o.after_cancel).toBe(0);"
     elif v.invariant == "flag_monotonic":
         body = (
             f"const f = [];\n    for (const ms of {json.dumps(sorted(ctx))}) f.push((await twAt(ms)).flag);\n"
@@ -397,12 +617,14 @@ def regression_code(*, exp_id: str, runner: str, v: Violation, title: str, targe
         f"// Failed on {target} at {v.instant} ({v.local}). Run with TZ={v.zone}.\n"
         + _head(runner, exp_id, False)
         + _NORM_JS
+        + _retry_helpers(runner)
         + f"""
 const twA = twMod && twMod.default && typeof twMod.default.run === 'function' ? twMod.default : twMod;
 const TW_ZONE = process.env.TZ || {json.dumps(v.zone)};
 async function twAt(ms) {{
   {t}.setSystemTime(new Date(ms));
-  return twNorm(await twA.run({{ now: new Date(ms), tz: TW_ZONE }}));
+  const ctx = {{ now: new Date(ms), tz: TW_ZONE, cancelledRetry, timerTrace, expiryTrace, clockJumps }};
+  return twNorm(await twA.run(ctx));
 }}
 test({json.dumps(title[:100])}, async () => {{
   {t}.useFakeTimers();
@@ -445,8 +667,7 @@ def baseline_problems(outputs: Outputs, fields: list[OutputField]) -> list[str]:
 
 def baseline_violations(outputs: Outputs, invs: list[InvariantUse]) -> dict[str, str]:
     """Rules broken at ordinary baseline instants (no DST change, no month end, mid-day): invariant id -> detail.
-    A rule that fails there almost always means the adapter's field does not mean what the rule says (such as
-    `date` set to the result of addDay instead of today's date); real time bugs live at the edges."""
+    The pipeline checks for repository expectations before deciding whether to repair the adapter."""
     out: dict[str, str] = {}
     for v in check(outputs, invs):
         if v.invariant not in ALWAYS and v.invariant not in out:
@@ -454,20 +675,37 @@ def baseline_violations(outputs: Outputs, invs: list[InvariantUse]) -> dict[str,
     return out
 
 
+EXPIRY_STEPS = ("before_deadline", "at_deadline", "after_deadline")
+
+TIMER_DELIVERY: dict[InvariantId, tuple[str, list[int]]] = {
+    "timeout_delivery": ("timeout_trace", [10]),
+    "interval_delivery": ("interval_trace", [10, 20, 30]),
+}
+
+
 def check(outputs: Outputs, invs: list[InvariantUse]) -> list[Violation]:
-    """Apply the declared invariants (plus the always-on ones). First violation per (invariant, zone)."""
-    ids = {i.id for i in invs} | set(ALWAYS)
+    """Keep a representative for each distinct rule failure in each zone."""
+    ids = {i.id for i in invs if i.id != "calendar_contract" or i.expectation_ref} | set(ALWAYS)
     gap = next((i.max_gap_ms for i in invs if i.id == "next_after_now" and i.max_gap_ms), None)
-    found: dict[tuple[str, str], Violation] = {}
+    equality = next((i.expired_at_deadline for i in invs if i.id == "expiry_deadline" and i.expectation_ref), None)
+    found: dict[tuple[str, str, str], Violation] = {}
 
     def add(
-        inv: InvariantId, zone: str, t: int, detail: str, ctx: list[int] | None = None, expected: str | None = None
+        inv: InvariantId,
+        zone: str,
+        t: int,
+        detail: str,
+        ctx: list[int] | None = None,
+        expected: str | None = None,
+        *,
+        kind: str = "",
     ) -> None:
-        key = (inv, zone)
+        key = (inv, zone, kind)
         if key in found:
             found[key].count += 1
             return
         found[key] = Violation(
+            failure_kind=kind or inv,
             invariant=inv,
             zone=zone,
             instant=iso(t),
@@ -489,14 +727,83 @@ def check(outputs: Outputs, invs: list[InvariantUse]) -> list[Violation]:
             a: dict[str, Any] = r.get("r0") or {}
             b: dict[str, Any] = r.get("r1") or {}
             if "error" in a:
-                add("well_formed", zone, t, f"run() threw: {a['error']}")
+                add("well_formed", zone, t, f"run() threw: {a['error']}", kind="exception")
                 continue
             bad = [k for k, val in a.items() if val == "invalid"]
             if bad:
-                add("well_formed", zone, t, f"invalid {', '.join(bad)}")
+                add("well_formed", zone, t, f"invalid {', '.join(bad)}", kind="invalid_" + "_".join(sorted(bad)))
                 continue
             if a != b:
                 add("deterministic", zone, t, f"first call {json.dumps(a)[:120]}, second call {json.dumps(b)[:120]}")
+            if "calendar_contract" in ids and isinstance(a.get("calendar_cases"), list):
+                for example in a["calendar_cases"]:
+                    actual = json.dumps(example["actual"])
+                    expected = json.dumps(example["expected"])
+                    if actual != expected:
+                        name = example["name"]
+                        add(
+                            "calendar_contract",
+                            zone,
+                            t,
+                            f"{name}: expected {expected}, observed {actual}",
+                            expected=expected,
+                            kind=name,
+                        )
+            if "elapsed_clock_jump" in ids and isinstance(a.get("clock_jumps"), dict):
+                for direction in ("forward", "backward"):
+                    shifted = a["clock_jumps"][direction]
+                    if shifted != [10]:
+                        add(
+                            "elapsed_clock_jump",
+                            zone,
+                            t,
+                            f"Wall clock moved {direction} one hour at 4 ms elapsed. Unshifted callback: [10] ms; "
+                            f"shifted callbacks through 31 ms: {shifted} ms (first eight).",
+                            kind=direction,
+                        )
+            if "expiry_deadline" in ids and isinstance(a.get("expiry_trace"), list):
+                states = zip(EXPIRY_STEPS, a["expiry_trace"], (False, equality, True), strict=True)
+                for kind, actual, expected_state in states:
+                    if expected_state is not None and actual != expected_state:
+                        detail = (
+                            f"Deadline {iso(t + 1000)}, {kind.replace('_', ' ')}: "
+                            f"expected {'expired' if expected_state else 'valid'}, "
+                        )
+                        add(
+                            "expiry_deadline",
+                            zone,
+                            t,
+                            detail + f"observed {'expired' if actual else 'valid'}",
+                            expected=json.dumps(expected_state),
+                            kind=kind,
+                        )
+            for rule, (field, expected_times) in TIMER_DELIVERY.items():
+                trace = a.get(field)
+                if rule in ids and isinstance(trace, list) and trace != expected_times:
+                    if len(trace) > len(expected_times) or len(set(trace)) < len(trace):
+                        kind = "extra_callback"
+                    elif any(observed < due for observed, due in zip(trace, expected_times, strict=False)):
+                        kind = "early_callback"
+                    elif len(trace) < len(expected_times):
+                        kind = "missing_callback"
+                    else:
+                        kind = "late_callback"
+                    add(
+                        rule,
+                        zone,
+                        t,
+                        f"Expected callbacks at {expected_times} ms; observed {trace} ms "
+                        "during 31 ms of virtual time (first 8 callbacks recorded)",
+                        kind=kind,
+                    )
+            if "retry_cancelled" in ids and isinstance(a.get("after_cancel"), int) and a["after_cancel"] > 0:
+                add(
+                    "retry_cancelled",
+                    zone,
+                    t,
+                    f"Retry due at 10 ms, cancelled at 9 ms: "
+                    f"{a['after_cancel']} callback(s) by 20 ms; uncancelled control fired once",
+                )
             if "local_date_matches" in ids and a.get("date") is not None:
                 want = datetime.fromtimestamp(t / 1000, ZoneInfo(zone)).date().isoformat()
                 got = str(a["date"])[:10]
@@ -525,7 +832,7 @@ def check(outputs: Outputs, invs: list[InvariantUse]) -> list[Violation]:
             if "next_after_now" in ids and isinstance(a.get("next"), int | float):
                 n = float(a["next"])
                 if n <= t:
-                    add("next_after_now", zone, t, f"next {iso(n)} is not after now")
+                    add("next_after_now", zone, t, f"next {iso(n)} is not after now", kind="not_after_now")
                 elif prev_next is not None and n < prev_next:
                     add(
                         "next_after_now",
@@ -533,10 +840,16 @@ def check(outputs: Outputs, invs: list[InvariantUse]) -> list[Violation]:
                         t,
                         f"next moved backwards from {iso(prev_next)} to {iso(n)}",
                         ctx=[prev_next_t, t],
+                        kind="moves_backwards",
                     )
                 elif gap and n - t > gap:
                     add(
-                        "next_after_now", zone, t, f"next is {int(n - t)} ms after now (limit {gap})", expected=str(gap)
+                        "next_after_now",
+                        zone,
+                        t,
+                        f"next is {int(n - t)} ms after now (limit {gap})",
+                        expected=str(gap),
+                        kind="exceeds_gap",
                     )
                 prev_next, prev_next_t = n, t
             prev_t = t

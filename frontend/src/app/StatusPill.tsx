@@ -27,6 +27,13 @@ export function StateShape({ state, size = 20 }: { readonly state: CaseStateId; 
         </>
       ) : null}
       {state === "cancelled" ? <rect x={5} y={5} width={14} height={14} {...common} /> : null}
+      {state === "attention" ? (
+        <>
+          <path d="M12 2.5 L20.5 7.25 L20.5 16.75 L12 21.5 L3.5 16.75 L3.5 7.25 Z" {...common} />
+          <path d="M12 7.5 L12 13" {...common} strokeWidth={2.8} />
+          <path d="M12 16.2 L12 16.3" {...common} strokeWidth={3} />
+        </>
+      ) : null}
       {state === "done" ? (
         <>
           <path d="M12 2.5 L20.5 7.25 L20.5 16.75 L12 21.5 L3.5 16.75 L3.5 7.25 Z" {...common} />

@@ -209,6 +209,7 @@ html[data-reduce-motion="true"] .case-findings__replay { display: none; }
 .page--case .case-brief[data-state="waiting"] { --case-status-accent: var(--midnight-warning); }
 .page--case .case-brief[data-state="failed"] { --case-status-accent: var(--midnight-error); }
 .page--case .case-brief[data-state="done"] { --case-status-accent: var(--midnight-success); }
+.page--case .case-brief[data-state="attention"] { --case-status-accent: var(--midnight-warning); }
 .case-brief .banner__detail { max-width: 64ch; overflow-wrap: anywhere; }
 .case-brief .case-note { margin-block-start: var(--space-1); }
 .case-brief .crew-sigil { width: 58px; color: var(--case-status-accent); }

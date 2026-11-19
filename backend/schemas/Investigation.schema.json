@@ -36,6 +36,18 @@
         "clock": {
           "$ref": "#/$defs/ClockConfig"
         },
+        "contribution_test": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contribution Test"
+        },
         "evidence": {
           "default": [],
           "items": {
@@ -74,7 +86,14 @@
             "local_date_matches",
             "instant_zone_independent",
             "flag_monotonic",
-            "next_after_now"
+            "next_after_now",
+            "retry_cancelled",
+            "timeout_delivery",
+            "interval_delivery",
+            "expiry_deadline",
+            "elapsed_clock_jump",
+            "python_assertion",
+            "calendar_contract"
           ],
           "title": "Invariant",
           "type": "string"
@@ -343,7 +362,8 @@
             {
               "enum": [
                 "vitest",
-                "jest"
+                "jest",
+                "pytest"
               ],
               "type": "string"
             },
@@ -558,6 +578,7 @@
             "not_selected",
             "not_designed",
             "adapter_invalid",
+            "partial",
             "clean",
             "violations"
           ],
@@ -742,6 +763,96 @@
       "title": "DecisionRecord",
       "type": "object"
     },
+    "EnvironmentCheck": {
+      "description": "Can this repository's test runner run a generated test at all? Checked once per case with a canary, before any\nexperiment is judged, because the answer is the same for every experiment (pipeline._environment).",
+      "properties": {
+        "attempts": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Attempts",
+          "type": "array"
+        },
+        "how": {
+          "default": "",
+          "title": "How",
+          "type": "string"
+        },
+        "missing_globals": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Globals",
+          "type": "array"
+        },
+        "node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Node"
+        },
+        "polyfills": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Polyfills",
+          "type": "array"
+        },
+        "provided": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Provided",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "runner_config": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runner Config"
+        },
+        "status": {
+          "default": "skipped",
+          "enum": [
+            "ok",
+            "failed",
+            "skipped"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "EnvironmentCheck",
+      "type": "object"
+    },
     "Evidence": {
       "description": "One piece of evidence an agent cites. Code resolves every ref before the claim counts.",
       "properties": {
@@ -779,8 +890,12 @@
     "Experiment": {
       "properties": {
         "adapter": {
-          "const": "js_sweep",
           "default": "js_sweep",
+          "enum": [
+            "js_sweep",
+            "python_pytest",
+            "python_crew"
+          ],
           "title": "Adapter",
           "type": "string"
         },
@@ -867,6 +982,23 @@
           "default": null,
           "title": "Executability Reason"
         },
+        "failure_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "adapter",
+                "environment",
+                "throttled"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Kind"
+        },
         "fields": {
           "default": [],
           "items": {
@@ -875,7 +1007,13 @@
               "next",
               "flag",
               "date",
-              "value"
+              "value",
+              "after_cancel",
+              "timeout_trace",
+              "interval_trace",
+              "expiry_trace",
+              "clock_jumps",
+              "calendar_cases"
             ],
             "type": "string"
           },
@@ -911,6 +1049,18 @@
           "title": "Point Count",
           "type": "integer"
         },
+        "runner_config": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runner Config"
+        },
         "status": {
           "default": "planned",
           "enum": [
@@ -918,6 +1068,7 @@
             "designed",
             "not_designed",
             "adapter_invalid",
+            "not_run",
             "swept"
           ],
           "title": "Status",
@@ -1235,7 +1386,14 @@
             "local_date_matches",
             "instant_zone_independent",
             "flag_monotonic",
-            "next_after_now"
+            "next_after_now",
+            "retry_cancelled",
+            "timeout_delivery",
+            "interval_delivery",
+            "expiry_deadline",
+            "elapsed_clock_jump",
+            "python_assertion",
+            "calendar_contract"
           ],
           "title": "Invariant",
           "type": "string"
@@ -1324,6 +1482,32 @@
     },
     "InvariantUse": {
       "properties": {
+        "expectation_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository test or doc passage supporting this rule",
+          "title": "Expectation Ref"
+        },
+        "expired_at_deadline": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Explicit cited expiry policy at equality",
+          "title": "Expired At Deadline"
+        },
         "id": {
           "enum": [
             "well_formed",
@@ -1331,7 +1515,14 @@
             "local_date_matches",
             "instant_zone_independent",
             "flag_monotonic",
-            "next_after_now"
+            "next_after_now",
+            "retry_cancelled",
+            "timeout_delivery",
+            "interval_delivery",
+            "expiry_deadline",
+            "elapsed_clock_jump",
+            "python_assertion",
+            "calendar_contract"
           ],
           "title": "Id",
           "type": "string"
@@ -1465,6 +1656,80 @@
         "pushed_at"
       ],
       "title": "Publish",
+      "type": "object"
+    },
+    "PytestResult": {
+      "properties": {
+        "assertion_failure": {
+          "default": false,
+          "title": "Assertion Failure",
+          "type": "boolean"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "exercised_source": {
+          "default": false,
+          "title": "Exercised Source",
+          "type": "boolean"
+        },
+        "failed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "instant": {
+          "title": "Instant",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "failed",
+            "skipped",
+            "blocked"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "passed": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Passed",
+          "type": "integer"
+        },
+        "runtime": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime"
+        },
+        "skipped": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "zone": {
+          "title": "Zone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instant",
+        "zone",
+        "outcome"
+      ],
+      "title": "PytestResult",
       "type": "object"
     },
     "Retest": {
@@ -1603,6 +1868,48 @@
       "title": "RuleSummary",
       "type": "object"
     },
+    "RunSummary": {
+      "description": "How a finished run went, in counts, so runs and repositories can be compared (pipeline._run_health).",
+      "properties": {
+        "adapter": {
+          "default": 0,
+          "title": "Adapter",
+          "type": "integer"
+        },
+        "environment": {
+          "default": 0,
+          "title": "Environment",
+          "type": "integer"
+        },
+        "environment_check": {
+          "default": "skipped",
+          "title": "Environment Check",
+          "type": "string"
+        },
+        "experiments": {
+          "default": 0,
+          "title": "Experiments",
+          "type": "integer"
+        },
+        "ran": {
+          "default": 0,
+          "title": "Ran",
+          "type": "integer"
+        },
+        "repairs_rejected": {
+          "default": 0,
+          "title": "Repairs Rejected",
+          "type": "integer"
+        },
+        "throttled": {
+          "default": 0,
+          "title": "Throttled",
+          "type": "integer"
+        }
+      },
+      "title": "RunSummary",
+      "type": "object"
+    },
     "Signal": {
       "properties": {
         "confidence": {
@@ -1665,9 +1972,29 @@
           "title": "Experiment Id",
           "type": "string"
         },
+        "pending_review": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pending Review"
+        },
         "points_run": {
           "title": "Points Run",
           "type": "integer"
+        },
+        "pytest_results": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PytestResult"
+          },
+          "title": "Pytest Results",
+          "type": "array"
         },
         "violations": {
           "default": [],
@@ -1691,6 +2018,24 @@
         "zones"
       ],
       "title": "SweepResult",
+      "type": "object"
+    },
+    "SweepWindow": {
+      "properties": {
+        "end_ms": {
+          "title": "End Ms",
+          "type": "integer"
+        },
+        "start_ms": {
+          "title": "Start Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start_ms",
+        "end_ms"
+      ],
+      "title": "SweepWindow",
       "type": "object"
     },
     "Target": {
@@ -1839,6 +2184,11 @@
           "default": null,
           "title": "Expected"
         },
+        "failure_kind": {
+          "default": "",
+          "title": "Failure Kind",
+          "type": "string"
+        },
         "instant": {
           "title": "Instant",
           "type": "string"
@@ -1850,7 +2200,14 @@
             "local_date_matches",
             "instant_zone_independent",
             "flag_monotonic",
-            "next_after_now"
+            "next_after_now",
+            "retry_cancelled",
+            "timeout_delivery",
+            "interval_delivery",
+            "expiry_deadline",
+            "elapsed_clock_jump",
+            "python_assertion",
+            "calendar_contract"
           ],
           "title": "Invariant",
           "type": "string"
@@ -1922,6 +2279,17 @@
       "title": "Decisions",
       "type": "array"
     },
+    "environment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EnvironmentCheck"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "error": {
       "anyOf": [
         {
@@ -1986,6 +2354,19 @@
       "title": "Phase",
       "type": "string"
     },
+    "python_environment": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Python Environment"
+    },
     "replay_label": {
       "default": "Live",
       "enum": [
@@ -2002,6 +2383,17 @@
       "default": false,
       "title": "Revealed",
       "type": "boolean"
+    },
+    "run_summary": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "runtime": {
       "default": "stub",
@@ -2045,6 +2437,17 @@
       ],
       "title": "Status",
       "type": "string"
+    },
+    "sweep_window": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SweepWindow"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "sweeps": {
       "default": [],

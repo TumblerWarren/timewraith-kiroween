@@ -102,6 +102,10 @@ a.status-pill:hover {
   color: var(--midnight-error);
 }
 
+.status-pill[data-state="attention"] {
+  border-color: var(--midnight-warning);
+  color: var(--midnight-warning);
+}
 .status-pill[data-state="done"] {
   border-color: var(--midnight-success);
   color: var(--midnight-success);
@@ -208,6 +212,9 @@ a.status-pill:hover {
   border-inline-start-color: var(--midnight-error);
 }
 
+.banner[data-state="attention"] {
+  border-inline-start-color: var(--midnight-warning);
+}
 .banner[data-state="done"] {
   border-inline-start-color: var(--midnight-success);
 }
@@ -693,3 +700,13 @@ a.status-pill:hover {
   color: var(--midnight-muted);
   font-size: var(--text-xs);
 }
+/* A run you started has finished (app/FinishedNotices.tsx): a notice you cannot miss while looking at something else. */
+.finished-notices { display: grid; gap: var(--space-3); padding: var(--space-3) clamp(16px, 5vw, 80px) 0; }
+.finished-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--midnight-success); border-inline-start-width: 6px; border-radius: 12px; background: var(--midnight-panel); }
+.finished-notice[data-tone="attention"] { border-color: var(--midnight-warning); }
+.finished-notice[data-tone="failed"] { border-color: var(--midnight-error); }
+.finished-notice p { margin: var(--space-1) 0 0; }
+.finished-notice__label { margin-inline-start: var(--space-3); font-weight: 600; }
+.finished-notice[data-tone="attention"] .finished-notice__label { color: var(--midnight-warning); }
+.finished-notice[data-tone="failed"] .finished-notice__label { color: var(--midnight-error); }
+.finished-notice__actions { display: flex; gap: var(--space-2); }

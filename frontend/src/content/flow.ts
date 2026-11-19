@@ -38,7 +38,7 @@ export const FLOW_STEPS: readonly FlowStep[] = [
     sign: "Repository",
     kind: "code",
     summary:
-      "The Wraith Director clones the one commit you pinned, with Git hooks, submodules and links switched off. The Gatekeeper reads the manifests, the lockfile and the test setup and writes down what the repository can support.",
+      "Code clones the pinned commit with Git hooks, submodules and links switched off. The Gatekeeper reads manifests, lockfiles and test setup to identify what the repository supports.",
     mascots: ["wraith-director", "gargoyle-gatekeeper"],
     lead: "wraith-director",
     burst: false,
@@ -64,7 +64,7 @@ export const FLOW_STEPS: readonly FlowStep[] = [
     sign: "Design",
     kind: "kiro-agent",
     summary:
-      "The Pumpkin Mechanic writes a small adapter that calls the code, and picks the rules it must keep from a fixed list. The Warden then holds the queue until you approve the experiments.",
+      "The Pumpkin Mechanic designs adapters and rules for the experiments. The Warden waits for your approval unless you selected an automatic run. After an initial round, the Wraith Director may propose follow-up experiments when budget allows.",
     mascots: ["pumpkin-mechanic", "watchtower-warden"],
     lead: "pumpkin-mechanic",
     burst: true,
@@ -90,7 +90,7 @@ export const FLOW_STEPS: readonly FlowStep[] = [
     sign: "Verification",
     kind: "kiro-agent",
     summary:
-      "A broken rule is run again three times in clean containers. The Raven then reads what the repository's own tests and docs say about that moment: if they say it is deliberate, and the cited test passes, it is reported as intended behaviour, not a bug. Otherwise the Raven rules whether it is a real defect, and Jack checks the public issues for an earlier report.",
+      "The first violation from each experiment can be checked as time permits. It must repeat in clean containers (three times by default), then Raven investigates the code and repository evidence. Code checks the verdict and reproduction; public issues and pull requests may also be searched for a match.",
     mascots: ["raven-archivist", "two-faced-jack"],
     lead: "raven-archivist",
     burst: false,
@@ -103,7 +103,7 @@ export const FLOW_STEPS: readonly FlowStep[] = [
     sign: "Fix",
     kind: "kiro-agent",
     summary:
-      "Doctor Stitch works like a developer through TimeWraith's tools: he reads and searches the code, makes exact edits and runs the failing test in the sandbox until he submits a patch. It is called verified only after it passes eight gates on a clean copy and the Raven's blind review, and you accept it before you can download it. The Scribe bundles the patch with its regression test.",
+      "Doctor Stitch uses TimeWraith's tools to investigate, edit and test a patch. A fix is verified after eight gates, including Raven's independent review. Once accepted, you can download it, check repository contribution rules, and choose to publish or update a pull request.",
     mascots: ["doctor-stitch", "skeleton-scribe"],
     lead: "doctor-stitch",
     burst: false,

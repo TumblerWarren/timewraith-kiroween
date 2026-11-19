@@ -14,6 +14,8 @@ import { CASE_MODE_BY_ID } from "../../content/modes";
 import { ModeShape } from "../../cases/library/ModeShape";
 import { CaseTabs, Counters, RunGraph, RunStatus, StatusBanner, stepStates } from "./parts";
 import { ActivityTab, FindingsTab, FixesTab, OverviewTab, PlanTab } from "./tabs";
+import { AttentionNotice } from "./AttentionNotice";
+import { ContinueNotice } from "./ContinueNotice";
 import { KiroAccountBanner, NowStrip } from "./LiveCaseDetails";
 
 function Back() {
@@ -106,6 +108,9 @@ function LiveCasePage({ id, tab, planView, known }: {
       setBusy(false);
     }
   };
+  const continueCase = () => {
+    if (api) void act(() => api.continueCase(id));
+  };
 
   /** Open the same case again, optionally on another ref. */
   const retry = (ref?: string) =>
@@ -172,6 +177,8 @@ function LiveCasePage({ id, tab, planView, known }: {
       <RunGraph id={id} tab={tab}
         states={stepStates(phase, stage, inv?.bugs.length ?? c.summary.bug_count)} inv={inv} />
       <KiroAccountBanner notes={inv?.notes ?? []} events={events} />
+      <ContinueNotice unfinished={inv?.unfinished ?? []} busy={busy} onContinue={continueCase} />
+      <AttentionNotice notes={inv?.notes ?? []} />
       {actionError ? (
         <p className="alert" role="alert">
           {actionError}

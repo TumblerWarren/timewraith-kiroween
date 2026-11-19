@@ -3,14 +3,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReduceMotion } from "../../a11y/ReduceMotionProvider";
 import spider from "../../assets/cinematic/spectral-spider.svg?raw";
 import { createSpiderSounds } from "../../audio/soundEffects";
+import { hasSeenIntro, markIntroSeen } from "../introSession";
 
-const STORAGE_KEY = "tw:new-case-awakening:v2";
 const THREADS = 24;
 const RINGS = 20;
 type Point = { x: number; y: number };
-function alreadyShown() {
-  try { return localStorage.getItem(STORAGE_KEY) === "1"; } catch { return false; }
-}
 // Silk junctions share uneven radials, with small variations in thread tension.
 function silkPoint(index: number, radius: number, center: Point): Point {
   const spoke = index % THREADS;
@@ -45,7 +42,7 @@ function rectanglePoints(rect: DOMRect, origin: DOMRect): Point[] {
 }
 export function NewCaseAwakening() {
   const { reduceMotion } = useReduceMotion();
-  const [playing, setPlaying] = useState(() => !reduceMotion && !alreadyShown());
+  const [playing, setPlaying] = useState(() => !reduceMotion && !hasSeenIntro("new"));
   const art = useRef<HTMLDivElement>(null);
   const replaying = useRef(false);
   const finish = useRef<() => void>(() => {});
@@ -87,6 +84,7 @@ export function NewCaseAwakening() {
     const content = root?.querySelector<HTMLElement>(".split");
     const heading = root?.querySelector<HTMLElement>(".page__head");
     if (!root || !artwork || !content || !heading || !playing || reduceMotion) return;
+    markIntroSeen("new");
     const sounds = createSpiderSounds();
     let skipping = false;
     const cards = Array.from(root.querySelectorAll<HTMLElement>(".split > .sheet, .split__aside > *"));
@@ -135,7 +133,6 @@ export function NewCaseAwakening() {
       const timeline = gsap.timeline();
       const complete = () => {
         content.inert = false;
-        try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* Storage is optional. */ }
         setPlaying(false);
         requestAnimationFrame(() => {
           const target = document.getElementById(replaying.current ? "page-animation-replay" : "page-title");

@@ -75,6 +75,7 @@ function fakeApi(over: Partial<Api> = {}): Api {
     githubPreview: async () => Promise.reject(new Error("unused")),
     prepareContribution: async () => Promise.reject(new Error("unused")),
     generateDescription: async () => Promise.reject(new Error("unused")),
+    continueCase: async () => Promise.reject(new Error("unused")),
     githubPush: async () => Promise.reject(new Error("unused")),
     githubPullRequest: async () => Promise.reject(new Error("unused")),
     githubUpdate: async () => Promise.reject(new Error("unused")),

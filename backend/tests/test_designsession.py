@@ -2,18 +2,32 @@
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from timewraith import agents as A
 from timewraith import designsession as D
 from timewraith import sweep as S
 from timewraith.config import Settings
 from timewraith.fixsession import ToolError
 from timewraith.ingest import git
-from timewraith.models import CreateInvestigation, Experiment, InvariantUse, Investigation, Target
+from timewraith.models import (
+    Candidate,
+    CapabilityReport,
+    CodeUnit,
+    CreateInvestigation,
+    Experiment,
+    FeatureMap,
+    InvariantUse,
+    Investigation,
+    Target,
+)
 from timewraith.pipeline import Engine, _derive_invariants
 from timewraith.sandbox import ProbeResult
 from timewraith.store import Store
@@ -176,7 +190,7 @@ def test_broken_rule_goes_to_the_workshop_then_is_dropped(engine: Engine, monkey
     monkeypatch.setattr(engine, "_workshop", lambda inv, rt, ex, problems, t0: seen.append(problems))
     inv = case()
     engine._validate(inv, Rt(sessions=True), [e], time.monotonic())  # type: ignore[arg-type]
-    assert len(seen) == 1 and "local_date_matches" in seen[0][0], "Pumpkin gets the broken rule to repair"
+    assert len(seen) == engine.s.adapter_repair_rounds, "Pumpkin gets every repair round"
     assert e.status == "designed" and e.invariants == [], "still broken after repair: the rule is dropped"
     assert "dropped" in inv.decisions[-1].rule
 
@@ -196,3 +210,148 @@ def test_clean_baseline_keeps_every_rule(engine: Engine, monkeypatch: pytest.Mon
     inv = case()
     engine._validate(inv, Rt(sessions=True), [e], time.monotonic())  # type: ignore[arg-type]
     assert [i.id for i in e.invariants] == ["local_date_matches"] and inv.decisions[-1].decision == "accepted"
+
+
+@pytest.mark.parametrize("citation, retained", [("README.md:1-1", True), ("README.md:9-9", False)])
+def test_cited_ordinary_mismatch_reaches_verification(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch, citation: str, retained: bool
+) -> None:
+    inv, ex = case(), experiment()
+    inv.capabilities = CapabilityReport(test_runner="jest")
+    inv.sweep_window = S.future_window(datetime.fromisoformat(inv.created_at))
+    (ws / "src/day.js").write_text("exports.today = d => new Date(+d + 86400000);", "utf8")
+    (ws / "README.md").write_text("today returns the local calendar date of its input.", "utf8")
+    git(ws, ["add", "README.md", "src/day.js"])
+    inv.feature_map = FeatureMap(
+        candidates=[
+            Candidate(
+                id=ex.candidate_id,
+                title="today",
+                unit=CodeUnit(path="src/day.js", name="today", start_line=1, end_line=1, exported=True),
+                signal_ids=[],
+                bug_categories=ex.categories,
+                score=4,
+                score_parts={},
+            )
+        ]
+    )
+    design = A.AdapterOut(
+        claim="today reports the local date",
+        fields=["date"],
+        adapter_code=("exports.run = ctx => ({date: require('../day').today(ctx.now).toLocaleDateString('en-CA')});"),
+        invariants=[InvariantUse(id="local_date_matches", reason="API promises local date", expectation_ref=citation)],
+    )
+    monkeypatch.setattr(engine, "_agent", lambda *args: design.model_copy(deep=True))
+    rt = Rt(sessions=True)
+    engine._design(inv, rt, ex, None)  # type: ignore[arg-type]
+    points = S.baseline_points(inv.sweep_window)
+    rows = {
+        z: [
+            {"t": t, "r0": {"date": S.local_str(t + DAY, z)[:10]}, "r1": {"date": S.local_str(t + DAY, z)[:10]}}
+            for t in ts
+        ]
+        for z, ts in points.items()
+    }
+    monkeypatch.setattr(engine, "_sweep", lambda *_: {ex.id: (rows, [])})
+    repairs = []
+    monkeypatch.setattr(engine, "_workshop", lambda *_: repairs.append(True))
+    engine._validate(inv, rt, [ex], time.monotonic())  # type: ignore[arg-type]
+    assert bool(repairs) != retained
+    reviewed = []
+    monkeypatch.setattr(engine, "_verify", lambda inv, rt, ex, v: reviewed.append(v.invariant))
+    engine._sweep_and_verify(inv, rt, [ex], set())  # type: ignore[arg-type]
+    assert reviewed == (["local_date_matches"] if retained else [])
+    assert not inv.bugs
+
+
+def test_bat_discovers_calendar_logic_outside_scan_and_pumpkin_designs_it(engine: Engine, ws: Path) -> None:
+    from timewraith.discovery import build_feature_map
+    from timewraith.planning import build_test_plan
+
+    path = "src/months.js"
+    quote = "return month === 2 ? 28 : 31;"
+    (ws / path).write_text(f"export function daysInMonth(year, month) {{\n  {quote}\n}}\n", "utf8")
+    inv = case()
+    inv.capabilities = CapabilityReport(test_runner="vitest")
+    inv.feature_map = build_feature_map(ws, engine.s.max_parse_bytes)
+    assert all(c.unit.path != path for c in inv.feature_map.candidates)
+    engine.store.save(inv)
+
+    class Crew(Rt):
+        def call(self, agent: str, step: str, prompt: str, schema: Any) -> Any:
+            if step == "review_candidates":
+                assert path in prompt
+                return A.ReviewOut(items=[], inspect_paths=[path, "../outside.js"])
+            if step == "inspect_js_sources":
+                assert quote in prompt
+                lead = dict(
+                    path=path,
+                    line=2,
+                    quote=quote,
+                    hypothesis="February may be too short",
+                    expectation="Leap-year February has 29 days",
+                )
+                items = [lead, lead, {**lead, "line": 50}, {**lead, "path": "../outside.js"}]
+                return schema.model_validate({"items": items})
+            assert step == "design_experiment" and agent == "pumpkin-mechanic"
+            assert "Leap-year February has 29 days" in prompt
+            return A.AdapterOut(
+                claim="Check February length",
+                fields=["value"],
+                adapter_code=(
+                    "import { daysInMonth } from '../months.js';\n"
+                    "export function run(ctx) { return { value: daysInMonth(new Date(ctx.now).getUTCFullYear(), 2) }; }"
+                ),
+            )
+
+    rt = Crew(sessions=False)
+    engine._review(inv, rt)  # type: ignore[arg-type]
+    candidate = inv.feature_map.candidates[0]
+    assert candidate.unit.path == path and candidate.selected and not candidate.signal_ids
+    decisions = [d for d in inv.decisions if d.step == "inspect_js_sources"]
+    assert [d.decision for d in decisions] == ["accepted", "rejected", "rejected"]
+    assert decisions[0].evidence[0].ref == path + ":2"
+    [ex] = build_test_plan(inv.feature_map.candidates, inv.capabilities, 1).experiments
+    engine._design(inv, rt, ex, None)  # type: ignore[arg-type]
+    assert ex.status == "designed" and ex.harness_path and (ws / ex.harness_path).is_file()
+    if node := shutil.which("node"):
+        assert ex.adapter_path
+        (ws / "package.json").write_text('{"type":"module"}', "utf8")
+        check = f"import {{run}} from './{ex.adapter_path}'; console.log(run({{now: Date.UTC(2028, 1, 29)}}).value)"
+        result = subprocess.run(
+            [node, "--input-type=module", "-e", check], cwd=ws, capture_output=True, text=True, timeout=10, check=True
+        )
+        assert result.stdout.strip() == "28"
+
+
+def test_workshop_validates_the_agent_selected_runner_config(ws: Path) -> None:
+    configs: list[str] = []
+
+    def baseline(fields: list[str]) -> list[str]:
+        return [] if configs and configs[-1] else ["No test files found"]
+
+    s = session(ws, configure_runner=configs.append, baseline=baseline)
+    assert "write_runner_config" in {tool["name"] for tool in s.tools}
+    assert "No test files found" in s.call("check_baseline", {"fields": ["value"]})
+    proposal = 'export default { test: { include: ["**/__tw__/**/*.test.ts"] } };'
+    s.call("write_runner_config", {"code": proposal})
+    assert s.call("check_baseline", {"fields": ["value"]}).startswith("CLEAN")
+    s.call("submit_adapter", {"fields": ["value"], "claim": "Check calendar boundaries"})
+    assert configs == [proposal]
+    assert s.submitted is not None and s.rejected_reason is None
+
+
+def test_repair_shell_can_save_fixture_for_baseline(ws: Path) -> None:
+    checks: list[str] = []
+    s = session(
+        ws,
+        repair_command=lambda command, left: f"ran {command}",
+        save_fixture=lambda name, content: checks.append(content) or f".tw/generated/{name}",
+        baseline=lambda _: [] if checks == ['{"day":29}'] else ["missing fixture"],
+    )
+    assert s.call("run_command", {"command": "cat runner.log"}) == "ran cat runner.log"
+    with pytest.raises(ToolError, match="filename"):
+        s.call("save_fixture", {"name": "../calendar.json", "content": "{}"})
+    output = s.call("save_fixture", {"name": "calendar.json", "content": '{"day":29}'})
+    assert output == ".tw/generated/calendar.json"
+    assert s.call("check_baseline", {"fields": ["value"]}).startswith("CLEAN")

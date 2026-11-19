@@ -2,15 +2,17 @@
 
 The site has two entry pages with motion. Both follow the visual rules in [design-system.md](design-system.md).
 
+The clock intro, New Case spider opening and Crew Setup eye opening each play on their first visit in a browser tab. Revisiting or refreshing the page in that tab keeps the intro dismissed. Opening the site in a fresh tab starts a new session. Each of the three pages has its own replay button at the bottom.
+
 ## The midnight intro (`#/`)
 
-The intro is a timed clock sequence built with GSAP. The clock hands turn, the midnight bell strikes, and the lantern wraith appears. The top bar and footer are hidden on this page.
+The intro is a timed clock sequence built with GSAP. The clock hands turn, the midnight bell strikes, and the lantern wraith appears. The shared top bar and footer are hidden on this page.
 
 - The lantern button ("Touch the lantern to enter TimeWraith") is enabled once the intro is ready. Activating it opens `#/home`.
 - The "Skip intro" button also opens `#/home`.
 - A "Sound on / Sound off" button sits beside Skip. It is the same sound setting as the other pages.
 - The Home page footer has a "Replay the midnight intro" link that returns to `#/`.
-- Pressing Escape does nothing. Only the two buttons above leave the intro.
+- Escape dismisses the intro like Skip. When replaying from the landing page itself, Skip and Escape return to that page.
 - The intro pauses while the page is hidden (`document.hidden`).
 - With Reduce Motion on, the clock and the lantern invitation appear at once, and the lantern button is enabled without the timed sequence.
 
@@ -21,7 +23,7 @@ The home page is the explanatory entry point. It has a lantern that moves across
 ### Lantern and reveal
 
 - The lantern (`LanternWraith.tsx`) moves over the page and stops for visible controls. It is driven by `requestAnimationFrame` and pauses while the page is hidden.
-- Elements marked `data-lantern-reveal` start dim. Their opacity follows how close the lantern is. Once the lantern has passed over an element, it stays fully visible.
+- Elements marked `data-lantern-reveal` start dim. The lantern reveals nearby elements. Once revealed, elements stay visible and their state is retained when returning to Home.
 - Keyboard focus shows an element at once (`:focus-within`).
 - With Reduce Motion on, the lantern is still, and the reveal is off. Everything is shown directly.
 - The footer's "Pause ghost" button stops the lantern. It is disabled under Reduce Motion.

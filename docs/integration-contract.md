@@ -1,6 +1,6 @@
 # Frontend ↔ backend integration contract (MVP)
 
-For the frontend session. Types come from the backend: the JSON Schemas in `backend/schemas/*.schema.json` are generated from the Pydantic models in `backend/src/timewraith/models.py` and are the source of truth. Generate TypeScript from them (for example with `json-schema-to-typescript` through a `pnpm` script) and fail CI when the generated file is stale. This document covers only what the types cannot say.
+The backend models and API implementation in `backend/src/timewraith/` define the current contract. Schemas in `backend/schemas/` are exported from the models; the frontend maintains its consumed types in `frontend/src/api/types.ts` and checks them with contract tests.
 
 Base URL: `http://127.0.0.1:8787/api/v1`. CORS allows `http://localhost:5173` by default (`TW_CORS_ORIGINS`).
 
@@ -14,13 +14,13 @@ Note: sections below that say "Case Board" describe the one-page board that the 
 | Modes | All three: `open-hunt`, `known-issue`, `blind-hunt`. Known issue and Blind hunt need an issue URL of the same repository. |
 | Approvals | Two stops: approve the plan before any target code runs, and accept the fix after it passed all gates. An `auto` toggle on the form skips the plan stop (the fix still has to be accepted to download it). |
 | Drafts | Stay in `localStorage`. Each draft card gets a **Run this draft** button that posts it to the backend. |
-| Fix output | Downloadable patch (source change + regression test). The backend never writes to GitHub. |
+| Fix output | Downloadable patch; accepted fixes can also be prepared and explicitly published or updated on GitHub. |
 | Gates | Eight, all required: test first, fixed, no regressions, no new anomalies, diff limits, static checks, independent review, mutation check. |
-| Limits | 30 min active time per investigation, 5 bugs taken to fixing, 40 agent calls, 3 fix attempts per bug. |
+| Limits | Defaults: 3 hours active time, 5 bugs taken to fixing, 40 agent calls and 3 fix attempts per bug; configurable in `config.py`. |
 
 ## Flow strip (top of the Case Board)
 
-`GET /flow` returns the steps in order. Render the five main steps as the strip and the `follow_on` step (Fix) after it:
+`GET /flow` returns the steps in order. The API returns five main steps and the `follow_on` Fix step. The current case page groups Discovery, Design and Execution under Plan; its detailed plan views remain separate:
 
 | # | `id` | Title | Owner | `kind` |
 |---|---|---|---|---|
@@ -51,7 +51,15 @@ Show the `kind`: steps 1 and 4 are code on purpose (they produce the facts), and
 | `POST /investigations/{id}/cancel` | Stops at the next step boundary |
 | `POST /investigations/{id}/bugs/{bug_id}/fix/accept` or `/reject` | Fix stop; only for `fix.state == "verified"` |
 | `GET /investigations/{id}/bugs/{bug_id}/patch` | The patch file; only after accept |
-| `GET /investigations/{id}/audit` | Agent call log (for a "how the Crew decided" panel, optional) |
+| `GET /investigations/{id}/audit` | Agent call log |
+| `POST /investigations/{id}/delete` | Delete a case |
+| `POST /investigations/{id}/bugs/{bug_id}/branch` · `GET .../branch.patch` | Create a local fix branch and download its patch |
+| `POST /investigations/{id}/bugs/{bug_id}/retest` | Retest a finding on another ref |
+| `GET /investigations/{id}/bugs/{bug_id}/github` | Preview GitHub publication and available updates |
+| `POST /investigations/{id}/bugs/{bug_id}/contribution` · `/contribution/description` | Check repository rules and update the contribution description |
+| `POST /investigations/{id}/bugs/{bug_id}/github/push` · `/pull-request` · `/update` | Explicitly push, open or update a pull request |
+| `POST /system/crew/delete` | Delete the Crew container |
+| `POST /system/github/start` · `/login` · `/login/cancel` · `/logout` | Manage GitHub sign-in |
 
 Errors always have the shape `{"error": {"code": "...", "message": "..."}}`. Show `message`; branch on `code`.
 
@@ -113,7 +121,7 @@ The board ships no bundled or sample cases. The library lists live investigation
 
 - `frontend/src/api/`: `types.ts` (the fields the board reads), `client.ts` (fetch and EventSource), `ApiProvider.tsx` (health every 30 s). `api/__tests__/contract.test.ts` fails when a field the board reads is missing from `backend/schemas/`.
 - Vite proxies `/api` to `http://127.0.0.1:8787` in `dev` and `preview` (`TW_BACKEND_URL` overrides it), so no CORS is needed.
-- Live cases: `cases/model.ts` (`LiveCase`), `cases/store.tsx` (list refresh every 15 s). Case page: `frontend/src/pages/case/CasePage.tsx` with the status banner (`app/status.ts`), the six-step tracker, counters and the tabs Overview, Plan, Findings (including intended behaviour), Fixes (the 8 gates, diff, accept or reject, patch download) and Activity (event log and decisions). The earlier single-page `LiveCaseView` was removed in redesign R4.
+- Live cases: `cases/model.ts` (`LiveCase`), `cases/store.tsx` (list refresh every 15 s). Case page: `frontend/src/pages/case/CasePage.tsx` with the status banner (`app/status.ts`), the four-node run path (Repository, Plan, Verification, Fix), counters and the tabs Overview, Plan, Findings (including intended behaviour), Fixes (the 8 gates, diff, accept or reject, patch download) and Activity (event log and decisions). The earlier single-page `LiveCaseView` was removed in redesign R4.
 - `components/FlowStrip.tsx` (the five-step strip above the case form) has since been removed. The step copy is in `content/flow.ts`.
 - Removed: the decorative clock stamps (nav, thread nodes, "Filed 06:58"), the local-app target, the simulated setup statuses and demo-mode badge (both now follow `/health`), the placeholder links and hash, and the two sample cases (FullCalendar #7998, Cal.com #30021) with their replay scrubber, version timeline milestones and illustrative suggested-fix panel.
 
@@ -127,7 +135,8 @@ The routes are defined in `frontend/src/app/router.ts`. The table below is curre
 | `#/home` | Home | Hero with the repository field, the workflow tabs, the time bugs, and a footer with sound, Pause ghost, Reduce motion and intro replay |
 | `#/new` | New case | The form, pre-filled by `#/new?repo=<url>` |
 | `#/cases` | Cases | Every case as a row with a status pill |
-| `#/cases/:id[/tab]` | Case | Status banner, six-step tracker, counters, tabs: overview, plan, findings, fixes, activity |
+| `#/cases/:id[/tab]` | Case | Status banner, four-node run path, counters, tabs: overview, plan, findings, fixes, activity |
+| `#/cases/:id/plan/discovery` · `/plan/execution` | Plan evidence | Focused discovery and execution views |
 | `#/crew` | Crew setup | Docker, Kiro Crew container, sign-in, machine checks, limits, cleanup |
 | `#/about` | How it works | Lost hour, the six steps, the Crew, the evidence ladder |
 

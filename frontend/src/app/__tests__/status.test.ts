@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Bug, Investigation, InvestigationSummary, ReplayEventMsg } from "../../api/types";
 import { liveFromSummary } from "../../cases/model";
 import { NO_ANOMALY } from "../../content/copy";
-import { caseState, failureText, resultLine, suggestedRef } from "../status";
+import { attentionOf, caseState, failureText, resultLine, suggestedRef } from "../status";
 
 const SUMMARY: InvestigationSummary = {
   id: "inv-1",
@@ -71,5 +71,27 @@ describe("case state", () => {
     expect(resultLine(1, 0)).toBe("1 bug reproduced · 0 fixes verified");
     expect(resultLine(0, 0, 2)).toBe("No bugs: 2 findings are intended behaviour the repository documents");
     expect(caseState(live({ stage: "completed", bug_count: 0, intended_count: 1 })).detail).toMatch(/^No bugs: 1 finding is intended/);
+  });
+});
+describe("a run that finished with problems", () => {
+  const note = "6 of 11 experiments could not run. Reasons: the runner did not collect the harness (x6). Results from what did run may be incomplete.";
+  it("is never a plain Done: it has its own state, label and reason", () => {
+    const s = caseState(live({ stage: "completed", bug_count: 0, attention: note }));
+    expect(s).toMatchObject({ id: "attention", label: "Done with problems" });
+    expect(s.detail).toContain("6 of 11 experiments could not run");
+    const full = caseState(live({ stage: "completed" }), inv({ stage: "completed", notes: [`Attention: ${note}`] }));
+    expect(full.id).toBe("attention");
+    expect(caseState(live({ stage: "completed" }), inv({ stage: "completed", notes: ["an ordinary note"] })).id).toBe("done");
+  });
+  it("still asks for your decision first when a verified fix is waiting", () => {
+    const waiting = inv({ stage: "completed", bugs: [bug("verified", 1)], notes: [`Attention: ${note}`] });
+    expect(caseState(live({ stage: "completed" }), waiting).id).toBe("waiting");
+  });
+  it("keeps a failed run failed", () => {
+    expect(caseState(live({ stage: "failed", error: "git_failed", attention: note })).id).toBe("failed");
+  });
+  it("reads the notice from notes", () => {
+    expect(attentionOf(["x", `Attention: ${note}  `])).toBe(note);
+    expect(attentionOf(["x"])).toBeNull();
   });
 });

@@ -7,7 +7,7 @@ import type { Case } from "../cases/model";
  * One status model for every page (cases list, case banner, home, header). Every state has a label, a shape and a
  * mascot, so it is never told by colour alone, and a one-line detail that says what is happening or what went wrong.
  */
-export type CaseStateId = "draft" | "queued" | "running" | "waiting" | "failed" | "cancelled" | "done";
+export type CaseStateId = "draft" | "queued" | "running" | "waiting" | "failed" | "cancelled" | "attention" | "done";
 
 export interface CaseState {
   readonly id: CaseStateId;
@@ -25,6 +25,7 @@ export const STATE_LABELS: Readonly<Record<CaseStateId, string>> = {
   waiting: "Waiting for you",
   failed: "Failed",
   cancelled: "Cancelled",
+  attention: "Done with problems",
   done: "Done",
 };
 
@@ -44,6 +45,15 @@ export const STAGE_TEXT: Readonly<Record<Stage, { readonly text: string; readonl
   failed: { text: "Stopped", mascot: "raven-archivist" },
   cancelled: { text: "Cancelled", mascot: "watchtower-warden" },
 };
+
+/** Notes the backend starts with this say the run finished but had problems (models.ATTENTION_PREFIX). */
+export const ATTENTION_PREFIX = "Attention: ";
+
+/** The notice a finished run left, without its prefix, or null. */
+export function attentionOf(notes: readonly string[]): string | null {
+  const note = notes.find((n) => n.startsWith(ATTENTION_PREFIX));
+  return note ? note.slice(ATTENTION_PREFIX.length).trim() : null;
+}
 
 /** The backend's note when the Kiro account is out of usage (agents.QUOTA_MESSAGE). */
 const QUOTA = /usage limit reached/i;
@@ -161,6 +171,11 @@ export function caseState(c: Case, inv?: Investigation | null, maxAttempts = 3, 
   if (quota) {
     const soFar = bugs === 0 ? "Findings were not judged." : `${resultLine(bugs, verified)}; the rest were not judged.`;
     return { id: "failed", label: "Agents stopped", detail: `${quota} ${soFar}`, mascot: "watchtower-warden" };
+  }
+  // The run finished without an error, but it could not test everything: never a plain "Done".
+  const attention = inv ? attentionOf(inv.notes) : (s.attention ?? null);
+  if (attention) {
+    return { id: "attention", label: STATE_LABELS.attention, detail: `${resultLine(bugs, verified, intended)}. ${attention}`, mascot: "watchtower-warden" };
   }
   return { id: "done", label: STATE_LABELS.done, detail: resultLine(bugs, verified, intended), mascot: "raven-archivist" };
 }

@@ -34,6 +34,7 @@ function fakeApi(states: SetupStatus[]): Api {
     githubPreview: vi.fn(fail),
     prepareContribution: vi.fn(fail),
     generateDescription: vi.fn(fail),
+    continueCase: vi.fn(fail),
     githubPush: vi.fn(fail),
     githubPullRequest: vi.fn(fail),
     githubUpdate: vi.fn(fail),

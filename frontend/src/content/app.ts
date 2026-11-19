@@ -93,6 +93,6 @@ export const ABOUT = {
     "On a daylight-saving night the clock jumps from 01:59 to 03:00, or repeats an hour. Code that adds 24 hours, compares local dates or schedules the next run often breaks right there, and only for users in some time zones.",
   flowTitle: "The six steps",
   crewTitle: "The Crew",
-  crewLead: "Each mascot owns one job in the flow. Kiro agents judge; system components are plain code.",
+  crewLead: "Meet the Kiro agents and the characters representing the code that coordinates and checks their work.",
   ladderTitle: "How strong is the evidence",
 } as const;

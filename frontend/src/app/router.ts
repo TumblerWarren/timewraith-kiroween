@@ -17,7 +17,7 @@ export type CaseTab = (typeof CASE_TABS)[number];
 export type PlanView = "discovery" | "execution";
 
 export type Route =
-  | { readonly page: "landing" }
+  | { readonly page: "landing"; readonly replay?: boolean }
   | { readonly page: "home" }
   | { readonly page: "new"; readonly repoUrl?: string }
   | { readonly page: "cases" }
@@ -29,6 +29,7 @@ export type Route =
 const isTab = (s: string | undefined): s is CaseTab => (CASE_TABS as readonly string[]).includes(s ?? "");
 
 export function parseHash(hash: string): Route {
+  if (hash === "#/?replay=1") return { page: "landing", replay: true };
   if (hash.startsWith("#/new?")) {
     const repoUrl = new URLSearchParams(hash.slice(6)).get("repo");
     return repoUrl ? { page: "new", repoUrl } : { page: "new" };
@@ -66,7 +67,7 @@ export function parseHash(hash: string): Route {
 export function href(route: Route): string {
   switch (route.page) {
     case "landing":
-      return "#/";
+      return route.replay ? "#/?replay=1" : "#/";
     case "new":
       return route.repoUrl ? `#/new?${new URLSearchParams({ repo: route.repoUrl })}` : "#/new";
     case "case":

@@ -234,6 +234,7 @@ export const CASE_LIVE = {
   intended: "Intended",
   reproduced: "Reproduced",
   notReported: "Not reported",
+  awaitingReview: "Awaiting verification",
   checkedAt: (local: string, zone: string) => `${local} in ${zone}`,
   accountTitle: "Kiro needs attention",
   reviewSetup: "Open Crew setup",
@@ -251,7 +252,7 @@ export const CASE_ADDITIONS = {
     outcome: "Outcome",
     none: "None recorded",
     summary: (tested: number, total: number, violations: number) => `${tested} of ${total} candidates tested · ${violations} with violations`,
-    statusLabels: { not_selected: "Not selected", not_designed: "Not designed", adapter_invalid: "Adapter failed", clean: "Clean", violations: "Violations" },
+    statusLabels: { not_selected: "Not selected", not_designed: "Not designed", adapter_invalid: "Adapter failed", partial: "Partial coverage", clean: "Clean", violations: "Violations" },
   },
   planner: {
     title: "Planner rounds",
@@ -310,4 +311,25 @@ export const COPY_STRINGS = {
   BROWSER_NOT_SERVER_EXPLANATION,
   NO_ANOMALY,
   PROBLEM_ILLUSTRATION_LABEL,
+} as const;
+/** A run that finished without an error but could not test everything (backend note "Attention: …"). */
+export const RUN_ATTENTION = {
+  title: "This run finished, but not everything could be tested",
+} as const;
+
+/** The notice shown when a run you started finishes, wherever you are in the app. */
+export const RUN_FINISHED = {
+  region: "Finished runs",
+  open: "Open the case",
+  dismiss: "Dismiss",
+  announce: (title: string, label: string, detail: string) => `${title}: ${label}. ${detail}`,
+} as const;
+/** The agents stopped and left steps undone: Continue runs them again in the same case (backend: resume.py). */
+export const CASE_CONTINUE = {
+  title: "The agents stopped before they finished",
+  lead: "Some steps did not run because the Kiro account hit its usage limit, its sign-in expired, or the service was busy. Left undone:",
+  keeps: "Continue runs only those steps, in this case, with the account that is signed in now. Everything that already finished is kept.",
+  button: "Continue",
+  continuing: "Continuing…",
+  switchAccount: "Switch the Kiro account on the Crew page",
 } as const;

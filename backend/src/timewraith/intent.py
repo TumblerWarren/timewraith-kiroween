@@ -24,6 +24,8 @@ from .analyze import is_test_file
 TIME_WORDS = re.compile(
     r"\b(dst|daylight|summer[ -]?time|winter[ -]?time|fall[- ]?back|falls back|spring[- ]?forward|overlap\w*|"
     r"ambiguous|repeated|repeats|twice|skip\w*|gap|non-?existent|leap|month[- ]end|end of (the )?month|midnight|"
+    r"cancel\w*|retr(?:y|ies)|timers?|expir\w*|ttl|deadlines?|durations?|"
+    r"elapsed|monotonic|clock jumps?|milliseconds?|seconds?|calendar|local date|recurr\w*|next run|"
     r"time ?zones?|tz|utc|gmt|offset|wall[- ]?clock|transition\w*)\b"
     r"|\b[A-Z][a-z]+/[A-Z][A-Za-z_]+\b",  # IANA zone names such as America/New_York
     re.I,
@@ -85,7 +87,7 @@ def find(
     for rel in tracked:
         kind = "test" if is_test_file(rel) else "doc" if is_doc_file(rel) else ""
         p = ws / rel
-        if not kind or not p.is_file() or p.stat().st_size > MAX_FILE_BYTES:
+        if not kind or p.is_symlink() or not p.is_file() or p.stat().st_size > MAX_FILE_BYTES:
             continue
         text = p.read_bytes().decode("utf-8", errors="replace")
         about_unit = _mentions(text, names)

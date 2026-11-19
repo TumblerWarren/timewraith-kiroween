@@ -12,7 +12,7 @@ Kiro agents propose. Plain code decides.
 2. **Discovery.** Bat Scout (Kiro agent) keeps the time-sensitive code worth testing, citing lines.
 3. **Design.** Pumpkin Mechanic (Kiro agent) writes a small adapter per candidate. You approve the plan unless auto is on.
 4. **Execution.** Code sweeps about 2,600 clock points per experiment across 13 time zones, with no network.
-5. **Verification.** Raven Archivist (Kiro agent) rules on each violation. A bug needs 3 of 3 repeats and a failing generated regression test. If the repository's own tests or docs say the behaviour is deliberate, it is listed as intended behaviour, not a bug.
+5. **Verification.** The first violation per experiment may be verified when budget allows. Raven investigates after clean repeats (three by default); a defect also needs a failing regression test. If the repository's own tests or docs say the behaviour is deliberate, it is listed as intended behaviour, not a bug.
 6. **Fix.** Doctor Stitch (Kiro agent) works like a developer through TimeWraith's tools: reads, searches, edits, runs the failing test, then submits. Eight gates decide, and you accept or reject.
 
 The full flow, the agents, the tools and the gates are in [docs/agent-flow.md](docs/agent-flow.md).
@@ -28,6 +28,16 @@ docker compose up -d --build
 Open <http://localhost:8787>. On the Crew setup page, sign in to Kiro once: pick Google, GitHub or Builder ID, then approve the code in your browser. The cloned repositories, the edits, the fix branches, the patches and the case database all live in the `timewraith-data` Docker volume, and the Kiro sign-in lives in `timewraith-crew-home`. `docker compose down` keeps both; `docker compose down -v` deletes them.
 
 The API has no login and listens on `127.0.0.1` only. On Linux, pass the group of the Docker socket: `DOCKER_GID=$(stat -c %g /var/run/docker.sock) docker compose up -d --build`. The settings you can override are in [.env.example](.env.example).
+
+### Rebuild after code changes
+
+From the repository root, run this after changing frontend or backend code:
+
+```sh
+docker compose up -d --build timewraith
+```
+
+Compose rebuilds the app image and recreates the container when the image changes. Your cases and sign-ins stay in their Docker volumes. A plain `docker compose restart` reuses the existing image.
 
 ## Run the image on any Docker (no compose file)
 
@@ -125,6 +135,7 @@ pnpm --dir frontend verify
 
 ## Status and limits
 
-- Supports JavaScript and TypeScript repositories tested with Vitest or Jest.
+- Supports the full investigation and fix workflow for JavaScript and TypeScript projects using Vitest or Jest.
+- For Python cases, Bat reads source and proposes a temporal hypothesis. After plan approval, the Crew selects dependency setup and writes pytest experiments, even for repositories without tests. Raven checks a separately written reproduction at the failing and control dates. Doctor Stitch can repair the implicated Python source and supply a standalone pytest regression. Verified fixes use the case’s existing approval, branch, and pull request flow.
 - Each investigation uses Kiro agent calls. Usage limits on the Kiro account stop agent steps, and the case says so.
-- The MVP is local-only. Patches are downloaded, nothing is pushed to GitHub.
+- Investigations run locally. Accepted fixes can be downloaded or explicitly prepared and shared through the optional GitHub workflow.

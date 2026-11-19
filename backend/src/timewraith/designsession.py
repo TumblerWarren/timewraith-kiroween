@@ -69,7 +69,8 @@ DESIGN_TOOLS: list[dict[str, Any]] = [
         "name": "submit_adapter",
         "description": (
             "Finish with the current adapter. fields: the output fields run() returns, from instant, next, flag, "
-            "date, value. claim: what the experiment tests. Code reruns the baseline check."
+            "date, value, after_cancel, timeout_trace, interval_trace, expiry_trace, clock_jumps, calendar_cases. "
+            "claim: what the experiment tests. Code reruns the baseline check."
         ),
         "inputSchema": {
             "type": "object",
@@ -79,7 +80,70 @@ DESIGN_TOOLS: list[dict[str, Any]] = [
     },
 ]
 
+REPAIR_SHELL_TOOLS = [
+    {
+        "name": "run_command",
+        "description": (
+            "Run shell commands in the case sandbox. /work is the original checkout, and the current directory "
+            "is a writable copy preserved between commands. Inspect runner logs, edit any files in the copy, "
+            "and run its tests. Use save_fixture to carry working fixtures into the verified experiment."
+        ),
+        "inputSchema": {"type": "object", "properties": {"command": _STR}, "required": ["command"]},
+    },
+    {
+        "name": "save_fixture",
+        "description": (
+            "Save a text fixture in the experiment's generated fixture directory. Returns its checkout-relative "
+            "path. Reference it from the adapter or runner config and check_baseline."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": _STR, "content": _STR},
+            "required": ["name", "content"],
+        },
+    },
+]
+
+VITEST_CONFIG_TOOL = {
+    "name": "write_runner_config",
+    "description": (
+        "Save an experiment-only Vitest configuration as an ES module. Inspect the repository runner config "
+        "and error output first. Export a default config with the current checkout as its root and collect both "
+        "the generated harness and __tw__/probe.tw.test.ts or .js. Preserve the aliases and setup the tests need. "
+        "Use an empty string to return to the repository config. Then run_adapter and check_baseline."
+    ),
+    "inputSchema": {"type": "object", "properties": {"code": _STR}, "required": ["code"]},
+}
+
+REPORT_BLOCKED_TOOL = {
+    "name": "report_blocked",
+    "description": (
+        "Say that this experiment cannot run in this environment for a reason outside the adapter, and give the "
+        "reason: the code under test needs something the runtime lacks (a global such as Temporal, a package that is "
+        "not installed) and the sandbox has no network to get it. Code checks the claim against the failure it sees "
+        "and against what was measured about the runtime. Use it instead of testing a different function. Do not use "
+        "it because the adapter is hard to write: the claim is refused when the adapter could still fix the failure."
+    ),
+    "inputSchema": {"type": "object", "properties": {"reason": _STR}, "required": ["reason"]},
+}
 EventSink = Callable[[str, dict[str, object]], None]
+
+
+def repair_shell_command(run: Callable[[str, int], str], command: object, deadline: float) -> str:
+    if not isinstance(command, str) or not command.strip() or "\0" in command or len(command) > 20_000:
+        raise ToolError("Give a shell command under 20,000 characters")
+    left = int(deadline - time.monotonic())
+    if left <= 0:
+        raise ToolError("Repair time budget exhausted")
+    return run(command, left)
+
+
+def repair_fixture(save: Callable[[str, str], str], name: object, content: object) -> str:
+    if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+", name):
+        raise ToolError("Give a simple fixture filename such as calendar.json")
+    if not isinstance(content, str) or len(content.encode("utf8")) > 256_000:
+        raise ToolError("Give fixture text up to 256 KB")
+    return save(name, content)
 
 
 def valid_fields(fields: object) -> list[OutputField]:
@@ -106,15 +170,39 @@ class DesignSession(RepoReader):
     write: Callable[[str], None]  # saves new adapter code (adds the TypeScript header)
     run_once: Callable[[str, int], ProbeResult]  # (zone, epoch ms) -> what run() returned
     baseline: Callable[[list[OutputField]], list[str]]  # fields -> problems ([] when clean)
+    repair_command: Callable[[str, int], str] | None = None
+    save_fixture: Callable[[str, str], str] | None = None
+    configure_runner: Callable[[str], None] | None = None
+    # reason -> None when the claim stands, else why it is refused (the pipeline: the failure must be the environment's)
+    blocked_check: Callable[[str], str | None] | None = None
     calls: int = 0
     runs: int = 0
     checks_run: int = 0
     rejections: int = 0
     rewrites: int = 0
     submitted: tuple[list[OutputField], str] | None = None
+    blocked: str | None = None  # the agent's reason, once code agreed the experiment cannot run here
     rejected_reason: str | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
     tools: list[dict[str, Any]] = field(default_factory=lambda: DESIGN_TOOLS)
+
+    def run_command(self, command: object) -> str:
+        if self.repair_command is None:
+            raise ToolError("No repair workspace is available")
+        return repair_shell_command(self.repair_command, command, self.deadline)
+
+    def write_fixture(self, name: object, content: object) -> str:
+        if self.save_fixture is None:
+            raise ToolError("No fixture directory is available")
+        return repair_fixture(self.save_fixture, name, content)
+
+    def write_runner_config(self, code: object) -> str:
+        if self.configure_runner is None:
+            raise ToolError("Runner configuration is available for Vitest experiments")
+        if not isinstance(code, str) or len(code) > MAX_ADAPTER_CHARS:
+            raise ToolError(f"Give an ES module under {MAX_ADAPTER_CHARS} characters")
+        self.configure_runner(code)
+        return "Runner configuration updated. Test it with run_adapter, then check_baseline."
 
     def write_adapter(self, code: object) -> str:
         if not isinstance(code, str) or not code.strip():
@@ -162,22 +250,38 @@ class DesignSession(RepoReader):
         self.rejected_reason = "; ".join(problems)[:400] if problems else None
         return "Adapter recorded." + (" It did not pass the baseline check." if problems else "") + " Stop here."
 
+    def report_blocked(self, reason: object) -> str:
+        text = str(reason or "").strip()
+        if not text:
+            raise ToolError("Give the reason: what the code under test needs that this environment lacks")
+        if self.blocked_check is None:
+            raise ToolError("Reporting an experiment blocked is not available here")
+        refused = self.blocked_check(text[:600])
+        if refused:
+            raise ToolError(f"Not accepted: {refused}")
+        self.blocked = text[:600]
+        return "Recorded: this experiment is blocked by the environment. Stop here."
+
     def call(self, name: str, args: dict[str, Any]) -> str:
         with self.lock:
-            if self.submitted is not None:
-                raise ToolError("Already submitted. Stop here.")
+            if self.submitted is not None or self.blocked is not None:
+                raise ToolError("Already finished. Stop here.")
             over = self.calls >= self.max_calls or time.monotonic() > self.deadline
-            if over and name != "submit_adapter":
+            if over and name not in {"submit_adapter", "report_blocked"}:
                 raise ToolError("The tool budget is used up. Call submit_adapter now.")
             self.calls += 1
             handlers: dict[str, Callable[[], str]] = {
                 "list_files": lambda: self.list_files(args.get("glob")),
                 "read_file": lambda: self.read_file(args.get("path"), args.get("start"), args.get("end")),
                 "search": lambda: self.search(args.get("pattern"), args.get("glob")),
+                "run_command": lambda: self.run_command(args.get("command")),
+                "save_fixture": lambda: self.write_fixture(args.get("name"), args.get("content")),
+                "write_runner_config": lambda: self.write_runner_config(args.get("code")),
                 "write_adapter": lambda: self.write_adapter(args.get("code")),
                 "run_adapter": lambda: self.run_adapter(args.get("zone"), args.get("instant")),
                 "check_baseline": lambda: self.check_baseline(args.get("fields")),
                 "submit_adapter": lambda: self.submit_adapter(args.get("fields"), args.get("claim")),
+                "report_blocked": lambda: self.report_blocked(args.get("reason")),
             }
             fn = handlers.get(name)
             if fn is None:
@@ -199,7 +303,14 @@ class DesignSession(RepoReader):
 
 
 def open_session(**kw: Any) -> DesignSession:
-    return DesignSession(token=secrets.token_urlsafe(32), **kw)
+    session = DesignSession(token=secrets.token_urlsafe(32), **kw)
+    if session.repair_command is not None:
+        session.tools = [*session.tools, *REPAIR_SHELL_TOOLS]
+    if session.configure_runner is not None:
+        session.tools = [*session.tools, VITEST_CONFIG_TOOL]
+    if session.blocked_check is not None:
+        session.tools = [*session.tools, REPORT_BLOCKED_TOOL]
+    return session
 
 
 def _describe(name: str, args: dict[str, Any], result: str) -> str:
@@ -214,6 +325,8 @@ def _describe(name: str, args: dict[str, Any], result: str) -> str:
         return f"read {str(args.get('path'))[:120]}"
     if name == "search":
         return f"searched for {str(args.get('pattern', ''))[:80]!r}"
+    if name == "report_blocked":
+        return f"reported the experiment blocked: {str(args.get('reason', ''))[:120]}"
     if name == "submit_adapter":
         return f"submitted the adapter with fields {', '.join(str(f) for f in (args.get('fields') or []))[:80]}"
     return name.replace("_", " ")
@@ -225,7 +338,8 @@ def run_body(adapter_path: str) -> str:
     return (
         f"const m = await load({mod!r});\n"
         "const a = m && m.default && typeof m.default.run === 'function' ? m.default : m;\n"
-        "const out = await a.run({ now: new Date(Date.now()), tz: process.env.TZ || 'UTC' });\n"
+        "const out = await a.run({ now: new Date(Date.now()), tz: process.env.TZ || 'UTC', "
+        "cancelledRetry, timerTrace, expiryTrace, clockJumps });\n"
         "print('now', new Date(Date.now()), 'zone', process.env.TZ);\n"
         "for (const [k, v] of Object.entries(out || {})) print(k, '=', v);"
     )

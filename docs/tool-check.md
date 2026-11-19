@@ -1,5 +1,7 @@
 # Tool check
 
+Historical tool and asset-generation report. Versions, paths, recommendations and approval status below reflect the recorded sessions, not necessarily the current project.
+
 ## Verdict (Task 1.1)
 
 - **Fallback level: 0. Codex works.** `codex.cmd exec` ran non-interactively twice, the built-in `image_gen` tool was invoked both times, and each run wrote a PNG that was copied into the workspace. No quota or authentication error occurred.

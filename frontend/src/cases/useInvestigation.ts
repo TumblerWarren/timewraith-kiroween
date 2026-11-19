@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useApi } from "../api/ApiProvider";
 import { ApiError } from "../api/client";
 import { FINAL_STAGES, type Investigation, type InvestigationSummary, type ReplayEventMsg } from "../api/types";
+import { attentionOf } from "../app/status";
 import { useCaseStore } from "./store";
 
 const REFRESH_DELAY_MS = 700;
@@ -18,6 +19,7 @@ export function summaryOf(inv: Investigation): InvestigationSummary {
     status: inv.status,
     bug_count: inv.bugs.length,
     fix_verified_count: inv.bugs.filter((b) => b.fix.state === "verified").length,
+    attention: attentionOf(inv.notes),
     replay_label: inv.replay_label,
     runtime_label: inv.runtime_label,
     error: inv.error,

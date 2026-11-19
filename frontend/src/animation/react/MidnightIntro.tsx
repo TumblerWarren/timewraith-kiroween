@@ -32,7 +32,7 @@ const HAND_STEPS = [
 ] as const;
 
 /** Midnight → perspective swarm → darkness → the lantern invitation. */
-export function Intro() {
+export function Intro({ onSkip }: { readonly onSkip?: () => void }) {
   const { reduceMotion } = useReduceMotion();
   const [ready, setReady] = useState(false);
   const [sound, setSound] = useState(isSoundEnabled);
@@ -213,7 +213,7 @@ export function Intro() {
       data-reduced={reduceMotion}
       onCancel={(event) => {
         event.preventDefault();
-        close();
+        (onSkip ?? close)();
       }}
     >
       <div className="cinema__clock" aria-hidden="true">
@@ -245,7 +245,7 @@ export function Intro() {
         >
           {soundFailed ? "Sound unavailable" : sound ? "Sound on" : "Sound off"}
         </button>
-        <button type="button" onClick={close}>
+        <button type="button" onClick={onSkip ?? close}>
           Skip intro <span aria-hidden="true">↗</span>
         </button>
       </div>

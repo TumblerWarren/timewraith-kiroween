@@ -19,6 +19,7 @@ from .config import get_settings
 from .fixsession import ToolError, ToolSession
 from .ingest import IngestError
 from .models import (
+    ATTENTION_PREFIX,
     FLOW,
     CapabilityReport,
     CreateInvestigation,
@@ -89,6 +90,7 @@ def _summary(i: Investigation) -> InvestigationSummary:
         bug_count=len(i.bugs),
         fix_verified_count=sum(1 for b in i.bugs if b.fix.state == "verified"),
         intended_count=len(i.intended),
+        attention=next((n[len(ATTENTION_PREFIX) :] for n in i.notes if n.startswith(ATTENTION_PREFIX)), None),
         replay_label=i.replay_label,
         runtime_label=i.runtime_label,
         error=i.error,
@@ -99,6 +101,7 @@ def _summary(i: Investigation) -> InvestigationSummary:
 def _public(i: Investigation) -> dict[str, Any]:
     """Blind hunt: the issue URL stays sealed until the reveal."""
     d = i.model_dump()
+    d["unfinished"] = engine.unfinished(i)  # what the agents left undone: Continue runs it again
     if i.request.mode == "blind-hunt" and not i.revealed:
         d["request"]["issue_url"] = None
     return d
@@ -352,6 +355,29 @@ def list_investigations(limit: int = 50) -> list[InvestigationSummary]:
     return [_summary(i) for i in store.recent(min(max(limit, 1), 200))]
 
 
+@app.get("/api/v1/run-summaries")
+def run_summaries(limit: int = 50) -> list[dict[str, Any]]:
+    """How each recent run went, in counts: experiments, how many ran, and why the others did not (adapter,
+    environment, throttled), and whether the repository's test environment could run a generated test. For comparing
+    repositories and seeing which kind of failure costs the most."""
+    out: list[dict[str, Any]] = []
+    for i in store.recent(min(max(limit, 1), 200)):
+        env = i.environment
+        out.append(
+            {
+                "id": i.id,
+                "repository": f"{i.target.owner}/{i.target.repo}",
+                "stage": i.stage,
+                "status": i.status,
+                "summary": i.run_summary.model_dump() if i.run_summary else None,
+                "environment": {"status": env.status, "how": env.how, "node": env.node, "reason": env.reason}
+                if env
+                else None,
+            }
+        )
+    return out
+
+
 @app.get("/api/v1/investigations/{inv_id}")
 def get_investigation(inv_id: str) -> dict[str, Any]:
     return _public(_inv(inv_id))
@@ -384,6 +410,15 @@ def capabilities(inv_id: str) -> CapabilityReport:
 @app.post("/api/v1/investigations/{inv_id}/approve-plan")
 def approve_plan(inv_id: str) -> InvestigationSummary:
     return _summary(engine.approve_plan(inv_id))
+
+
+@app.post("/api/v1/investigations/{inv_id}/continue")
+def continue_investigation(inv_id: str, request: Request) -> InvestigationSummary:
+    """Run again the agent steps that could not run (usage limit, expired sign-in, throttled service), in the same
+    case and with the account that is signed in now. What already finished is kept."""
+    _local_action(request)
+    engine.continue_case(inv_id)
+    return _summary(_inv(inv_id))
 
 
 @app.post("/api/v1/investigations/{inv_id}/cancel")

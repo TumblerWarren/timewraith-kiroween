@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import ENGINE_VERSION
-from .analyze import JS_EXT, is_test_file, iter_files
+from .analyze import JS_EXT, is_test_file, iter_files, looks_like_test
 from .models import BugCategory, Candidate, CodeUnit, FeatureMap, Signal
 
 # kind -> (regex, confidence, weight)
@@ -169,7 +169,9 @@ def scan(root: Path, max_bytes: int) -> tuple[list[Signal], dict[str, list[_Unit
     skipped: dict[str, int] = {}
     for f in iter_files(root):
         rel = f.relative_to(root).as_posix()
-        if f.suffix not in JS_EXT:
+        if f.is_symlink() or f.suffix not in JS_EXT:
+            continue
+        if "/__tw__/" in f"/{rel}":  # TimeWraith's own adapters and harnesses are never the code under test
             continue
         if ".min." in f.name:
             skipped["minified"] = skipped.get("minified", 0) + 1
@@ -186,8 +188,10 @@ def scan(root: Path, max_bytes: int) -> tuple[list[Signal], dict[str, list[_Unit
         if "@generated" in "\n".join(lines[:5]) or (lines and sum(map(len, lines)) / len(lines) > 300):
             skipped["generated"] = skipped.get("generated", 0) + 1
             continue
-        in_test = is_test_file(rel)
-        if not in_test:
+        in_test = looks_like_test(rel, text[:6000])
+        if in_test:
+            skipped["test_files"] = skipped.get("test_files", 0) + 1
+        else:
             units_by_file[rel] = find_units(lines)
         for n, line in enumerate(lines, start=1):
             code = re.sub(r"//.*$", "", line)
@@ -228,9 +232,12 @@ def build_feature_map(root: Path, max_bytes: int, hint_terms: list[str] | None =
     test_sources: dict[str, str] = {}
     for f in iter_files(root):
         rel = f.relative_to(root).as_posix()
-        if f.suffix in JS_EXT and is_test_file(rel):
-            with contextlib.suppress(OSError):
-                test_sources[rel] = f.read_text(encoding="utf-8", errors="ignore")
+        if f.is_symlink() or f.suffix not in JS_EXT:
+            continue
+        with contextlib.suppress(OSError):
+            text = f.read_text(encoding="utf-8", errors="ignore")
+            if looks_like_test(rel, text[:6000]):
+                test_sources[rel] = text
     groups: dict[tuple[str, str, int, int, bool], list[Signal]] = {}
     for s in signals:
         if s.in_test:
@@ -279,3 +286,43 @@ def build_feature_map(root: Path, max_bytes: int, hint_terms: list[str] | None =
         )
     candidates.sort(key=lambda c: (-c.score, c.unit.path, c.unit.start_line))
     return FeatureMap(candidates=candidates, signals=signals, skipped=skipped)
+
+
+def source_inventory(root: Path, max_bytes: int) -> list[str]:
+    paths = []
+    size = 0
+    for file in iter_files(root):
+        path = file.relative_to(root).as_posix()
+        if (
+            file.is_symlink()
+            or file.suffix not in JS_EXT
+            or ".min." in file.name
+            or is_test_file(path)
+            or "/__tw__/" in f"/{path}"
+            or file.stat().st_size > max_bytes
+        ):
+            continue
+        with contextlib.suppress(OSError):
+            if looks_like_test(path, file.read_text(encoding="utf-8", errors="ignore")[:6000]):
+                continue
+        size += len(path) + 1
+        if size > 60000:
+            break
+        paths.append(path)
+    return paths
+
+
+def source_candidate(path: str, lines: list[str], line: int, claim: str, category: BugCategory) -> Candidate:
+    units = [unit for unit in find_units(lines) if unit.start <= line <= unit.end]
+    unit = min(units, key=lambda u: u.end - u.start) if units else _Unit("(module)", 1, len(lines), False)
+    return Candidate(
+        id=f"cand_{_sid(ENGINE_VERSION, path, unit.name, unit.start)}",
+        title=claim,
+        rationale=claim,
+        selected=True,
+        unit=CodeUnit(path=path, name=unit.name, start_line=unit.start, end_line=unit.end, exported=unit.exported),
+        signal_ids=[],
+        score=0,
+        score_parts={},
+        bug_categories=[category],
+    )

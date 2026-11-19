@@ -1,6 +1,6 @@
 # TimeWraith agent flow
 
-TimeWraith investigates date and time bugs in a public GitHub repository. Kiro agents **propose**. Plain code **decides**: it checks every claim against real data, runs every experiment in a Docker sandbox with no network, and gates every fix. This file describes the flow as the backend runs it (`backend/src/timewraith/pipeline.py`).
+TimeWraith investigates date and time bugs in a public GitHub repository. Kiro agents propose and plain code checks their claims and gates fixes. Experiment execution runs in a Docker sandbox without network; dependency installation has network access. This file describes the backend flow (`backend/src/timewraith/pipeline.py`).
 
 ## The flow
 
@@ -37,10 +37,10 @@ flowchart TD
     P -- yes --> I
 
     subgraph S5["5 Verification · Kiro agent: Raven Archivist"]
-        V0[Find the repository's own tests and docs<br/>about this code and this transition] --> V1
-        V1[Repeat each violation 3/3<br/>in clean containers] --> V2{{Raven's verdict}}
+        V0[Select the first violation per experiment<br/>when budget permits] --> V1
+        V1[Repeat in clean containers<br/>three times by default] --> V2{{Raven investigates and gives a verdict}}
         V2 -- defect --> V3[Generate a regression test from the invariant<br/>must fail with an assertion]
-        V2 -- intended behaviour --> V4[Code runs the cited repository test<br/>on the original revision]
+        V2 -- intended behaviour --> V4[Code checks cited repository evidence<br/>and runs a cited test if applicable]
         V3 --> V5[Jack searches public issues<br/>known or new]
     end
 
@@ -64,7 +64,7 @@ flowchart TD
     B -- yes, up to 5 bugs --> F0
     G -- all 8 pass --> AV{You accept the fix?}
     G -- 3 attempts failed --> NS([No safe fix found<br/>bug and regression test kept])
-    AV -- accept --> DL([Download patch and regression test<br/>nothing is written to GitHub])
+    AV -- accept --> DL([Download patch, or prepare and optionally share on GitHub])
     AV -- reject --> RJ([Fix rejected, bug kept])
 
     classDef agent fill:#c4a0f5,stroke:#382b49,color:#100d17
@@ -79,15 +79,16 @@ Violet boxes are Kiro agent steps. Plain boxes are code. Light boxes are your de
 
 | Agent | Mascot | Step | Gets | Returns | Cannot |
 |---|---|---|---|---|---|
+| Wraith Director | Wraith Director | Follow-up planning | Coverage ledger, candidates and previous intents | New experiment directions, subject to code checks and budget | Change the run's limits or accept an experiment itself |
 | Bat Scout | Bat Scout | 2 Discovery | Scan candidates and quoted source | Keep or drop per candidate, with cited signals | Invent candidates or lines |
 | Pumpkin Mechanic | Pumpkin Mechanic | 3 Design | Candidate source, invariant catalog | An adapter, output fields, invariants, anchor instants | Choose pass or fail, or write assertions |
 | Pumpkin Mechanic (install repair) | Pumpkin Mechanic | 4 Execution | The failed install log, what was tried, and tools: read, run any command in the install sandbox, switch Node, check the install | Fixes it, or reports what it found; code checks that the test runner starts offline | Skip the check, or change files git tracks (code undoes that) |
 | Raven Archivist | Raven Archivist | 5 Verification | Violation, outputs at its clock points, adapter, source, the repository's own tests and docs | Verdict: defect, intended behaviour, allowed exception or adapter error, with cited evidence | Declare a bug without a failing regression test |
 | Doctor Stitch | Doctor Stitch | + Fix | Finding, failing test output, and in a session only TimeWraith's tools | A patch through `submit`, with root cause and source citations | Touch tests, config, manifests, lockfiles, CI or generated files |
 | Raven Archivist (review) | Raven Archivist | Fix gate 8 | The diff and the regression test only, never Doctor Stitch's reasoning | Approve or reject, with a reason | See the author's reasoning |
-| Jack (issue match) | Two-Faced Jack | 5 Verification | Finding and public issues | An issue number only if it describes the same behaviour | Match loosely |
+| Issue comparison | Two-Faced Jack | 5 Verification / blind reveal | Public search results and finding | Raven and code assess a possible match; Jack represents the comparison and reveal | Guarantee a match when search or judgment is unavailable |
 
-Agents in steps 2, 3 and 5 have no tools. Their source and evidence arrive as quoted data in the prompt, and every reply must match a Pydantic schema. Doctor Stitch is the only agent with tools, and only TimeWraith's (see below).
+Initial candidate review, experiment design and follow-up planning use structured replies. In the container runtime, Pumpkin can use tools for adapter and install repair, Raven can use tools to investigate a violation, and Doctor Stitch uses tools for fixes. Other runtimes can use single-reply alternatives. The install mechanic is a separate profile for Pumpkin's install-repair role; it is invoked only when needed.
 
 ## Evidence rule
 
@@ -105,7 +106,7 @@ Before each long step (an adapter repair, a verification session, a planning rou
 
 ## The fix as a branch
 
-When you accept a fix that passed all 8 gates, code makes a local git branch in `TW_DATA_DIR/branches/<case id>/<repo>`: a clone of the pinned revision, with `origin` set to the upstream repository, and one commit on a branch named `timewraith/<bug id>-<title words>`. The commit holds exactly what the gates tested (the source change and the regression test, plus the adapter only if the test needs it), under the author `TimeWraith`, with the root cause, the gate results and the public report in the message. Nothing is pushed anywhere: to share it, add your own fork as a remote and push the branch yourself. `GET .../bugs/{bug_id}/branch.patch` downloads the same commit as a `git format-patch` file, and `git am` rebuilds an identical tree from it. `POST .../bugs/{bug_id}/branch` makes the branch again if it failed or was deleted; a failure never undoes your acceptance. The regression test sits where TimeWraith generated it (`__tw__/` next to the source); moving it into the repository's own test folder is a step for the maintainers.
+When you accept a fix that passed all 8 gates, code makes a local branch in `TW_DATA_DIR/branches/<case id>/<repo>` with the tested change and regression test. `GET .../bugs/{bug_id}/branch.patch` downloads its commit as a `git format-patch` file; `POST .../bugs/{bug_id}/branch` can recreate the branch. Acceptance does not push it. You can subsequently prepare it against the repository's rules and explicitly choose to push and open a pull request using the optional GitHub workflow below.
 
 ## Sharing a fix on GitHub (optional)
 
@@ -127,7 +128,15 @@ Repository content in prompts is framed as `<data-TAG name="…">…</data-TAG>`
 
 ## Baseline check and adapter repair (Pumpkin with tools)
 
-After install, each adapter runs at ordinary instants (mid-day, no DST change, no month end) in UTC and America/New_York. Besides running cleanly and returning its fields, every rule its fields feed must hold there. A rule that breaks at an ordinary instant means the field does not mean what the rule says (for example `date` set to the result of `addDay` instead of today's date), so a violation at the edges would show nothing about time bugs.
+The wall-clock jump experiment starts a relative 10 ms timer and advances 4 ms before shifting wall time forward or backward by one hour. It measures callback times on the virtual monotonic clock through 31 ms elapsed. The same API must first deliver once at 10 ms with the wall clock undisturbed. Forward and backward failures receive separate evidence and regression tests. Calendar alarms and absolute deadlines have different contracts.
+
+The fixed-expiry experiment creates one item with a deadline one second ahead. It advances virtual time and reads the same item's expired state one millisecond before the deadline, at the deadline, and one millisecond after. The exact-deadline assertion requires an explicit equality policy and a repository citation. For a reproduced failure, the control checks the same API at a neighbouring checkpoint. This scenario assumes millisecond resolution and a fixed deadline.
+
+For one-shot delivery and fixed intervals, the harness requests a 10 ms delay and records the first eight callback timestamps over 31 ms of virtual time. For exact-cadence APIs, it expects one callback at 10 ms or interval ticks at 10, 20 and 30 ms. The verifier checks the same API can deliver a callback before accepting a timing defect. Jittered, immediate-first and backoff schedules need their own expectations.
+
+For a public API that schedules a cancellable one-shot retry, the timer experiment first verifies that a 10 ms retry fires once when left alone. It repeats the schedule, cancels at 9 ms, and advances the fake clock to 20 ms. A callback after cancellation becomes an anomaly. The timer-only experiment samples dates across the case window in each zone. Verification replays the cancelled path and an uncancelled control.
+
+After install, each adapter runs at ordinary instants (mid-day, no DST change, no month end) in UTC and America/New_York. Code checks that the adapter runs and returns its declared fields. When a rule fails and its design cites a supplied passage from the repository's tests or documentation for that API, the sweep retains the rule and includes the ordinary dates. Raven independently checks a repeated failure before it can become a finding. Uncited mismatches go through adapter repair when no cited rule failed. In a mixed result the cited rules proceed and the decision records the uncited failing rules that were dropped.
 
 With the Kiro Crew container runtime, an adapter that fails this check goes to Pumpkin's workshop (`designsession.py`, profile `tw-pumpkin-mechanic`), and only such adapters, to keep the credit cost down:
 
@@ -168,7 +177,7 @@ Design also changed: code adds every invariant the adapter's returned fields can
 
 ## Verification in detail
 
-1. **Repeat.** A violation counts only if it repeats 3/3 in clean containers. Otherwise it is recorded as rejected.
+1. **Repeat.** The first violation of each experiment is selected for verification when the budget permits. It must repeat in every clean run (three by default); otherwise it is rejected.
 2. **Find intent.** Before the verdict, code searches the repository's own tests and docs (`intent.py`). It finds passages about the code under test, its local imports and the time transition at the clock point. Passages about the same kind of transition rank first.
 3. **Verdict.** Raven rules. The four options are:
    - `intended_behavior`: the repository says this is deliberate. It must cite a test or doc line.
@@ -177,7 +186,7 @@ Design also changed: code adds every invariant the adapter's returned fields can
    - `adapter_error`: the adapter calls or reads the code wrongly.
 4. **Code confirms `intended_behavior`.** A cited test file must pass on the original revision in the sandbox, or a cited doc line must exist. If that fails, nothing is reported. If it passes, the finding goes to `intended` and no bug is created.
 5. **Code confirms `defect`.** A generated regression test is written from the invariant and must fail with an assertion on the original. Only then is a bug created.
-6. **Jack** searches public issues (for example, `Known issue: #2624` or `No matching public issue found`).
+6. **Issue comparison.** Raven can search public issues and pull requests during her session; otherwise the backend performs a search and asks Raven to assess a possible match. The result can also be unavailable or unjudged.
 
 ## The fix step in detail
 
@@ -214,7 +223,7 @@ After `submit`:
 | 7 | `static_checks` | The repository's typecheck and lint do not newly fail |
 | 8 | `independent_review` | Raven approves the diff, without seeing Doctor Stitch's reasoning |
 
-A fix counts as verified only when all 8 pass. You then accept it or reject it. Accepting lets you download the patch and its regression test. Nothing is written to GitHub.
+A fix counts as verified only when all 8 pass. You can then accept or reject it. Acceptance enables download and optional preparation for GitHub; publication requires separate actions.
 
 ## Following the repository's rules
 

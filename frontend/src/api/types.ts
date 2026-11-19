@@ -75,6 +75,8 @@ export interface InvestigationSummary {
   readonly fix_verified_count?: number;
   /** Findings the repository documents as intended (not bugs). */
   readonly intended_count?: number;
+  /** What went wrong in a run that finished (experiments that could not run, a refused agent service), or null. */
+  readonly attention?: string | null;
   readonly replay_label: string;
   readonly runtime_label: string;
   /** Stop code when the stage is failed (e.g. `ref_not_found`). */
@@ -100,6 +102,8 @@ export interface Candidate {
 }
 
 export interface InvariantUse {
+  readonly expired_at_deadline?: boolean | null;
+  readonly expectation_ref?: string | null;
   readonly id: string;
   readonly reason: string;
 }
@@ -107,7 +111,7 @@ export interface InvariantUse {
 export interface Experiment {
   readonly id: string;
   readonly candidate_id: string;
-  readonly status: "planned" | "designed" | "not_designed" | "adapter_invalid" | "swept";
+  readonly status: "planned" | "designed" | "not_designed" | "adapter_invalid" | "not_run" | "swept";
   readonly executability_reason: string | null;
   readonly claim: string | null;
   readonly invariants: readonly InvariantUse[];
@@ -137,6 +141,7 @@ export interface DecisionRecord {
 }
 
 export interface Violation {
+  readonly failure_kind?: string;
   readonly invariant: string;
   readonly zone: string;
   readonly instant: string;
@@ -267,6 +272,7 @@ export interface Bug {
   readonly evidence: readonly Evidence[];
   readonly regression_test_path: string;
   readonly regression_test: string;
+  readonly contribution_test?: string | null;
   readonly issue_match: { readonly number: string; readonly title: string; readonly url: string } | null;
   readonly issue_match_label: string;
   readonly fix: Fix;
@@ -277,6 +283,7 @@ export interface Bug {
     readonly code: string;
     readonly failing: string;
     readonly control: string;
+    readonly control_code?: string;
     readonly user_check?: string;
     readonly user_failing?: string;
   } | null;
@@ -295,7 +302,7 @@ export interface CoverageRow {
   readonly candidate_id: string;
   readonly unit: string;
   readonly path: string;
-  readonly status: "not_selected" | "not_designed" | "adapter_invalid" | "clean" | "violations";
+  readonly status: "not_selected" | "not_designed" | "adapter_invalid" | "partial" | "clean" | "violations";
   readonly experiments: readonly string[];
   readonly rules: readonly string[];
   readonly edges: readonly string[];
@@ -326,6 +333,17 @@ export interface IntendedFinding {
 }
 
 export interface SweepResult {
+  readonly pytest_results?: readonly {
+    readonly runtime?: string | null;
+    readonly instant: string;
+    readonly zone: string;
+    readonly outcome: "passed" | "failed" | "skipped" | "blocked";
+    readonly passed: number;
+    readonly failed: number;
+    readonly skipped: number;
+    readonly detail: string;
+  }[];
+  readonly pending_review?: number | null;
   readonly experiment_id: string;
   readonly points_run: number;
   readonly zones: readonly string[];
@@ -333,6 +351,9 @@ export interface SweepResult {
 }
 
 export interface Investigation {
+  /** What the agents left undone when they stopped (usage limit, expired sign-in, throttle), in words. Continue runs it. */
+  readonly unfinished?: readonly string[];
+  readonly sweep_window?: { readonly start_ms: number; readonly end_ms: number } | null;
   readonly id: string;
   readonly created_at: string;
   readonly request: CreateInvestigation;

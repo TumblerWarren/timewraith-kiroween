@@ -86,3 +86,21 @@ def test_sweep_runs_each_harness_file_alone_with_its_own_time_limit(
     assert script.count("timeout -k 5 77 ") == 4  # 2 files x 2 zones, one runner process each
     assert "--runTestsByPath src/__tw__/a.tw.test.ts" in script and "a.tw.test.ts src/__tw__/b" not in script
     assert "skip-0" in script and "wait;" in script
+
+
+def test_vitest_uses_only_the_selected_runner_config() -> None:
+    caps = CapabilityReport(test_runner="vitest")
+    generated = "pkgs/core/src/__tw__/a.tw.test.ts"
+    config = ".tw/runner-test.mjs"
+    assert f"--config {config}" in sandbox._files_cmd(caps, [generated], runner_config=config)
+    assert "--config" not in sandbox._files_cmd(caps, [generated])
+    assert f"--config {config}" in sandbox._runner_cmd(caps, generated, ".tw/result.json", runner_config=config)
+    assert "--config" not in sandbox._runner_cmd(caps, None, ".tw/result.json")
+
+
+def test_only_a_real_timeout_is_reported_as_one(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Exit 127 is a runner that is not installed. Reporting it as 'exceeded 300 s' sent the diagnosis the wrong way."""
+    scripts: list[str] = []
+    monkeypatch.setattr(sandbox, "run", lambda s, ws, node, script, **kw: scripts.append(script) or sandbox.Exec(0, ""))
+    sandbox.sweep(Settings(data_dir=tmp_path), tmp_path, JEST, ["src/__tw__/a.tw.test.ts"], ["UTC"], "points")
+    assert "-eq 124" in scripts[0] and "-eq 137" in scripts[0] and "-ge 124" not in scripts[0]

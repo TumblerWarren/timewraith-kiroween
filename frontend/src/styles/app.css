@@ -119,6 +119,11 @@
 
 /* ---------------------------------------------------------------- case rows (CasesPage) */
 
+.archive-reveal__content {
+  display: grid;
+  gap: var(--space-5);
+}
+
 .case-rows {
   display: grid;
   gap: var(--space-3);
@@ -149,6 +154,9 @@
   border-inline-start-color: var(--midnight-error);
 }
 
+.case-row[data-state="attention"] {
+  border-inline-start-color: var(--midnight-warning);
+}
 .case-row[data-state="done"] {
   border-inline-start-color: var(--midnight-success);
 }

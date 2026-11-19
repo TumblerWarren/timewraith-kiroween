@@ -1,5 +1,7 @@
 # TimeWraith Case Board: animation review, round 1
 
+Historical review of the interface at the time of capture; asset counts, routes and findings are not a description of the current UI.
+
 Reviewer: animation reviewer (no application code changed). Evidence captured in Chrome with motion ON (`tw.reduceMotion="off"`, `reducedMotion: "no-preference"`) at 1440x900 and 390x844 against a fresh `pnpm --dir frontend build`.
 
 Capture script (kept for round 2): `frontend/scripts/anim-review.mjs` (+ `frontend/scripts/anim-sheet.py`, Pillow contact sheets). Run: `node scripts/anim-review.mjs` from `frontend/` (optional `--round round2`, `--only hero,scroll,bats,lost,crew,flow,case,proof,detail`). Outputs live next to this file:

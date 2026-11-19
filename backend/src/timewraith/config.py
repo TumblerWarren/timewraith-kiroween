@@ -63,6 +63,19 @@ class Settings(BaseSettings):
 
     # Design sessions (Pumpkin Mechanic repairing an adapter with tools, designsession.py)
     design_session_s: int = 8 * 60
+    # Repair rounds for an adapter that fails its baseline check: each round re-sweeps, and Pumpkin is told why his
+    # previous repair was rejected. After the last round the experiment is dropped, with the reasons on record.
+    adapter_repair_rounds: int = 2
+    # A case that finds nothing is only "clean" if enough of its experiments ran. Below this share it is inconclusive.
+    min_experiments_ran: float = 0.7
+    # Before any experiment: can a generated test run here at all? Agent repair rounds if the repository's own setup and
+    # the default profile both fail. If it still cannot, the case stops early and says why.
+    environment_repair_rounds: int = 2
+    # The package that supplies Temporal. It is installed outside the repository, only when the code under test uses
+    # Temporal and this Node lacks it.
+    temporal_polyfill: str = "temporal-polyfill"
+    # Waits before retrying an agent request the service throttled; a throttle is not a failed repair.
+    throttle_waits_s: tuple[int, ...] = (20, 60, 120)
     max_design_calls: int = 25
     max_adapter_runs: int = 8
     max_baseline_checks: int = 3

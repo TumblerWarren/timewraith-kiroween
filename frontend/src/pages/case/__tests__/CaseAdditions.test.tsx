@@ -4,18 +4,29 @@ import { describe, expect, it } from "vitest";
 import { CASE_ADDITIONS } from "../../../content/copy";
 import { PlanCoverage, PlannerRounds } from "../PlanEvidence";
 import { BugReproduction } from "../BugReproduction";
-import { ActivityTab, FindingsTab, OverviewTab } from "../tabs";
+import { ActivityTab, FindingsTab, OverviewTab, PlanTab } from "../tabs";
 import type { Investigation, ReplayEventMsg } from "../../../api/types";
 import { bugFixture, caseFixture } from "./fixtures/caseAdditions";
 
 describe("stored case additions", () => {
   it("shows coverage totals and every coverage status, without inventing results for skipped units", () => {
-    render(<PlanCoverage inv={caseFixture} />);
-    expect(screen.getByText("2 of 5 candidates tested · 1 with violations")).toBeInTheDocument();
+    const rows = caseFixture.coverage!;
+    const partial = { ...rows[0]!, candidate_id: "partial", path: "partial.ts:1", status: "partial" as const, edges: [] };
+    render(<PlanCoverage inv={{ ...caseFixture, coverage: [...rows, partial] }} />);
+    expect(screen.getByText("2 of 6 candidates tested · 1 with violations")).toBeInTheDocument();
     const table = screen.getByRole("table");
     for (const status of Object.values(CASE_ADDITIONS.coverage.statusLabels)) expect(within(table).getByText(status)).toBeInTheDocument();
     expect(within(table).getByText("src/clock.ts:40")).toBeInTheDocument();
     expect(within(table).getByText("next_after_now @ Australia/Lord_Howe (fall-back)")).toBeInTheDocument();
+  });
+
+  it("shows a Python test outcome and the reason a clock run was blocked", () => {
+    const inv: Investigation = { ...caseFixture, sweeps: [{ experiment_id: "exp_py", points_run: 0, zones: [],
+      violations: [], pytest_results: [{ instant: "2028-02-29T00:30:00Z", zone: "UTC", outcome: "blocked",
+        passed: 0, failed: 0, skipped: 0, detail: "Missing project dependency" }] }] };
+    render(<PlanTab inv={inv} view="execution" onApprove={() => {}} busy={false} />);
+    expect(screen.getByText("blocked")).toBeVisible();
+    expect(screen.getByText("Missing project dependency")).toBeVisible();
   });
 
   it("groups directions and closing decisions by round, including a round without new intents", () => {
@@ -81,6 +92,17 @@ describe("stored case additions", () => {
     expect(screen.getByText("Raven Archivist · 2 tool calls")).toBeVisible();
     expect(screen.getByText("Tool output 2")).toBeVisible();
     expect(screen.getByText("Tool output 3")).not.toBeVisible();
+  });
+
+  it("keeps an unreviewed scheduling failure visible after its sibling is confirmed", () => {
+    const first = { ...bugFixture.violation, failure_kind: "not_after_now" };
+    const second = { ...first, failure_kind: "exceeds_gap", detail: "Next event exceeds the allowed interval" };
+    render(<FindingsTab inv={{ ...caseFixture, bugs: [{ ...bugFixture, experiment_id: "exp_clock", violation: first }],
+      sweeps: [{ experiment_id: "exp_clock", points_run: 20, zones: [first.zone],
+        violations: [first, second], pending_review: 1 }] }} />);
+    const panel = screen.getByRole("region", { name: "Observed anomalies" });
+    expect(within(panel).getByText("Awaiting verification")).toBeVisible();
+    expect(within(panel).getByText(second.detail)).toBeVisible();
   });
 
   it("updates anomaly status from checking to intended, reproduced or not reported", () => {

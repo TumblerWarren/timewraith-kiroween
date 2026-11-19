@@ -22,7 +22,7 @@ from typing import Annotated, Literal, NoReturn, Protocol, TypeVar
 from pydantic import BaseModel, Field, ValidationError
 
 from .config import Settings
-from .models import Evidences, InvariantUse, OutputField
+from .models import BugCategory, Evidences, InvariantUse, OutputField
 from .models import keep_first as _keep
 
 PROFILES = Path(__file__).resolve().parents[2] / "agents"
@@ -43,6 +43,20 @@ class ReviewItem(BaseModel):
 
 class ReviewOut(BaseModel):
     items: Annotated[list[ReviewItem], _keep(20)]
+    inspect_paths: Annotated[list[str], _keep(6)] = Field(default_factory=list)
+
+
+class SourceLead(BaseModel):
+    path: str
+    line: int = Field(ge=1)
+    quote: str
+    hypothesis: str
+    expectation: str
+    category: BugCategory = "other_temporal"
+
+
+class SourceLeads(BaseModel):
+    items: Annotated[list[SourceLead], _keep(8)]
 
 
 class AdapterOut(BaseModel):
@@ -397,6 +411,7 @@ def prompt_design(
     adapter_path: str,
     import_path: str,
     catalog: str,
+    expectations: str = "",
     claim: str | None,
     issue: str | None,
     feedback: str | None,
@@ -412,8 +427,23 @@ def prompt_design(
         f"Module style: {style}. Use plain JavaScript syntax (no type annotations).",
         f"Invariant catalog:\n{catalog}",
     ]
+    parts.append(
+        "Design varied calls, not just varied clock instants. Pick boundary inputs the API supports: "
+        "for example different accepted representations, offsets, locale-specific text, or calendar spans. "
+        "Include a normal control. If a repository test or doc specifies the behavior, return calendar_cases "
+        "as an array of up to eight {name, actual, expected} objects (unique lowercase slugs for names, "
+        "scalar values only). Compute actual through the public API and expected independently from the cited "
+        "contract. Include calendar_cases in fields and explicitly select calendar_contract with its expectation_ref. "
+        "Describe the arguments and comparison in claim. Use next only for a documented scheduling contract."
+    )
+    if expectations:
+        parts.append(
+            "For each invariant, set expectation_ref to the exact path:line-range of a passage below "
+            "only if it specifies that rule for this API. Explain the connection in reason. Otherwise "
+            "leave expectation_ref null." + _data("repository-expectations", expectations)
+        )
     if claim:
-        parts.append(f"Bat Scout's claim for this candidate: {claim}")
+        parts.append(_data("Bat Scout candidate hypothesis", claim))
     if focus:
         parts.append(
             "The Crew's planner sends this experiment in a new direction. Build the adapter so it exercises this "
@@ -512,7 +542,9 @@ def prompt_plan(*, round_no: int, max_intents: int, ledger: str, candidates: str
             "candidate_id from the candidate list and a focus: the input, clock situation or API path the new "
             "experiment must exercise (for example: next() with currentDate = now, in zones whose DST change is "
             "not a whole hour; a token whose expiry falls in a DST gap). Do not repeat a direction already in the "
-            "ledger or the previous intents. When nothing new is worth testing, return no intents and say why.",
+            "ledger or the previous intents. Read tested_inputs_and_checks and prioritize new argument shapes, locale "
+            "formats, boundary spans, or expected-result checks. Where only validity was checked, propose an "
+            "experiment with a cited calendar contract. Return no intents and say why if coverage is sufficient.",
             f"Invariant catalog (the rules experiments can check):\n{catalog}",
             _data("coverage-ledger", ledger),
             _data("candidates", candidates),
@@ -555,19 +587,28 @@ def prompt_design_session(
     problems: list[str],
     catalog: str,
     tool_calls: int,
+    environment: str = "",
 ) -> str:
     return "\n\n".join(
         [
             f"Task: repair your adapter `{adapter_path}` for `{unit}` ({path}:{start_line}). It failed its baseline "
             "check at ordinary instants (mid-day, no DST change, no month end in UTC and America/New_York):\n"
             + "\n".join(f"- {p}" for p in problems),
-            "A rule that breaks at an ordinary instant almost always means a field does not mean what the rule "
-            "says. Example: `date` must be the calendar date of `now`, not the date of a computed result; `next` "
+            "Check whether each field represents the behavior promised by the repository. "
+            "Example: `date` must be the calendar date of `now`, not the date of a computed result; `next` "
             "must be the next scheduled time after `now`. Return a field only if it means exactly that; otherwise "
             "leave it out (use `value` for anything else).",
             f"Your fields now: {', '.join(fields) or '(none)'}. Rules fed by them: {', '.join(rules) or '(none)'}.",
             f"Read the code, write_adapter, run_adapter at instants you pick, then check_baseline, and finish with "
             f"submit_adapter. Code reruns the baseline check on submit. You have {tool_calls} tool calls.",
+            "The adapter must exercise the code under test: it has to import "
+            f"{path}, directly or through a file that re-exports it. A different function that passes the check is not "
+            "a repair, and code refuses it.",
+            "If the code under test needs something this runtime lacks (a global such as Temporal, a package that is "
+            "not installed) and the sandbox has no network to get it, the experiment cannot run here. Call "
+            "report_blocked with that reason instead of testing something else; code checks it against the failure "
+            "and against what was measured. Do not use it when the adapter could still fix the failure."
+            + (_data("Test environment, measured before this experiment", environment) if environment else ""),
             f"Invariant catalog:\n{catalog}",
             _data(adapter_path, adapter),
         ]

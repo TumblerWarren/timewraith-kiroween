@@ -18,7 +18,23 @@ OTHER_LANG_EXT = {
     ".cs": "C#",
     ".rs": "Rust",
 }
-SKIP_DIRS = {"node_modules", ".git", "dist", "build", "out", ".next", "coverage", "vendor", ".turbo", ".cache"}
+SKIP_DIRS = {
+    "node_modules",
+    ".git",
+    "dist",
+    "build",
+    "out",
+    ".next",
+    "coverage",
+    "vendor",
+    ".turbo",
+    ".cache",
+    ".venv",
+    "venv",
+    ".tox",
+    "__pycache__",
+    ".pytest_cache",
+}
 FAKE_TIMER = re.compile(
     r"\b(vi|jest)\.(useFakeTimers|setSystemTime)\b|@sinonjs/fake-timers|\bmockdate\b|\btimekeeper\b"
 )
@@ -74,6 +90,24 @@ def analyze(root: Path) -> CapabilityReport:
     else:
         main = max(others, key=lambda k: others[k]) if others else "unknown"
         items.append(CapabilityItem(id="language.js_ts", status="unsupported", reason=f"Unsupported in M1: {main}"))
+        if main == "Python":
+            items.append(
+                CapabilityItem(
+                    id="language.python",
+                    status="supported",
+                    reason="Python source detected; limited pytest clock scenarios",
+                )
+            )
+            tests = [r for r in rel if Path(r).match("test_*.py") or Path(r).match("*_test.py")]
+            report.test_runner = "pytest"
+            items.append(
+                CapabilityItem(
+                    id="adapter.pytest",
+                    status="supported",
+                    reason="Crew can design pytest experiments from Python source",
+                    files=tests[:5],
+                )
+            )
         report.items = items
         return report
 
@@ -155,7 +189,28 @@ def analyze(root: Path) -> CapabilityReport:
 
 
 def _is_test(rel: str) -> bool:
-    return bool(re.search(r"(\.(test|spec)\.[cm]?[jt]sx?$)|(^|/)(__tests__|tests?|e2e)/", rel))
+    """A test file by its path: `*.test.ts`, `*.spec.ts`, a `tests/` or `__tests__/` folder, or a file that is just
+    named `test.ts` / `tests.ts` beside the code it covers (date-fns does this in every package)."""
+    return bool(
+        re.search(
+            r"(\.(test|spec|test-d)\.[cm]?[jt]sx?$)|(^|/)(__tests__|tests?|e2e)/|(^|/)(tests?|specs?)\.[cm]?[jt]sx?$",
+            rel,
+        )
+    )
+
+
+# A framework import, or several test cases at the start of a line. Whatever a repository calls its test files, they
+# say what they are.
+_TEST_IMPORT = re.compile(
+    r"""(?:\bfrom\s+|\brequire\(\s*|\bimport\s+)['"](?:vitest|@vitest/[\w-]+|@jest/globals|jest|mocha|jasmine|ava|tap|uvu|"""
+    r"""node:test|bun:test|@playwright/test)['"]"""
+)
+_TEST_CASE = re.compile(r"""^[ \t]*(?:describe|it|test|suite)(?:\.\w+)?[ \t]*\([ \t]*['"`]""", re.M)
+
+
+def looks_like_test(rel: str, text: str) -> bool:
+    """Test file by its path or by what is in it. `text` may be only the start of the file."""
+    return _is_test(rel) or bool(_TEST_IMPORT.search(text)) or len(_TEST_CASE.findall(text)) >= 3
 
 
 def _grep(p: Path, rx: re.Pattern[str]) -> bool:
