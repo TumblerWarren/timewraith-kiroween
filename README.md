@@ -40,7 +40,7 @@ docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 
 
 Then open <http://localhost:8787>. The page walks you through the rest: it starts the Kiro Crew and GitHub containers itself, and you sign in to Kiro once with your own account (approve a code in your browser). The image runs on `linux/amd64` and `linux/arm64`. To remove everything later: `docker rm -f timewraith` and `docker volume rm timewraith-data`.
 
-`:latest` is the stable release and changes only when a version tag such as `v0.1.1` is pushed. To try the newest commit on `main` instead, use `ghcr.io/tumblerwarren/timewraith-kiroween:main` in the same command.
+`:latest` is the newest merged build of `main`. `main` is protected, so it changes only when a reviewed pull request is merged; each merge publishes a new image and a GitHub Release. To pin one build, use its commit tag, for example `ghcr.io/tumblerwarren/timewraith-kiroween:sha-1234567`.
 ## Run it with Docker (one command)
 
 Requirement: Docker (Docker Desktop 4.29 or later, or Docker Engine 26 or later). Nothing else is installed on your machine.
@@ -89,7 +89,7 @@ docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 
 
 The two `--label` options make Docker Desktop show the app, the Kiro Crew, the GitHub container and the test sandboxes as one group named `timewraith`; the app passes the same label on to every container it starts. Open <http://localhost:8787>. The image runs on `linux/amd64` and `linux/arm64`. The container starts as root only to read the Docker socket and then runs the app as an unprivileged user. Anyone who can reach port 8787 can start containers on your Docker host, so keep the port on `127.0.0.1`.
 
-- **Publish to GitHub Container Registry:** push to `main` or push a tag such as `v0.1.0`, or run the workflow by hand from the Actions tab. The single workflow `.github/workflows/build.yml` verifies the frontend, then builds both platforms and pushes `ghcr.io/<owner>/<repo>`; a `v*` tag also sets `latest`.
+- **Publish to GitHub Container Registry:** merge a pull request into `main` (or push a `v*` tag, or run the workflow by hand from the Actions tab). The single workflow `.github/workflows/build.yml` verifies the frontend, builds both platforms, pushes `ghcr.io/<owner>/<repo>` as `latest` and creates a GitHub Release.
 - **Move it to a machine without internet:** `docker save timewraith:local | gzip > timewraith.tar.gz`, then `docker load -i timewraith.tar.gz` there. The Kiro Crew image (`ghcr.io/kirodotdev/kirocrew:stable`) is still pulled on first setup.
 
 ### Everyday commands for the image
