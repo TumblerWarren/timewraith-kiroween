@@ -118,6 +118,16 @@ class LoginState:
     proc: subprocess.Popen[bytes] | None = field(default=None, repr=False)
 
 
+def failure_message(output: str, method: str) -> str:
+    """Why a sign-in ended, in kiro-cli's own words when it said something, else the generic advice."""
+    lines = [ln.strip() for ln in _ANSI.sub("", output).splitlines() if ln.strip()]
+    said = lines[-1][:240] if lines else ""
+    if method == "organization":
+        hint = "Check the start URL and region with your administrator, and that you have a Kiro subscription."
+        return f"Organization sign-in failed: {said}. {hint}" if said else f"Organization sign-in failed. {hint}"
+    return "Sign-in did not finish. Start it again and approve the code in your browser."
+
+
 class CrewManager:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -399,7 +409,7 @@ class CrewManager:
             lg.state = "done"
         else:
             lg.state = "failed"
-            lg.error = "Sign-in did not finish. Start it again and approve the code in your browser."
+            lg.error = failure_message(buf, lg.method)
 
     # ---------- status ----------
 

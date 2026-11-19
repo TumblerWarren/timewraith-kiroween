@@ -40,3 +40,12 @@ def test_organization_login_uses_the_pro_license_and_identity_provider() -> None
         or "--identity-provider" in cmd
     )
     assert "pro" in cmd and "eu-west-1" in cmd and "--use-device-flow" in cmd
+
+
+def test_organization_failure_shows_the_cli_message() -> None:
+    msg = crew.failure_message("\x1b[31merror: failed to construct request\x1b[0m\n", "organization")
+    assert "failed to construct request" in msg and "start URL" in msg
+
+
+def test_other_methods_keep_the_generic_message() -> None:
+    assert crew.failure_message("anything", "google").startswith("Sign-in did not finish")
