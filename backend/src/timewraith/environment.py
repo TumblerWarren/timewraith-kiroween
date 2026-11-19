@@ -359,3 +359,17 @@ def environment_hint(name: str, env: EnvironmentCheck) -> str:
             f"installed: import {{ {name} }} from '{packages[0]}' in the adapter."
         )
     return f"Environment: `{name}` is not a global in this runtime{node}, and no package that supplies it is installed."
+
+
+_LOCAL_READS = re.compile(
+    r"\.(?:get|set)(?:FullYear|Month|Date|Day|Hours|Minutes|Seconds|Milliseconds)\(|\bContextOptions\b|\boptions\?\.in\b"
+    r"|\bnormalizeDates\b|\bconstructFrom\b",
+)
+_UTC_READS = re.compile(r"\.(?:get|set)UTC\w+\(")
+
+
+def local_time_by_design(source: str) -> bool:
+    """True when the code reads or writes the process-local calendar (getMonth, setHours, an `in` context option)
+    and never the UTC accessors. Such a function legitimately answers differently per process zone, so a result
+    that only differs between zones for the same instant is not a defect in it."""
+    return bool(_LOCAL_READS.search(source)) and not _UTC_READS.search(source)

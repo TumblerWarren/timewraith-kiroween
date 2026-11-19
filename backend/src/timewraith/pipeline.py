@@ -3254,6 +3254,22 @@ class Engine:
             return None
         rep = vd.reproduction
         assert rep is not None and rep.control is not None
+        if (
+            v.invariant in ("calendar_contract", "instant_zone_independent")
+            and rep.failing.zone != rep.control.zone
+            and E.local_time_by_design((ws / cand.unit.path).read_text(encoding="utf-8", errors="ignore"))
+        ):
+            (ws / reg_rel).unlink(missing_ok=True)
+            record(
+                vd.claim,
+                checks,
+                "rejected",
+                "Not reported: the code reads the process-local calendar, so a result that only differs by "
+                "process zone is local-time behaviour by design, not a defect",
+                kept,
+                dropped,
+            )
+            return None
         title = vd.title or f"{cand.unit.name}: {v.invariant.replace('_', ' ')}"
         fail_ms = verifysession.point_ms(rep.failing)
         cc = ClockConfig(instant=S.iso(fail_ms), time_zone=rep.failing.zone, label=f"{title[:60]} at {S.iso(fail_ms)}")

@@ -639,6 +639,9 @@ def prompt_verify_session(
             "wrong. Do not trust it. Read the code, then call the code the way its users do (its exported, "
             f"public API), with run_probe, at the failing point and at a control point. You have {tool_calls} "
             f"tool calls and {probes} probes.",
+            "A function that reads local calendar fields (getMonth, getDate, setHours, an `in` option) answers "
+            "differently per process zone by design. A difference between zones for the same instant is not a "
+            "defect there. Build the control from the same LOCAL calendar values, not the same instant.",
             "Verdicts and what code checks before it accepts one:\n"
             "- defect: `reproduction` whose check fails at `failing` (3 of 3 reruns) and passes at `control`, "
             "loading repository code with load(); plus `user_check`, the same symptom through the API the "
