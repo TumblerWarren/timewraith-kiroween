@@ -101,7 +101,8 @@
               "enum": [
                 "adapter",
                 "environment",
-                "throttled"
+                "throttled",
+                "timeout"
               ],
               "type": "string"
             },

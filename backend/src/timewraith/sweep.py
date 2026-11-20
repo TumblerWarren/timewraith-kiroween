@@ -241,6 +241,23 @@ def shared_points(window: SweepWindow | None = None) -> set[int]:
     return pts
 
 
+def thin_points(points: dict[str, list[int]], near_ms: int = 2 * 3_600_000) -> dict[str, list[int]]:
+    """A smaller point set for a function too slow to sweep in full: in each zone only the instants within `near_ms`
+    of one of its DST changes, which is where the time bugs are. A zone with no DST change keeps a thin even spread."""
+    out: dict[str, list[int]] = {}
+    for zone, times in points.items():
+        if not times:
+            out[zone] = []
+            continue
+        years = range(
+            datetime.fromtimestamp(min(times) / 1000, UTC).year, datetime.fromtimestamp(max(times) / 1000, UTC).year + 1
+        )
+        changes = [_ms(tr) for y in years for tr in dst_transitions(zone, y)]
+        near = [t for t in times if any(abs(t - c) <= near_ms for c in changes)]
+        out[zone] = near if changes else times[:: max(1, -(-len(times) // 24))]
+    return out
+
+
 def window_years(window: SweepWindow) -> tuple[int, ...]:
     start = datetime.fromtimestamp(window.start_ms / 1000, UTC)
     end = datetime.fromtimestamp(window.end_ms / 1000, UTC)

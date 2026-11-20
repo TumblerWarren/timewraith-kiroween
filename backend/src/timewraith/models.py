@@ -329,7 +329,7 @@ class Experiment(BaseModel):
     weak: bool = False
     # Why an experiment that could not run did not: the experiment itself (adapter), the place it runs (environment), or
     # the agent service refusing requests (throttled). Set with status adapter_invalid / not_run.
-    failure_kind: Literal["adapter", "environment", "throttled"] | None = None
+    failure_kind: Literal["adapter", "environment", "throttled", "timeout"] | None = None
 
 
 class TestPlan(BaseModel):
@@ -631,6 +631,7 @@ class RunSummary(BaseModel):
     adapter: int = 0
     environment: int = 0
     throttled: int = 0
+    timeout: int = 0
     repairs_rejected: int = 0
     environment_check: str = "skipped"
 

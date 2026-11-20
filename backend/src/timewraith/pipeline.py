@@ -23,7 +23,7 @@ import stat
 import threading
 import time
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -936,7 +936,7 @@ class Engine:
         """Why experiments could not run, most common first, short enough to read in a note."""
         counts: dict[str, int] = {}
         for e in exps:
-            if e.status == "adapter_invalid" and e.executability_reason:
+            if e.status in {"adapter_invalid", "not_run"} and e.executability_reason:
                 first = next((ln.strip() for ln in e.executability_reason.splitlines() if ln.strip()), "")
                 key = re.sub(r"\s+", " ", first.split(";")[0])[:110]
                 counts[key] = counts.get(key, 0) + 1
@@ -1211,7 +1211,7 @@ class Engine:
         tried = [e for e in exps if e.status in {"swept", "adapter_invalid", "not_run"}]
         ran = [e for e in tried if e.status == "swept"]
         problems: list[str] = []
-        by_cause = {"adapter": 0, "environment": 0, "throttled": 0}
+        by_cause = {"adapter": 0, "environment": 0, "throttled": 0, "timeout": 0}
         for e in tried:
             if e.status != "swept":
                 by_cause[e.failure_kind or "adapter"] += 1
@@ -1834,8 +1834,15 @@ class Engine:
         checks += inv_checks
         for rule in invs:
             if rule.expectation_ref and rule.expectation_ref not in expectations:
-                checks.append(f"Dropped unrecognized expectation citation for {rule.id}")
-                rule.expectation_ref = None
+                # Agents cite the right passage with slightly different line numbers; a range inside a passage code
+                # supplied is that passage.
+                resolved = _resolve_citation(rule.expectation_ref, expectations)
+                if resolved:
+                    checks.append(f"Matched citation {rule.expectation_ref} to the passage {resolved}")
+                    rule.expectation_ref = resolved
+                else:
+                    checks.append(f"Dropped unrecognized expectation citation for {rule.id}")
+                    rule.expectation_ref = None
             if rule.id == "expiry_deadline" and rule.expired_at_deadline is not None and not rule.expectation_ref:
                 rule.expired_at_deadline = None
                 checks.append("Expiry at the exact deadline left unspecified: no verified expectation citation")
@@ -1855,7 +1862,21 @@ class Engine:
                 rule="Weak design: only well-formed and repeatable would be checked, so Pumpkin designs it again",
                 phase="design",
             )
-            self._design(inv, rt, ex, None, focus, review=self.WEAK_REVIEW, second_look=False)
+            why = [c for c in checks if c.startswith(("Dropped unrecognized", "Skipped the calendar", "dropped "))]
+            allowed = list(expectations)[:10]
+            review = (
+                self.WEAK_REVIEW
+                + (("\nWhat code found: " + "; ".join(why) + ".") if why else "")
+                + (
+                    "\nCitations code accepts for calendar_cases (expectation_ref must be one of these, or a line "
+                    "range inside one): " + ", ".join(allowed)
+                    if allowed
+                    else "\nNo repository test or documentation passage about this API was found, so calendar_cases "
+                    "cannot be checked for it. Return a field a rule can check without a citation: instant, date, "
+                    "next, flag or next_early."
+                )
+            )
+            self._design(inv, rt, ex, None, focus, review=review, second_look=False)
             return
         if weak:
             checks.append("Weak: no returned field feeds a time rule, so only well-formed and repeatable are checked")
@@ -1932,6 +1953,29 @@ class Engine:
         )
 
     # ---------- phase two: execution, verification, fix ----------
+
+    def _thin(self, inv: Investigation, e: Experiment) -> bool:
+        """A function too slow to sweep in full (the harness hit its time limit and produced nothing) is swept again
+        on the instants around DST changes only. The full set is kept beside it, and the case says what was cut."""
+        path = self._ws(inv) / ".tw" / f"points-{e.id}.json"
+        try:
+            full = json.loads(path.read_text(encoding="utf-8"))
+        except OSError, ValueError:
+            return False
+        thin = S.thin_points(full)
+        before, after = sum(map(len, full.values())), sum(map(len, thin.values()))
+        if after == 0 or after > before * 0.6:
+            return False
+        (path.parent / f"points-{e.id}.full.json").write_text(json.dumps(full), encoding="utf-8")
+        path.write_text(json.dumps(thin), encoding="utf-8")
+        e.point_count, e.zones = after, list(thin)
+        fm = inv.feature_map
+        cand = next((c for c in fm.candidates if c.id == e.candidate_id), None) if fm else None
+        inv.notes.append(
+            f"{cand.unit.name if cand else e.id} is slow: the full sweep ({before} clock points) hit the time limit, "
+            f"so it ran on {after} points around DST changes."
+        )
+        return True
 
     def _sweep(
         self, inv: Investigation, exps: list[Experiment], zones: list[str], set_name: str = "points"
@@ -2151,6 +2195,10 @@ class Engine:
                 if self._workshop(inv, rt, e, errors[:4], t0):
                     self._check(inv, t0)
                     full[e.id] = self._sweep(inv, [e], S.SWEEP_ZONES)[e.id]
+        for e in valid:
+            outputs, errors = full[e.id]
+            if not any(outputs.values()) and any("TIMEOUT:" in x for x in errors) and self._thin(inv, e):
+                full[e.id] = self._sweep(inv, [e], S.SWEEP_ZONES)[e.id]
         new: list[SweepResult] = []
         for e in valid:
             outputs, errors = full[e.id]
@@ -2162,6 +2210,13 @@ class Engine:
                 errors=errors,
             )
             e.status = "swept"
+            if res.points_run == 0:  # nothing was measured: it did not run, however clean the case looks
+                timeout = any("TIMEOUT:" in x for x in errors)
+                e.status, e.failure_kind = "not_run", "timeout" if timeout else (e.failure_kind or "adapter")
+                first = re.sub(r"\s+", " ", errors[0])[:240] if errors else "no output"
+                e.executability_reason = (
+                    f"The sweep produced no output ({'it timed out' if timeout else 'see the error'}): {first}"
+                )
             inv.sweeps.append(res)
             new.append(res)
             baseline_keys |= _keys(e.id, res.violations)
@@ -4531,6 +4586,28 @@ class Engine:
         inv.stage = "completed"
         inv.replay_label = "Recorded investigation replay"
         self._event(inv, "wraith-director", "stage", "Case filed", data={"stage": "completed"})
+
+
+_CITATION = re.compile(r"^(?P<path>.+?):(?P<a>\d+)(?:\s*[-–]\s*(?P<b>\d+))?$")
+
+
+def _resolve_citation(ref: str, passages: Iterable[str]) -> str | None:
+    """The supplied passage (`path:first-last`) that a citation points into, or None. Same file, overlapping lines;
+    the passage that overlaps most wins. A citation into a file or lines code never supplied stays unrecognized."""
+    m = _CITATION.match(ref.strip())
+    if not m:
+        return None
+    lo, hi = int(m["a"]), int(m["b"] or m["a"])
+    best, best_overlap = None, 0
+    for key in passages:
+        k = _CITATION.match(key)
+        if not k or k["path"].removeprefix("./") != m["path"].removeprefix("./"):
+            continue
+        k_lo, k_hi = int(k["a"]), int(k["b"] or k["a"])
+        overlap = min(hi, k_hi) - max(lo, k_lo) + 1
+        if overlap > best_overlap:
+            best, best_overlap = key, overlap
+    return best
 
 
 def _runner_options(experiment: Experiment | None) -> dict[str, str]:

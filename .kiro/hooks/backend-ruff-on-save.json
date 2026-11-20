@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Backend ruff on save",
+      "description": "ruff check and ruff format --check on a saved Python file under backend/src or backend/tests. A failure goes back to the agent.",
+      "trigger": "PostFileSave",
+      "matcher": "backend[\\\\/](src|tests)[\\\\/].*\\.py$",
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/backend-check.mjs"
+      },
+      "timeout": 90,
+      "enabled": true
+    }
+  ]
+}
