@@ -28,6 +28,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import agents as A
 from . import (
@@ -4379,20 +4380,115 @@ class Engine:
         if broke:
             return gates
 
-        # independent_review: Raven sees the diff, not Doctor Stitch's reasoning
+        # independent_review: Raven sees the diff and the checks that passed, not Doctor Stitch's reasoning
+        gates.append(self._review_gate(inv, rt, bug, diff_text, gates, ex))
+        return gates
+
+    def _review_gate(
+        self,
+        inv: Investigation,
+        rt: A.AgentRuntime,
+        bug: Bug,
+        diff_text: str,
+        gates: list[GateResult],
+        ex: Experiment | None,
+    ) -> GateResult:
+        """The reviewer has no tools, so an objection counts only when code can reproduce it. Approval passes. A
+        concern without a probe is recorded and does not block. A probe blocks the patch only when it shows the patch
+        is wrong (_show_wrong): the check fails on the patched code, and passes on the original code or at a control
+        point. Everything else the reviewer said stays on the record as a note."""
+        shown = "\n".join(f"- {g.gate}: passed. {g.detail}" for g in gates)
         try:
             rv = self._agent(
                 inv,
                 rt,
                 "raven-archivist",
                 "review_fix",
-                A.prompt_review_fix(bug=f"{bug.title}\n{bug.failure}", diff=diff_text, test_code=bug.regression_test),
+                A.prompt_review_fix(
+                    bug=f"{bug.title}\n{bug.failure}",
+                    diff=diff_text,
+                    test_code=bug.regression_test,
+                    gates=shown,
+                    example_probe=(bug.reproduction or {}).get("code", ""),
+                    probe_help=verifysession.PROBE_HELP,
+                ),
                 A.ReviewFixOut,
             )
-            gates.append(GateResult(gate="independent_review", passed=rv.approve, detail=rv.reason))
         except A.AgentUnavailable as e:
-            gates.append(GateResult(gate="independent_review", passed=False, detail=f"Review not run: {e}"))
-        return gates
+            return GateResult(gate="independent_review", passed=False, detail=f"Review not run: {e}")
+        if rv.approve:
+            return GateResult(gate="independent_review", passed=True, detail=rv.reason)
+        if rv.probe is None:
+            return GateResult(
+                gate="independent_review",
+                passed=True,
+                detail=f"Concern not demonstrated, so it does not block the fix: {rv.reason}",
+            )
+        wrong, why = self._show_wrong(inv, bug, rv.probe, ex)
+        if wrong:
+            return GateResult(
+                gate="independent_review", passed=False, detail=f"{rv.reason}\n\nReproduced by code: {why}"
+            )
+        return GateResult(
+            gate="independent_review",
+            passed=True,
+            detail=f"Concern not demonstrated ({why}), so it does not block the fix: {rv.reason}",
+        )
+
+    def _show_wrong(
+        self, inv: Investigation, bug: Bug, probe: A.ReviewProbe, ex: Experiment | None
+    ) -> tuple[bool, str]:
+        """Run the reviewer's probe. (True, how it showed the patch wrong) or (False, why it did not). The patch is
+        applied when this starts. The tree is left on the original code, and the caller cleans it either way."""
+        caps = inv.capabilities
+        assert caps and caps.test_runner
+        ws, runner, n = self._ws(inv), caps.test_runner, self.s.repeat_runs
+        at, control = S.parse_instant(probe.instant), S.parse_instant(probe.control_instant or "")
+        if at is None or (probe.control_instant and control is None):
+            return False, "the probe's instants are not ISO 8601 instants with an offset in 2000-2100"
+        try:
+            ZoneInfo(probe.zone)
+        except ZoneInfoNotFoundError, ValueError:
+            return False, f"{probe.zone!r} is not an IANA time zone"
+        if not probe.code.strip() or len(probe.code) > verifysession.MAX_PROBE_CHARS:
+            return False, f"the probe is empty or longer than {verifysession.MAX_PROBE_CHARS} characters"
+        if not verifysession.loads_repository_code(probe.code):
+            return False, "the probe does not load the repository's code with load()"
+        window = inv.sweep_window
+        if window and not all(window.contains(ms) for ms in (at, control) if ms is not None):
+            return False, "the probe's instant is outside the case window"
+        ext = Path(bug.regression_test_path).suffix or ".js"
+        probe_rel = f"{S.PROBE_TEST}{ext}"
+
+        def run(ms: int) -> sandbox.ProbeResult:
+            (ws / probe_rel).parent.mkdir(parents=True, exist_ok=True)
+            (ws / probe_rel).write_text(S.probe_code(runner, probe.code), encoding="utf-8")
+            return sandbox.probe(self.s, ws, caps, probe_rel, probe.zone, ms, **_runner_options(ex))
+
+        try:
+            patched: list[sandbox.ProbeResult] = []
+            for _ in range(n):  # stop at the first run that does not fail: no need to repeat what refutes the worry
+                patched.append(run(at))
+                if patched[-1].status != "check_failed":
+                    break
+            if any(r.status != "check_failed" for r in patched):
+                got = ", ".join(r.status for r in patched)
+                return False, f"on the patched code the probe did not fail its check ({got}): {_tail(patched[0])}"
+            control_ok = run(control).status == "passed" if control is not None else False
+            self._clean_tree(ws)
+            original = run(at)
+        finally:
+            (ws / probe_rel).unlink(missing_ok=True)
+        shown = _tail(patched[0])
+        if original.status == "passed":
+            return True, f"the check fails on the patched code {n}/{n} and passes on the original ({shown})"
+        if control_ok:
+            return (
+                True,
+                f"on the patched code the check fails at {probe.instant} and passes at {probe.control_instant} "
+                f"({shown})",
+            )
+        return False, f"the check also fails on the original code and no control point passed ({original.status})"
 
     def _save_patch(self, inv: Investigation, bug: Bug, ex: Experiment, diff: str) -> None:
         """Source change plus the adapter and the regression test as new files."""
@@ -4439,6 +4535,11 @@ class Engine:
 
 def _runner_options(experiment: Experiment | None) -> dict[str, str]:
     return {"runner_config": experiment.runner_config} if experiment and experiment.runner_config else {}
+
+
+def _tail(r: sandbox.ProbeResult) -> str:
+    """The last lines a probe printed: what the check said and what the code returned."""
+    return " | ".join(r.out[-3:])[:300]
 
 
 def _edge_kind(v: Violation) -> str:

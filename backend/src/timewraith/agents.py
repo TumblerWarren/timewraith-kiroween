@@ -86,10 +86,22 @@ class IssueMatchOut(BaseModel):
     reason: str
 
 
+class ReviewProbe(BaseModel):
+    """A concrete input that shows the patched code is wrong. Code runs it; the reviewer cannot."""
+
+    code: str
+    zone: str = Field(description="IANA time zone used as the process zone (TZ)")
+    instant: str = Field(description="ISO 8601 instant with offset at which the check fails on the patched code")
+    control_instant: str | None = Field(
+        default=None, description="ISO 8601 instant, same zone, at which the same check passes on the patched code"
+    )
+
+
 class ReviewFixOut(BaseModel):
     approve: bool
     reason: str
     evidence: Evidences = Field(default_factory=list)
+    probe: ReviewProbe | None = None
 
 
 class RevealOut(BaseModel):
@@ -753,13 +765,40 @@ def prompt_verify_session(
     )
 
 
-def prompt_review_fix(*, bug: str, diff: str, test_code: str) -> str:
+def prompt_review_fix(
+    *,
+    bug: str,
+    diff: str,
+    test_code: str,
+    gates: str = "",
+    example_probe: str = "",
+    probe_help: str | None = None,
+) -> str:
+    if probe_help is None:
+        task = "Task: review this patch."
+    else:
+        task = (
+            "Task: review this patch. Code has already run these checks on it, and every one passed:\n"
+            + (gates or "(none)")
+            + "\nDo not repeat them. Look for what they did not check: an input that the patch gets wrong and the "
+            "original got right, or a sibling case of the same bug that is still wrong.\n\n"
+            "You cannot run code or read files, so a worry you cannot show is only a worry. To object, set "
+            "approve=false and give `probe`: a short probe whose check fails when the patched code is wrong. Code "
+            "runs it on the patched code three times and on the original code. Your objection blocks the patch only "
+            "if the check fails on the patched code AND either passes on the original code at the same instant (the "
+            "patch broke it) or passes on the patched code at `control_instant` (the patch left wrong a case that a "
+            "nearby control gets right). Anything else is recorded as a note and the patch stands. If you can name "
+            "no concrete failing input, approve=true and put your remaining concerns in `reason`.\n\n"
+            "How to write a probe: " + probe_help
+        )
     return (
-        "Task: review this patch.\n\n"
+        task
+        + "\n\n"
         + _data("finding", bug)
         + "\n"
         + _data("regression-test", test_code)
         + ("\n" + _data("diff", diff))
+        + (("\n" + _data("a-working-probe-of-this-code-for-the-finding", example_probe)) if example_probe else "")
     )
 
 
