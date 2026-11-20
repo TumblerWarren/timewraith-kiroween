@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { LoginMethod, OrganizationSignIn } from "../api/types";
 import { useApi } from "../api/ApiProvider";
 import { useReadiness, type StepState } from "../app/SetupProvider";
 import { DOCKER_SETUP, SETUP } from "../content/copy";
@@ -16,7 +17,30 @@ const MARK: Readonly<Record<StepState, string>> = { done: "✓", busy: "…", to
  */
 export function CrewSetup() {
   const { online } = useApi();
-  const { status: s, docker, crew, login, busyAction, error, act, signIn } = useReadiness();
+  const { status: s, docker, crew, login, busyAction, error, act, signIn: startSignIn } = useReadiness();
+  // The sign-in page opens by itself. A browser only allows a new tab during the click, and the link arrives a few
+  // seconds later, so the tab is opened empty on the click and sent to the sign-in page when the link is known.
+  const pendingTab = useRef<Window | null>(null);
+  const signIn = (method: LoginMethod, organization?: OrganizationSignIn) => {
+    const tab = window.open("", "_blank");
+    if (tab) tab.opener = null;
+    pendingTab.current = tab;
+    if (organization) startSignIn(method, organization);
+    else startSignIn(method);
+  };
+  const loginUrl = s?.login.url ?? null;
+  const loginState = s?.login.state;
+  useEffect(() => {
+    const tab = pendingTab.current;
+    if (!tab) return;
+    if (loginUrl) {
+      tab.location.href = loginUrl;
+      pendingTab.current = null;
+    } else if (loginState === "failed" || loginState === "done") {
+      tab.close();
+      pendingTab.current = null;
+    }
+  }, [loginUrl, loginState]);
   const [confirming, setConfirming] = useState(false);
   const [org, setOrg] = useState<{ open: boolean; startUrl: string; region: string }>({ open: false, startUrl: "", region: "us-east-1" });
   if (!online || !s) return <p className="crew-setup__hint">The backend is offline, so the Crew cannot be set up from here.</p>;

@@ -63,7 +63,10 @@ def main():
             r = post("/api/v1/internal/fix-tools/list", {})
             result = {"tools": r.get("tools", [])}
         elif method == "tools/call":
-            r = post("/api/v1/internal/fix-tools/call", {"name": params.get("name"), "arguments": params.get("arguments") or {}})
+            r = post(
+                "/api/v1/internal/fix-tools/call",
+                {"name": params.get("name"), "arguments": params.get("arguments") or {}},
+            )
             text = r.get("result") if "result" in r else "Error: " + str(r.get("error", "unknown error"))
             result = {"content": [{"type": "text", "text": text}], "isError": "result" not in r}
         elif method == "ping":

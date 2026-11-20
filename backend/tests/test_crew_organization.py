@@ -24,22 +24,34 @@ def test_bad_region_is_rejected() -> None:
         crew.check_organization("https://my-org.awsapps.com/start", "us east 1")
 
 
-def test_organization_login_uses_the_pro_license_and_identity_provider() -> None:
+def test_organization_login_runs_in_the_terminal_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    copied: list[list[str]] = []
+
+    def fake_run(args: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
+        copied.append(args)
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    monkeypatch.setattr(crew.subprocess, "run", fake_run)
     cmd = crew.CrewManager()._login_command("organization", ("https://my-org.awsapps.com/start", "eu-west-1"))
-    assert (
-        cmd[-9:]
-        == [
-            "--license",
-            "pro",
-            "--identity-provider",
-            "https://my-org.awsapps.com/start",
-            "--region",
-            "eu-west-1",
-            "--use-device-flow",
-        ][-9:]
-        or "--identity-provider" in cmd
-    )
-    assert "pro" in cmd and "eu-west-1" in cmd and "--use-device-flow" in cmd
+    assert copied, "the helper is copied into the container first"
+    assert cmd[-4:] == [crew.LOGIN_HELPER_IN_CONTAINER, "organization", "https://my-org.awsapps.com/start", "eu-west-1"]
+    assert "-i" not in cmd[:4] or cmd[2] != "-i"
+
+
+def test_helper_knows_the_organization_prompts() -> None:
+    import importlib.util
+
+    pytest.importorskip("termios")  # the helper runs in the Linux container; Windows has no pty
+
+    spec = importlib.util.spec_from_file_location("tw_login", crew.LOGIN_HELPER)
+    assert spec and spec.loader
+    helper = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(helper)
+    assert helper.URL_PROMPT.search("? Enter Start URL:")
+    assert helper.REGION_PROMPT.search("? Enter Region:")
+    assert not helper.URL_PROMPT.search("Logged in with IAM Identity Center (https://x.awsapps.com/start)")
 
 
 def test_organization_failure_shows_the_cli_message() -> None:
@@ -60,7 +72,19 @@ def test_an_untrusted_host_is_still_not_linked() -> None:
     assert crew.parse_device_output("Code: ABCD-EFGH\nhttps://evil.example.com/x\n") == ("ABCD-EFGH", None)
 
 
-def test_organization_link_is_built_from_the_start_url() -> None:
-    url = crew.organization_device_url("https://my-org.awsapps.com/start", "ABCD-EFGH")
-    assert url == "https://my-org.awsapps.com/start/#/device?user_code=ABCD-EFGH"
-    assert crew.organization_device_url(None, "ABCD-EFGH") is None
+def test_the_real_identity_center_output_gives_code_and_link() -> None:
+    out = (
+        "? Enter Start URL \u203a https://devbuildtool.awsapps.com/start\n"
+        "? Enter Region \u203a us-east-1\u2714 Enter Region \u00b7 us-east-1\n"
+        "Confirm the following code in the browser\nCode: CKBW-XNLT\n"
+        "Open this URL: https://us-east-1.signin.aws/platform/authorize?request_uri=urn%3Aabc&identitystore_id=d-1\n"
+    )
+    assert crew.parse_device_output(out) == (
+        "CKBW-XNLT",
+        "https://us-east-1.signin.aws/platform/authorize?request_uri=urn%3Aabc&identitystore_id=d-1",
+    )
+
+
+def test_an_organization_waits_for_the_named_link() -> None:
+    early = "? Enter Start URL \u203a https://devbuildtool.awsapps.com/start\nCode: CKBW-XNLT\n"
+    assert crew.parse_device_output(early, named_only=True) == ("CKBW-XNLT", None)

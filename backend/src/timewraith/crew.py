@@ -55,6 +55,7 @@ def check_organization(start_url: object, region: object) -> tuple[str, str]:
 LOGIN_HELPER = Path(__file__).resolve().parents[2] / "agents" / "tw_login.py"
 LOGIN_HELPER_IN_CONTAINER = "/home/kirocrew/.tw/tw_login.py"
 _URL = re.compile(r"https://[^\s\"'<>]+")
+_OPEN_URL = re.compile(r"open\s+this\s+url:?\s*(https://\S+)", re.I)
 # Sign-in pages kiro-cli is known to use; anything else is not shown as a link.
 _LOGIN_HOSTS = ("awsapps.com", "kiro.dev", "aws.amazon.com", "signin.aws", "amazoncognito.com")
 # The device page of AWS IAM Identity Center, for example device.sso.us-east-1.amazonaws.com.
@@ -76,25 +77,22 @@ def strip_ansi(text: str) -> str:
     return _ANSI.sub("", text)
 
 
-def parse_device_output(text: str) -> tuple[str | None, str | None]:
+def parse_device_output(text: str, *, named_only: bool = False) -> tuple[str | None, str | None]:
     """The one-time code and the sign-in URL from kiro-cli's device-flow output, if present and trusted."""
     clean = strip_ansi(text)
     code_m = _CODE.search(clean)
     url = None
-    for m in _URL.finditer(clean):
+    # kiro-cli names the page to open ("Open this URL: ..."); other links in the output, such as the start URL it
+    # echoes back for an organization, are not the sign-in page.
+    named = [m.group(1) for m in _OPEN_URL.finditer(clean)]
+    for m in [*(_URL.match(u) for u in named), *([] if named_only else _URL.finditer(clean))]:
+        if m is None:
+            continue
         host = (urlsplit(m.group(0)).hostname or "").lower()
         if any(host == h or host.endswith("." + h) for h in _LOGIN_HOSTS) or _IDC_DEVICE_HOST.match(host):
             url = m.group(0)
             break
     return (code_m.group(1) if code_m else None), url
-
-
-def organization_device_url(start_url: str | None, code: str | None) -> str | None:
-    """The page where an organization user approves the code, built from the start URL when kiro-cli printed no
-    trusted link: the Identity Center portal's device page, with the code filled in."""
-    if not start_url or not code:
-        return None
-    return f"{start_url.rstrip('/')}/#/device?user_code={code}"
 
 
 def _docker(args: list[str], timeout: float = 30) -> subprocess.CompletedProcess[str]:
@@ -342,13 +340,6 @@ class CrewManager:
         self._signed_in = (0.0, False)
 
     def _login_command(self, method: LoginMethod, org: tuple[str, str] | None = None) -> list[str]:
-        if method == "organization":
-            assert org
-            url, region = org
-            return [
-                "docker", "exec", "-i", CONTAINER, "kiro-cli", "login", "--license", "pro",
-                "--identity-provider", url, "--region", region, "--use-device-flow",
-            ]  # fmt: skip
         if method == "builder_id":
             return ["docker", "exec", CONTAINER, "kiro-cli", "login", "--license", "free", "--use-device-flow"]
         r = subprocess.run(
@@ -359,6 +350,10 @@ class CrewManager:
         )  # fmt: skip
         if r.returncode != 0:
             raise RuntimeError(f"Could not prepare the sign-in: {_last_line(r.stderr) or 'docker exec failed'}")
+        if method == "organization":
+            # kiro-cli's Identity Center sign-in fails without a terminal, so it runs in the helper's one too.
+            assert org
+            return ["docker", "exec", CONTAINER, "python3", LOGIN_HELPER_IN_CONTAINER, method, org[0], org[1]]
         return ["docker", "exec", CONTAINER, "python3", LOGIN_HELPER_IN_CONTAINER, method]
 
     def start_login(
@@ -379,15 +374,8 @@ class CrewManager:
                 self._login_command(method, org),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                stdin=subprocess.PIPE if org else subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
             )
-            if org and proc.stdin:
-                # Some kiro-cli versions ask for the start URL and region even when they are given as options.
-                try:
-                    proc.stdin.write(f"{org[0]}\n{org[1]}\n".encode())
-                    proc.stdin.flush()
-                except OSError:
-                    pass
             self.login = LoginState(
                 state="pending", started=time.monotonic(), proc=proc, method=method, org_url=org[0] if org else None
             )
@@ -408,10 +396,11 @@ class CrewManager:
                 if not chunk:
                     break
                 buf = (buf + chunk.decode("utf-8", "replace"))[-8000:]
-                if not lg.code:
-                    lg.code, lg.url = parse_device_output(buf)
-                if lg.code and not lg.url:
-                    lg.url = organization_device_url(lg.org_url, lg.code)
+                if not (lg.code and lg.url):
+                    # Only whole lines: a link cut off at the end of a read would open the wrong page.
+                    # An organization's output also echoes its start URL, so only the named link counts there.
+                    code, url = parse_device_output(buf[: buf.rfind("\n") + 1], named_only=lg.method == "organization")
+                    lg.code, lg.url = lg.code or code, lg.url or url
             rc = lg.proc.wait()
         finally:
             killer.cancel()
