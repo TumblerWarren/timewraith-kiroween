@@ -111,6 +111,17 @@ INVARIANTS: dict[str, tuple[OutputField | None, str, str]] = {
         "DST gap, or fire a repeated local time only once in a DST overlap, so the gap to the next run can grow "
         "by the transition. This is intended when the repository's tests, docs or comments say so.",
     ),
+    "next_clock_independent": (
+        "next_early",
+        "For a function that takes an explicit start instant (getNextDateFrom(start), nextAfter(date)), the answer "
+        "for that start does not depend on what the real clock says. Return next_early from the same call that gives "
+        "`next`, made inside `await ctx.atClock(-30 * 86400000, () => call(ctx.now))`, which sets the clock 30 days "
+        "earlier for that call only. It must be strictly after `now` and equal to `next` (the call with the clock at "
+        "`now`). Hint: libraries that resolve a repeated or missing local hour by the offset at the current time "
+        "answer differently when the clock is before a DST change.",
+        "Functions that are relative to the current time by design (nextRun(), in 5 minutes, a start in the past "
+        "that is rejected or rewritten to now), and callers that do not take a start instant.",
+    ),
 }
 ALWAYS = ["well_formed", "deterministic"]
 
@@ -276,6 +287,7 @@ function twNorm(v) {
   v = v || {};
   if ('instant' in v) o.instant = twMs(v.instant);
   if ('next' in v) o.next = twMs(v.next);
+  if ('next_early' in v) o.next_early = twMs(v.next_early);
   if ('clock_jumps' in v) {
     const traces = v.clock_jumps;
     const valid = traces && ['forward', 'backward'].every(key => Array.isArray(traces[key])
@@ -360,6 +372,15 @@ async function clockJumps(schedule) {{
   if (control.length !== 1 || control[0] !== 10) throw new RetrySetupError('Unshifted timer must fire once at 10 ms');
   return {{ forward: await clockJumpTrace(schedule, 'forward'), backward: await clockJumpTrace(schedule, 'backward') }};
 }}
+async function atClock(shiftMs, fn) {{
+  const real = Date.now();
+  try {{
+    {t}.setSystemTime(real + shiftMs);
+    return await fn();
+  }} finally {{
+    {t}.setSystemTime(real);
+  }}
+}}
 async function expiryTrace(create, isExpired) {{
   if (typeof {t}.advanceTimersByTimeAsync !== 'function') throw new RetrySetupError('Async fake timers unavailable');
   const start = Date.now();
@@ -441,7 +462,7 @@ test('timewraith sweep ' + TW_ID, async () => {{
       const rec = {{ t: ms }};
       for (const k of [0, 1]) {{
         {t}.setSystemTime(new Date(ms));
-        const ctx = {{ now: new Date(ms), tz: zone, cancelledRetry, timerTrace, expiryTrace, clockJumps }};
+        const ctx = {{ now: new Date(ms), tz: zone, cancelledRetry, timerTrace, expiryTrace, clockJumps, atClock }};
         try {{ rec['r' + k] = twNorm(await twA.run(ctx)); }}
         catch (e) {{
           if (e instanceof RetrySetupError) throw e;
@@ -541,7 +562,7 @@ test({json.dumps(title[:100])}, async () => {{
 """
         for title, body, ms in cases
     )
-    helpers = ("cancelledRetry", "retryCalls", "timerTrace", "expiryTrace", "clockJumpTrace", "clockJumps")
+    helpers = ("cancelledRetry", "retryCalls", "timerTrace", "expiryTrace", "clockJumpTrace", "clockJumps", "atClock")
     uses_timers = any(name in body for _, body, _ in cases for name in helpers)
     when = ", ".join(iso(ms) for _, _, ms in cases)
     return (
@@ -604,6 +625,11 @@ def regression_code(*, exp_id: str, runner: str, v: Violation, title: str, targe
             "    let changes = 0;\n    for (let i = 1; i < f.length; i++) if (f[i] !== f[i - 1]) changes++;\n"
             "    expect(changes).toBeLessThanOrEqual(1);"
         )
+    elif v.invariant == "next_clock_independent":
+        if v.failure_kind == "differs_with_clock":
+            body = f"const o = await twAt({t_ms});\n    expect(o.next_early).toBe(o.next);"
+        else:
+            body = f"const o = await twAt({t_ms});\n    expect(o.next_early).toBeGreaterThan({t_ms});"
     else:  # next_after_now
         lines = [f"const o = await twAt({t_ms});", f"expect(o.next).toBeGreaterThan({t_ms});"]
         if len(ctx) > 1:
@@ -623,7 +649,7 @@ const twA = twMod && twMod.default && typeof twMod.default.run === 'function' ? 
 const TW_ZONE = process.env.TZ || {json.dumps(v.zone)};
 async function twAt(ms) {{
   {t}.setSystemTime(new Date(ms));
-  const ctx = {{ now: new Date(ms), tz: TW_ZONE, cancelledRetry, timerTrace, expiryTrace, clockJumps }};
+  const ctx = {{ now: new Date(ms), tz: TW_ZONE, cancelledRetry, timerTrace, expiryTrace, clockJumps, atClock }};
   return twNorm(await twA.run(ctx));
 }}
 test({json.dumps(title[:100])}, async () => {{
@@ -829,6 +855,27 @@ def check(outputs: Outputs, invs: list[InvariantUse]) -> list[Violation]:
                             ctx=[*first_change, t],
                         )
                 prev_flag = a["flag"]
+            if "next_clock_independent" in ids and isinstance(a.get("next_early"), int | float):
+                early = float(a["next_early"])
+                if early <= t:
+                    add(
+                        "next_clock_independent",
+                        zone,
+                        t,
+                        f"With the clock 30 days earlier, the next time after {iso(t)} came back as {iso(early)}, "
+                        "which is not after it",
+                        kind="not_after_start",
+                    )
+                elif isinstance(a.get("next"), int | float) and early != float(a["next"]):
+                    add(
+                        "next_clock_independent",
+                        zone,
+                        t,
+                        f"After {iso(t)} the answer is {iso(float(a['next']))} with the clock at that instant, "
+                        f"but {iso(early)} with the clock 30 days earlier",
+                        expected=str(int(a["next"])),
+                        kind="differs_with_clock",
+                    )
             if "next_after_now" in ids and isinstance(a.get("next"), int | float):
                 n = float(a["next"])
                 if n <= t:

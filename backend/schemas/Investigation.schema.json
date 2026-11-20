@@ -87,6 +87,7 @@
             "instant_zone_independent",
             "flag_monotonic",
             "next_after_now",
+            "next_clock_independent",
             "retry_cancelled",
             "timeout_delivery",
             "interval_delivery",
@@ -1005,6 +1006,7 @@
             "enum": [
               "instant",
               "next",
+              "next_early",
               "flag",
               "date",
               "value",
@@ -1073,6 +1075,11 @@
           ],
           "title": "Status",
           "type": "string"
+        },
+        "weak": {
+          "default": false,
+          "title": "Weak",
+          "type": "boolean"
         },
         "zones": {
           "default": [],
@@ -1387,6 +1394,7 @@
             "instant_zone_independent",
             "flag_monotonic",
             "next_after_now",
+            "next_clock_independent",
             "retry_cancelled",
             "timeout_delivery",
             "interval_delivery",
@@ -1516,6 +1524,7 @@
             "instant_zone_independent",
             "flag_monotonic",
             "next_after_now",
+            "next_clock_independent",
             "retry_cancelled",
             "timeout_delivery",
             "interval_delivery",
@@ -2201,6 +2210,7 @@
             "instant_zone_independent",
             "flag_monotonic",
             "next_after_now",
+            "next_clock_independent",
             "retry_cancelled",
             "timeout_delivery",
             "interval_delivery",

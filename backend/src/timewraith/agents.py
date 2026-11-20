@@ -422,6 +422,7 @@ def prompt_design(
     issue: str | None,
     feedback: str | None,
     focus: str | None = None,
+    review: str | None = None,
 ) -> str:
     style = (
         f"ES module: `import {{ ... }} from '{import_path}'` and `export function run(ctx) {{ ... }}`"
@@ -440,7 +441,10 @@ def prompt_design(
         "as an array of up to eight {name, actual, expected} objects (unique lowercase slugs for names, "
         "scalar values only). Compute actual through the public API and expected independently from the cited "
         "contract. Include calendar_cases in fields and explicitly select calendar_contract with its expectation_ref. "
-        "Describe the arguments and comparison in claim. Use next only for a documented scheduling contract."
+        "Describe the arguments and comparison in claim. Use next only for a documented scheduling contract. "
+        "Return at least one field that a rule in the catalog can check: an adapter whose fields feed no rule "
+        "is only tested for crashing and repeating itself, which cannot find a time bug. If the API takes an "
+        "explicit start or from date, also return next_early (see next_clock_independent)."
     )
     if expectations:
         parts.append(
@@ -460,6 +464,8 @@ def prompt_design(
         parts.append(
             "Your previous adapter failed at ordinary baseline instants; fix it:\n" + _data("feedback", feedback)
         )
+    if review:
+        parts.append("A review of your previous adapter, which was not accepted:\n" + _data("review", review))
     parts.append(_data(path, numbered(source)))
     if issue:
         parts.append("The user gave this issue report as context:\n" + _data("issue", issue))
@@ -573,6 +579,10 @@ def prompt_plan(*, round_no: int, max_intents: int, ledger: str, candidates: str
             "ledger or the previous intents. Read tested_inputs_and_checks and prioritize new argument shapes, locale "
             "formats, boundary spans, or expected-result checks. Where only validity was checked, propose an "
             "experiment with a cited calendar contract. Return no intents and say why if coverage is sufficient.",
+            "findings-and-previous-intents may list untested_suspicions: places in the code where Bat Scout saw a "
+            "possible time bug but no experiment tests it yet. Prefer an intent for one of them over a direction "
+            "the ledger already covers. Use one of its candidate_ids and make the focus the suspicion itself: the "
+            "input and the clock situation that would expose it.",
             f"Invariant catalog (the rules experiments can check):\n{catalog}",
             _data("coverage-ledger", ledger),
             _data("candidates", candidates),

@@ -27,6 +27,7 @@ from timewraith.models import (
     InvariantUse,
     Investigation,
     Target,
+    TestPlan,
 )
 from timewraith.pipeline import Engine, _derive_invariants
 from timewraith.sandbox import ProbeResult
@@ -291,7 +292,9 @@ def test_bat_discovers_calendar_logic_outside_scan_and_pumpkin_designs_it(engine
                     hypothesis="February may be too short",
                     expectation="Leap-year February has 29 days",
                 )
-                items = [lead, lead, {**lead, "line": 50}, {**lead, "path": "../outside.js"}]
+                invented = {**lead, "quote": "return month === 3 ? 30 : 31;"}
+                # A wrong line number is found again by its quote; an invented quote and an outside path are not.
+                items = [lead, lead, {**lead, "line": 50}, invented, {**lead, "path": "../outside.js"}]
                 return schema.model_validate({"items": items})
             assert step == "design_experiment" and agent == "pumpkin-mechanic"
             assert "Leap-year February has 29 days" in prompt
@@ -311,6 +314,8 @@ def test_bat_discovers_calendar_logic_outside_scan_and_pumpkin_designs_it(engine
     decisions = [d for d in inv.decisions if d.step == "inspect_js_sources"]
     assert [d.decision for d in decisions] == ["accepted", "rejected", "rejected"]
     assert decisions[0].evidence[0].ref == path + ":2"
+    assert "quote is not in the file" in " ".join(decisions[1].checks)
+    assert any("return month === 3" in c for c in decisions[1].checks)
     [ex] = build_test_plan(inv.feature_map.candidates, inv.capabilities, 1).experiments
     engine._design(inv, rt, ex, None)  # type: ignore[arg-type]
     assert ex.status == "designed" and ex.harness_path and (ws / ex.harness_path).is_file()
@@ -355,3 +360,97 @@ def test_repair_shell_can_save_fixture_for_baseline(ws: Path) -> None:
     output = s.call("save_fixture", {"name": "calendar.json", "content": '{"day":29}'})
     assert output == ".tw/generated/calendar.json"
     assert s.call("check_baseline", {"fields": ["value"]}).startswith("CLEAN")
+
+
+# ---------- a clock that is earlier than the start ----------
+
+
+def _early(t: int, nxt: int, early: int) -> S.Outputs:
+    rec = {"t": t, "r0": {"next": nxt, "next_early": early}, "r1": {"next": nxt, "next_early": early}}
+    return {"America/New_York": [rec]}
+
+
+FUTURE = [InvariantUse(id="next_clock_independent", reason="r")]
+
+
+def test_an_answer_that_depends_on_the_clock_is_a_violation() -> None:
+    start = S._ms(datetime(2026, 11, 1, 6, 0, tzinfo=S.UTC))
+    ok = start + 30 * 60_000
+    assert S.check(_early(start, ok, ok), FUTURE) == []
+    [before] = S.check(_early(start, ok, start - 30 * 60_000), FUTURE)  # the answer is before the start
+    assert before.invariant == "next_clock_independent" and before.failure_kind == "not_after_start"
+    [differs] = S.check(_early(start, ok, ok + 3_600_000), FUTURE)  # after the start, but not the same answer
+    assert differs.failure_kind == "differs_with_clock" and differs.expected == str(ok)
+
+
+def test_the_field_brings_its_own_rule_and_the_helper_is_in_the_harness() -> None:
+    invs, _ = _derive_invariants([], ["next", "next_early"], "function run(ctx) { return f(ctx.now); }")
+    assert [i.id for i in invs] == ["next_after_now", "next_clock_independent"]
+    for runner in ("vitest", "jest"):
+        code = S.harness_code("exp_1", runner)
+        assert "async function atClock" in code and "next_early" in code and "clockJumps, atClock }" in code
+
+
+def test_the_regression_test_for_it_asserts_the_same_thing() -> None:
+    start = S._ms(datetime(2026, 11, 1, 6, 0, tzinfo=S.UTC))
+    [v] = S.check(_early(start, start + 1, start - 1), FUTURE)
+    code = S.regression_code(exp_id="exp_1", runner="vitest", v=v, title="t", target="main")
+    assert "expect(o.next_early).toBeGreaterThan(" in code
+
+
+# ---------- an experiment that checks nothing about time ----------
+
+
+def _design_setup(engine: Engine, ws: Path) -> tuple[Investigation, Experiment]:
+    from timewraith.discovery import build_feature_map
+    from timewraith.planning import build_test_plan
+
+    (ws / "src/months.js").write_text("export function nextAfter(d) { return d; }\n", "utf8")
+    inv = case()
+    inv.capabilities = CapabilityReport(test_runner="vitest")
+    inv.feature_map = build_feature_map(ws, engine.s.max_parse_bytes)
+    inv.feature_map.candidates[:] = [
+        Candidate(
+            id="c1", title="t", rationale="r", selected=True,
+            unit=CodeUnit(path="src/months.js", name="nextAfter", start_line=1, end_line=1, exported=True),
+            signal_ids=[], score=1, score_parts={}, bug_categories=["other_temporal"],
+        )
+    ]  # fmt: skip
+    engine.store.save(inv)
+    [ex] = build_test_plan(inv.feature_map.candidates, inv.capabilities, 1).experiments
+    return inv, ex
+
+
+class _Pumpkin(Rt):
+    def __init__(self, fields: list[list[str]]) -> None:
+        super().__init__(sessions=False)
+        self.fields, self.prompts = fields, []
+
+    def call(self, agent: str, step: str, prompt: str, schema: Any) -> Any:
+        self.prompts.append(prompt)
+        fields = self.fields[min(len(self.prompts), len(self.fields)) - 1]
+        return A.AdapterOut(
+            claim="c", fields=fields,
+            adapter_code="import { nextAfter } from '../months.js';\nexport function run(ctx) { return { next: 1 }; }",
+        )  # fmt: skip
+
+
+def test_a_design_that_feeds_no_time_rule_is_sent_back_once(engine: Engine, ws: Path) -> None:
+    inv, ex = _design_setup(engine, ws)
+    rt = _Pumpkin([["value"], ["next"]])
+    engine._design(inv, rt, ex, None)  # type: ignore[arg-type]
+    assert len(rt.prompts) == 2 and "No output field of your adapter feeds a rule" in rt.prompts[1]
+    assert ex.status == "designed" and not ex.weak and [i.id for i in ex.invariants] == ["next_after_now"]
+    assert [d.decision for d in inv.decisions if d.step == "design_experiment"] == ["rejected", "accepted"]
+
+
+def test_a_design_that_stays_weak_runs_and_is_marked(engine: Engine, ws: Path) -> None:
+    inv, ex = _design_setup(engine, ws)
+    rt = _Pumpkin([["value"], ["value"]])
+    engine._design(inv, rt, ex, None)  # type: ignore[arg-type]
+    assert len(rt.prompts) == 2, "only one second look"
+    assert ex.status == "designed" and ex.weak and ex.invariants == []
+    ex.status = "swept"
+    inv.test_plan = TestPlan(experiments=[ex])
+    engine._run_health(inv)
+    assert any("could not find a time bug" in n for n in inv.notes)

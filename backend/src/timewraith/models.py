@@ -88,6 +88,7 @@ InvariantId = Literal[
     "instant_zone_independent",
     "flag_monotonic",
     "next_after_now",
+    "next_clock_independent",
     "retry_cancelled",
     "timeout_delivery",
     "interval_delivery",
@@ -99,6 +100,7 @@ InvariantId = Literal[
 OutputField = Literal[
     "instant",
     "next",
+    "next_early",
     "flag",
     "date",
     "value",
@@ -322,6 +324,9 @@ class Experiment(BaseModel):
     harness_path: str | None = None
     adapter_code: str | None = None
     runner_config: str | None = None
+    # True when no output field of the adapter feeds a time rule, so only "well formed" and "repeatable" are checked.
+    # Such an experiment cannot find a time bug; the run summary says so.
+    weak: bool = False
     # Why an experiment that could not run did not: the experiment itself (adapter), the place it runs (environment), or
     # the agent service refusing requests (throttled). Set with status adapter_invalid / not_run.
     failure_kind: Literal["adapter", "environment", "throttled"] | None = None

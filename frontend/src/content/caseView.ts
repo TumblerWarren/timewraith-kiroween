@@ -105,4 +105,5 @@ export const INVARIANT_LABELS: Readonly<Record<string, string>> = {
   interval_delivery: "Interval follows its configured cadence",
   retry_cancelled: "Cancelled retry stays cancelled",
   next_after_now: "Next run is after now and never goes back",
+  next_clock_independent: "The answer for a start time does not depend on the current clock",
 };

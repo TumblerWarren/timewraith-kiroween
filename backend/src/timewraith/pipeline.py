@@ -38,6 +38,7 @@ from . import (
     installfix,
     installsession,
     intent,
+    leads,
     playbook,
     publish,
     python_adapter,
@@ -121,6 +122,7 @@ INVARIANT_CATEGORY: dict[str, BugCategory] = {
     "retry_cancelled": "other_temporal",
     "expiry_deadline": "expiry_boundary",
     "next_after_now": "dst_transition",
+    "next_clock_independent": "dst_transition",
 }
 
 
@@ -1245,6 +1247,14 @@ class Engine:
                 ATTENTION_PREFIX + " ".join(problems).strip() + " Results from what did run may be incomplete."
             )
             self._event(inv, "watchtower-warden", "note", inv.notes[-1], phase="verification", data={"attention": True})
+        weak = [e for e in ran if e.weak]
+        if weak:
+            note = (
+                f"{len(weak)} of {len(ran)} experiments that ran checked only that the code does not crash and gives "
+                "the same answer twice (no output field fed a time rule), so they could not find a time bug."
+            )
+            if note not in inv.notes:
+                inv.notes.append(note)
         if not inv.bugs and tried and len(ran) / len(tried) < self.s.min_experiments_ran:
             inv.status = "inconclusive"
 
@@ -1667,13 +1677,19 @@ class Engine:
         fm = inv.feature_map
         assert fm
         sources = {p: (self._ws(inv) / p).read_text("utf8", errors="replace").splitlines() for p in paths}
-        excerpts = {p: "\n".join(lines)[:10000].splitlines() for p, lines in sources.items()}
+        cap = self.s.lead_source_chars
+        excerpts = {p: "\n".join(lines)[:cap].splitlines() for p, lines in sources.items()}
+        unseen = {p: len(sources[p]) - len(excerpts[p]) for p in sources if len(sources[p]) > len(excerpts[p])}
         prompt = (
             "For each new calendar or timekeeping hypothesis, cite the file, line, and exact code from "
             "the supplied numbered passages. Explain the expected behavior. Return an empty list if none. "
             "Order leads by priority for testing.\n"
             + context
-            + "\n".join(A._data(p, A.numbered("\n".join(lines))) for p, lines in excerpts.items())
+            + "\n".join(
+                A._data(p, A.numbered("\n".join(lines)))
+                + (f"\n(The file continues for {unseen[p]} more lines that are not shown.)" if p in unseen else "")
+                for p, lines in excerpts.items()
+            )
         )
         try:
             result = self._agent(inv, rt, "bat-scout", "inspect_js_sources", prompt, A.SourceLeads)
@@ -1684,29 +1700,32 @@ class Engine:
         for lead in result.items:
             lines = sources.get(lead.path, [])
             quote = lead.quote.strip()
-            visible = excerpts.get(lead.path, [])
-            if (
-                lead.line > len(visible)
-                or not quote
-                or quote not in visible[lead.line - 1]
-                or not lead.hypothesis.strip()
-                or not lead.expectation.strip()
-            ):
+            claim = f"{lead.hypothesis.strip()} Expected behavior: {lead.expectation.strip()}"
+            # Agents find the suspicious code but miscount lines. Code looks for the quote where it really is; only a
+            # quote that is nowhere in the file is rejected.
+            found = leads.locate(lines[: len(excerpts.get(lead.path, []))], lead.line, quote)
+            problems = [
+                *(["the quote is not in the file text shown to Bat Scout"] if found is None else []),
+                *(["the lead has no hypothesis"] if not lead.hypothesis.strip() else []),
+                *(["the lead has no expected behavior"] if not lead.expectation.strip() else []),
+            ]
+            if problems:
                 self._decide(
                     inv,
                     agent="bat-scout",
                     step="inspect_js_sources",
                     subject=lead.path,
-                    claim=lead.hypothesis,
+                    claim=claim,
                     evidence=[],
                     dropped=1,
-                    checks=[],
+                    checks=[f"cited {lead.path}:{lead.line}, quote {quote[:140]!r}", *problems],
                     decision="rejected",
                     rule="Unresolved source lead",
                 )
                 continue
-            claim = f"{lead.hypothesis.strip()} Expected behavior: {lead.expectation.strip()}"
-            candidate = source_candidate(lead.path, lines, lead.line, claim, lead.category)
+            assert found is not None
+            line_no, how = found
+            candidate = source_candidate(lead.path, lines, line_no, claim, lead.category)
             if any(c.id == candidate.id for c in prioritized):
                 continue
             match = next((c for c in fm.candidates if c.id == candidate.id), None)
@@ -1721,16 +1740,34 @@ class Engine:
                 step="inspect_js_sources",
                 subject=candidate.id,
                 claim=claim,
-                evidence=[Evidence(kind="source", ref=f"{lead.path}:{lead.line}", why=quote)],
+                evidence=[Evidence(kind="source", ref=f"{lead.path}:{line_no}", why=quote)],
                 dropped=0,
-                checks=["Quote matched the inspected source line"],
+                checks=[
+                    "Quote matched the inspected source line"
+                    if how == "cited"
+                    else f"Quote found at line {line_no}; the lead cited line {lead.line}"
+                ],
                 decision="accepted",
                 rule="Selected by Bat for experiment design",
             )
         fm.candidates[:0] = prioritized
 
+    WEAK_REVIEW = (
+        "No output field of your adapter feeds a rule in the catalog, so the sweep would only check that run() does "
+        "not throw and repeats itself. That cannot find a time bug. Write the adapter again so that it returns at "
+        "least one field a rule can check (next, instant, date, flag, calendar_cases with a cited contract, "
+        "next_early, or a trace field), computed through the public API."
+    )
+
     def _design(
-        self, inv: Investigation, rt: A.AgentRuntime, ex: Experiment, feedback: str | None, focus: str | None = None
+        self,
+        inv: Investigation,
+        rt: A.AgentRuntime,
+        ex: Experiment,
+        feedback: str | None,
+        focus: str | None = None,
+        review: str | None = None,
+        second_look: bool = True,
     ) -> None:
         caps, fm = inv.capabilities, inv.feature_map
         assert caps and fm and caps.test_runner
@@ -1770,6 +1807,7 @@ class Engine:
                     expectations="\n\n".join(sn.render() for sn in expectations.values()),
                     feedback=feedback,
                     focus=focus,
+                    review=review,
                 ),
                 A.AdapterOut,
             )
@@ -1801,6 +1839,25 @@ class Engine:
                 rule.expired_at_deadline = None
                 checks.append("Expiry at the exact deadline left unspecified: no verified expectation citation")
         invs = [rule for rule in invs if rule.id != "calendar_contract" or rule.expectation_ref]
+        weak = not invs
+        if weak and second_look and feedback is None:
+            self._decide(
+                inv,
+                agent="pumpkin-mechanic",
+                step="design_experiment",
+                subject=ex.id,
+                claim=out.claim,
+                evidence=kept,
+                dropped=dropped,
+                checks=[*checks, "no returned field feeds a time rule"],
+                decision="rejected",
+                rule="Weak design: only well-formed and repeatable would be checked, so Pumpkin designs it again",
+                phase="design",
+            )
+            self._design(inv, rt, ex, None, focus, review=self.WEAK_REVIEW, second_look=False)
+            return
+        if weak:
+            checks.append("Weak: no returned field feeds a time rule, so only well-formed and repeatable are checked")
         anchors = []
         for a in out.anchors:
             ms = S.parse_instant(a)
@@ -1851,6 +1908,7 @@ class Engine:
         (tw / f"points-{ex.id}.json").write_text(json.dumps(points), encoding="utf-8")
         (tw / f"baseline-{ex.id}.json").write_text(json.dumps(S.baseline_points(inv.sweep_window)), encoding="utf-8")
         ex.status, ex.claim, ex.fields, ex.invariants = "designed", out.claim, out.fields, invs
+        ex.weak = weak
         ex.anchors = [S.iso(a) for a in anchors]
         ex.zones, ex.point_count = list(points), sum(len(v) for v in points.values())
         ex.adapter_path, ex.harness_path, ex.adapter_code = adapter_rel, harness_rel, adapter_code
@@ -2208,6 +2266,19 @@ class Engine:
             )
         return rows
 
+    def _open_leads(self, inv: Investigation, known: dict[str, Candidate]) -> list[dict[str, object]]:
+        """Suspicions Bat Scout read in the code that never became an experiment: the lead could not be tied to a
+        quote in the file. The planner sees them with the candidates that live in the same file, so a suspicion
+        is not lost because a line number was off. Computed from the case record, never by an agent."""
+        out: list[dict[str, object]] = []
+        for d in inv.decisions:
+            if d.step != "inspect_js_sources" or d.decision != "rejected" or d.rule != "Unresolved source lead":
+                continue
+            ids = [c.id for c in known.values() if c.unit.path == d.subject]
+            if ids and d.claim not in {str(x["suspicion"]) for x in out}:
+                out.append({"path": d.subject, "candidate_ids": ids[:4], "suspicion": d.claim[:500]})
+        return out[:8]
+
     def _plan_rounds(
         self,
         inv: Investigation,
@@ -2242,6 +2313,7 @@ class Engine:
                 ],
                 "previous_intents": [{"candidate_id": i.candidate_id, "focus": i.focus, "status": i.status}
                                      for i in inv.intents],
+                "untested_suspicions": self._open_leads(inv, known),
             }  # fmt: skip
             cands = [{"candidate_id": c.id, "unit": c.unit.name, "path": c.unit.path, "categories": c.bug_categories}
                      for c in known.values()]  # fmt: skip

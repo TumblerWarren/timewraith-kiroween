@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     environment_repair_rounds: int = 2
     # When those rounds fail, the install mechanic gets a shell (build steps, config, Node) for this long.
     environment_session_s: int = 20 * 60
+    # How much of each source file Bat Scout reads when it looks for leads (characters). A file that is longer is cut,
+    # and the agent is told how many lines it did not see.
+    lead_source_chars: int = 24_000
     # The package that supplies Temporal. It is installed outside the repository, only when the code under test uses
     # Temporal and this Node lacks it.
     temporal_polyfill: str = "temporal-polyfill"

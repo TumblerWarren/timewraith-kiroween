@@ -339,7 +339,7 @@ def run_body(adapter_path: str) -> str:
         f"const m = await load({mod!r});\n"
         "const a = m && m.default && typeof m.default.run === 'function' ? m.default : m;\n"
         "const out = await a.run({ now: new Date(Date.now()), tz: process.env.TZ || 'UTC', "
-        "cancelledRetry, timerTrace, expiryTrace, clockJumps });\n"
+        "cancelledRetry, timerTrace, expiryTrace, clockJumps, atClock });\n"
         "print('now', new Date(Date.now()), 'zone', process.env.TZ);\n"
         "for (const [k, v] of Object.entries(out || {})) print(k, '=', v);"
     )
