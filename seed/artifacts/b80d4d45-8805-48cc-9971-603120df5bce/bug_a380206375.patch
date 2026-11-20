@@ -1,0 +1,104 @@
+diff --git a/src/parseoptions.ts b/src/parseoptions.ts
+index 60e2567..8eb830a 100644
+--- a/src/parseoptions.ts
++++ b/src/parseoptions.ts
+@@ -40,7 +40,8 @@ export function parseOptions(options: Partial<Options>) {
+     throw new Error(`Invalid frequency: ${opts.freq} ${options.freq}`)
+   }
+ 
+-  if (!opts.dtstart) opts.dtstart = new Date(new Date().setMilliseconds(0))
++  if (!opts.dtstart)
++    opts.dtstart = new Date(Math.floor(Date.now() / 1000) * 1000)
+ 
+   if (!isPresent(opts.wkst)) {
+     opts.wkst = RRule.MO.weekday
+--- /dev/null
++++ b/src/__tw__/exp_a380206375.adapter.ts
+@@ -0,0 +1,48 @@
++// @ts-nocheck
++const m = require('../parseoptions')
++
++function summarize(po) {
++  const o = po.parsedOptions
++  return {
++    dtstart: o.dtstart instanceof Date ? o.dtstart.getTime() : o.dtstart,
++    until: o.until instanceof Date ? o.until.getTime() : (o.until === undefined ? null : o.until),
++    bymonth: o.bymonth === undefined ? null : o.bymonth,
++    bymonthday: o.bymonthday,
++    byweekday: o.byweekday === undefined ? null : o.byweekday,
++    byhour: o.byhour,
++    byminute: o.byminute,
++    bysecond: o.bysecond,
++  }
++}
++
++function run(ctx) {
++  const U = Date.UTC
++  const cases = [
++    { tzid: 'America/New_York', dtstart: new Date(U(2024, 2, 10, 2, 30, 0)), until: new Date(U(2024, 2, 10, 7, 30, 0)) },
++    { tzid: 'America/New_York', dtstart: new Date(U(2024, 10, 3, 1, 30, 0)), until: new Date(U(2024, 10, 3, 6, 30, 0)) },
++    { tzid: 'Australia/Lord_Howe', dtstart: new Date(U(2024, 9, 6, 2, 15, 0)), until: new Date(U(2024, 3, 7, 1, 45, 0)) },
++    { tzid: 'Asia/Kathmandu', dtstart: new Date(U(2024, 0, 31, 23, 59, 59)) },
++    { tzid: 'America/New_York', dtstart: new Date(U(2024, 0, 31, 23, 59, 59)) },
++    { tzid: 'Australia/Lord_Howe', dtstart: new Date(U(2024, 1, 29, 0, 0, 0)) },
++    { tzid: 'Asia/Kathmandu', dtstart: new Date(U(2024, 1, 29, 23, 59, 59)) },
++    { tzid: 'America/New_York', dtstart: new Date(U(2023, 0, 31, 0, 0, 0)) },
++  ]
++  const freqs = [0, 1, 2, 3]
++  const results = []
++  for (const c of cases) {
++    for (const freq of freqs) {
++      const opts = { freq: freq, tzid: c.tzid, dtstart: c.dtstart }
++      if (c.until) opts.until = c.until
++      results.push(summarize(m.parseOptions(opts)))
++    }
++  }
++  // Default dtstart taken from the current time
++  const defaults = []
++  for (const freq of [0, 1, 2, 3, 4, 5, 6]) {
++    defaults.push(summarize(m.parseOptions({ freq: freq, tzid: 'America/New_York' })))
++  }
++  const dflt = m.parseOptions({ freq: 3 }).parsedOptions.dtstart
++  return { instant: dflt, value: { results: results, defaults: defaults } }
++}
++
++module.exports = { run }
+--- /dev/null
++++ b/src/__tw__/bug_a380206375.regression.test.ts
+@@ -0,0 +1,36 @@
++// @ts-nocheck
++// TimeWraith regression test: Raven Archivist's reproduction, rerun by code before it was accepted.
++// Failed on jkbrzt/rrule@9f2061febeeb at 2026-11-01T09:00:00.000Z, 2026-11-01T09:00:00.000Z. Run with TZ=America/Los_Angeles.
++
++function print() {}
++function check(cond, msg) {
++  const rule = String(msg || 'check');
++  expect({ rule, holds: Boolean(cond) }).toEqual({ rule, holds: true });
++}
++async function load(p) { return require("../../" + String(p).replace(/^\/+/, '')); }
++
++test("Default dtstart (now) shifts by one hour during the repeated DST hour", async () => {
++  jest.useFakeTimers();
++  jest.setSystemTime(new Date(1793523600000));
++  const now = new Date(1793523600000);  // the same `now` the probe had
++  try {
++const m = await load('src/parseoptions');
++const d = m.parseOptions({freq:3}).parsedOptions.dtstart;
++check(d.getTime() === Date.now(), 'default dtstart should equal now: '+d.toISOString());
++  } finally {
++    jest.useRealTimers();
++  }
++}, 60000);
++
++test("Default dtstart (now) shifts by one hour during the repeated DST hour (through the public API)", async () => {
++  jest.useFakeTimers();
++  jest.setSystemTime(new Date(1793523600000));
++  const now = new Date(1793523600000);  // the same `now` the probe had
++  try {
++const {RRule} = await load('src/rrule');
++const r = new RRule({freq: RRule.DAILY, count:1});
++check(r.options.dtstart.getTime() === Date.now(), 'RRule default dtstart '+r.options.dtstart.toISOString());
++  } finally {
++    jest.useRealTimers();
++  }
++}, 60000);

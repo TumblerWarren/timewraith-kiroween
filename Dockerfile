@@ -1,4 +1,4 @@
-﻿# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1
 # TimeWraith in one image: the API and the built UI. Run it with compose.yaml (it also starts the Kiro Crew).
 
 # ---- 1. build the UI ----
@@ -31,6 +31,8 @@ COPY backend/schemas ./schemas
 COPY backend/docker ./docker
 COPY backend/README.md ./
 RUN uv sync --frozen --no-dev
+# The example cases judges see on first start (see backend/src/timewraith/importer.py, import_seed_once).
+COPY seed /app/seed
 COPY --from=web /web/dist /app/web
 # The entrypoint starts as root to reach the Docker socket, then runs the app as `tw` (see backend/docker/entrypoint.sh).
 RUN sed -i 's/\r$//' /app/backend/docker/entrypoint.sh \

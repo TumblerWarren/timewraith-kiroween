@@ -38,7 +38,7 @@ Requirement: Docker (Docker Desktop 4.29 or later, or Docker Engine 26 or later)
 docker run -d --name timewraith --restart unless-stopped -p 127.0.0.1:8787:8787 --label com.docker.compose.project=timewraith --label com.docker.compose.service=app -v timewraith-data:/data -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/tumblerwarren/timewraith-kiroween:latest
 ```
 
-Then open <http://localhost:8787>. The page walks you through the rest: it starts the Kiro Crew and GitHub containers itself, and you sign in to Kiro once with your own account (approve a code in your browser). The image runs on `linux/amd64` and `linux/arm64`. To remove everything later: `docker rm -f timewraith` and `docker volume rm timewraith-data`.
+Then open <http://localhost:8787>. The image already contains four finished cases (node-cron, rrule, cron-parser and date-fns), so you can read a complete run without signing in or spending credits. The page walks you through the rest: it starts the Kiro Crew and GitHub containers itself, and you sign in to Kiro once with your own account (approve a code in your browser). The image runs on `linux/amd64` and `linux/arm64`. To remove everything later: `docker rm -f timewraith` and `docker volume rm timewraith-data`.
 
 `:latest` is the image built from `main` the last time the maintainer ran the publish workflow by hand. Merges do not publish. To pin one build, use its commit tag, for example `ghcr.io/tumblerwarren/timewraith-kiroween:sha-1234567`.
 ## Run it with Docker (one command)

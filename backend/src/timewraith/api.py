@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import ENGINE_VERSION, crew, gitbox, sandbox
+from . import ENGINE_VERSION, crew, gitbox, importer, sandbox
 from .agents import make_runtime
 from .config import get_settings
 from .fixsession import ToolError, ToolSession
@@ -36,6 +36,11 @@ from .store import Store
 settings = get_settings()
 settings.check_paths()
 store = Store(settings.db_path)
+# The example cases shipped in the image load before anything reads the store. A bad seed must never stop the app.
+try:
+    importer.import_seed_once(settings.seed_dir, settings)
+except Exception as e:  # noqa: BLE001 (any failure here is reported, not fatal)
+    print(f"saved cases were not loaded: {e}", flush=True)
 engine = Engine(settings, store)
 engine.recover()
 

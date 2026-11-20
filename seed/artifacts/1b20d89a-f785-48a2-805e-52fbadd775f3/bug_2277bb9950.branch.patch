@@ -1,0 +1,118 @@
+From b7c36cfadc127e3b3c428317e395423bd0a1fc4b Mon Sep 17 00:00:00 2001
+From: TimeWraith <timewraith@localhost>
+Date: Wed, 18 Nov 2026 15:34:20 +0000
+Subject: [PATCH] fix: addHour does not advance at Lord Howe DST end; hourly
+ cron throws
+
+addHour now always moves forward at a 30-minute DST end (Lord Howe), and
+next() continues from that point instead of resetting minutes back into
+the past.
+
+Cause: At Lord Howe's DST end the clock goes from 02:00 +11 back to
+  01:30 +10:30, so only half of hour 01 repeats. addHour did
+  plus(1h).startOf('hour'): from 01:00 +11 (14:00Z) that gives 01:30
+  +10:30, and flooring to 01:00 can only resolve to 01:00 +11, which is
+  the same instant. So addHour did not advance.
+
+Test: tests/CronDate.addhour-advance-lord-howe.test.ts fails without the
+  fix and passes with it.
+
+Related: #453
+---
+ src/CronDate.ts                               |  6 ++-
+ src/CronExpression.ts                         |  7 +++
+ ...CronDate.addhour-advance-lord-howe.test.ts | 46 +++++++++++++++++++
+ 3 files changed, 58 insertions(+), 1 deletion(-)
+ create mode 100644 tests/CronDate.addhour-advance-lord-howe.test.ts
+
+diff --git a/src/CronDate.ts b/src/CronDate.ts
+index e0cdb7d..5a6b474 100644
+--- a/src/CronDate.ts
++++ b/src/CronDate.ts
+@@ -142,7 +142,11 @@ export class CronDate {
+    * Adds one hour to the current CronDate.
+    */
+   addHour(): void {
+-    this.#date = this.#date.plus({ hours: 1 }).startOf('hour');
++    const next = this.#date.plus({ hours: 1 }).startOf('hour');
++    // When a DST end repeats only part of an hour (Lord Howe: 02:00 +11 -> 01:30 +10:30), flooring
++    // the wall clock lands back in the earlier offset. Then the next boundary is one elapsed hour
++    // after the start of the current hour, which is the transition instant.
++    this.#date = next > this.#date ? next : this.#date.startOf('hour').plus({ hours: 1 });
+   }
+ 
+   /**
+diff --git a/src/CronExpression.ts b/src/CronExpression.ts
+index 7805c5c..fead24c 100644
+--- a/src/CronExpression.ts
++++ b/src/CronExpression.ts
+@@ -196,7 +196,14 @@ export class CronExpression {
+     }
+ 
+     // Roll over to the next/previous hour and start from the min/max allowed minute/second.
++    const previousOffset = currentDate.getUTCOffset();
+     currentDate.applyDateOperation(dateMathVerb, TimeUnit.Hour, this.#fields.hour.values.length);
++    // A sub-hour DST end (e.g. Lord Howe, 02:00 +11 -> 01:30 +10:30) makes the next hour start
++    // mid-way through the repeated wall-clock hour. Its earlier minutes only exist in the old
++    // offset, in the past, so setting them would move backwards: search on from here instead.
++    if (!reverse && currentDate.getUTCOffset() < previousOffset && currentDate.getMinutes() !== 0) {
++      return;
++    }
+     currentDate.setMinutes(this.#getMinOrMax(minutes, reverse));
+     currentDate.setSeconds(this.#getMinOrMax(seconds, reverse));
+   }
+diff --git a/tests/CronDate.addhour-advance-lord-howe.test.ts b/tests/CronDate.addhour-advance-lord-howe.test.ts
+new file mode 100644
+index 0000000..d8f3848
+--- /dev/null
++++ b/tests/CronDate.addhour-advance-lord-howe.test.ts
+@@ -0,0 +1,46 @@
++// Regression test, drafted by TimeWraith: Raven Archivist's reproduction, rerun by code before it was accepted.
++// Failed on harrisiirak/cron-parser@5c378949a738 at 2024-04-06T14:00:00.000Z, 2024-04-06T14:00:00.000Z. Run with TZ=Australia/Lord_Howe.
++
++function print(..._args: unknown[]): void {}
++function check(cond: unknown, msg?: string): void {
++  const rule = String(msg || 'check');
++  expect({ rule, holds: Boolean(cond) }).toEqual({ rule, holds: true });
++}
++// eslint-disable-next-line @typescript-eslint/no-explicit-any
++async function load(p: string): Promise<any> {
++  return require('../' + String(p).replace(/^\/+/, ''));
++}
++
++test('addHour does not advance at Lord Howe DST end; hourly cron throws', async () => {
++  jest.useFakeTimers();
++  jest.setSystemTime(new Date(1712412000000));
++  const now = new Date(1712412000000); // the same `now` the probe had
++  try {
++    const C = (await load('src/CronDate')).CronDate;
++    const t = new Date(Date.now());
++    const d = new C(t, 'Australia/Lord_Howe');
++    d.addHour();
++    check(d.toDate().getTime() > t.getTime(), 'addHour must advance');
++  } finally {
++    jest.useRealTimers();
++  }
++}, 60000);
++
++test('addHour does not advance at Lord Howe DST end; hourly cron throws (through the public API)', async () => {
++  jest.useFakeTimers();
++  jest.setSystemTime(new Date(1712412000000));
++  const now = new Date(1712412000000); // the same `now` the probe had
++  try {
++    const P = (await load('src/CronExpressionParser')).CronExpressionParser;
++    const now = new Date(Date.now());
++    let n;
++    try {
++      n = P.parse('0 * * * *', { currentDate: now, tz: 'Australia/Lord_Howe' }).next().getTime();
++    } catch (e) {
++      n = null;
++    }
++    check(n !== null && n > now.getTime(), 'next() returns a time after now');
++  } finally {
++    jest.useRealTimers();
++  }
++}, 60000);
+-- 
+2.39.5
+

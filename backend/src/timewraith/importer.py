@@ -56,8 +56,15 @@ def _open_copy(src_db: Path, scratch: Path) -> sqlite3.Connection:
     return sqlite3.connect(scratch / "src.sqlite3")
 
 
-def import_cases(source: Path, settings: Settings, only: list[str] | None = None, replace: bool = False) -> list[str]:
-    """Import the cases of `source` (a data folder) into `settings.data_dir`. Returns the ids that were imported."""
+def import_cases(
+    source: Path,
+    settings: Settings,
+    only: list[str] | None = None,
+    replace: bool = False,
+    folders: tuple[str, ...] = FOLDERS,
+) -> list[str]:
+    """Import the cases of `source` (a data folder) into `settings.data_dir`. Returns the ids that were imported.
+    `folders` limits which case folders are copied; a folder the source does not have is skipped."""
     src_db = source / "timewraith.sqlite3"
     if not src_db.is_file():
         raise FileNotFoundError(f"{src_db} does not exist: pass a TimeWraith data folder")
@@ -76,7 +83,7 @@ def import_cases(source: Path, settings: Settings, only: list[str] | None = None
             inv = Investigation.model_validate(rewrite(json.loads(doc), settings.data_dir))
             store.save(inv)
             _copy_rows(conn, settings, inv_id)
-            for folder in FOLDERS:
+            for folder in folders:
                 src_folder, dst_folder = source / folder / inv_id, settings.data_dir / folder / inv_id
                 if src_folder.is_dir():
                     shutil.rmtree(dst_folder, ignore_errors=True)
@@ -84,6 +91,22 @@ def import_cases(source: Path, settings: Settings, only: list[str] | None = None
             done.append(inv_id)
             print(f"imported {inv_id}")
         conn.close()
+    return done
+
+
+SEEDED_MARK = ".seeded"
+
+
+def import_seed_once(seed: Path, settings: Settings) -> list[str]:
+    """Copy the example cases shipped in the image (`seed/`) into the data folder, once per data volume. A marker file
+    records that it happened, so a case that is deleted stays deleted and a restart does not copy it back. Returns the
+    ids copied; nothing happens when the seed folder is missing."""
+    marker = settings.data_dir / SEEDED_MARK
+    if not (seed / "timewraith.sqlite3").is_file() or marker.exists():
+        return []
+    settings.check_paths()
+    done = import_cases(seed, settings)
+    marker.write_text("\n".join(done) + "\n", encoding="utf-8")
     return done
 
 
@@ -111,9 +134,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("source", type=Path, help="the data folder to read (it is not changed)")
     p.add_argument("--case", action="append", help="import only this case id (repeatable)")
     p.add_argument("--replace", action="store_true", help="overwrite a case that already exists here")
+    p.add_argument(
+        "--no-workspaces",
+        action="store_true",
+        help="leave out the cloned repositories (workspaces); the case still shows, but cannot be re-run from it",
+    )
     args = p.parse_args(argv)
     try:
-        done = import_cases(args.source, Settings(), args.case, args.replace)
+        folders = ("branches", "artifacts") if args.no_workspaces else FOLDERS
+        done = import_cases(args.source, Settings(), args.case, args.replace, folders)
     except (OSError, ValueError) as e:
         print(f"import failed: {e}", file=sys.stderr)
         return 1
