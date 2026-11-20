@@ -575,3 +575,94 @@ def test_the_reply_schema_names_no_length_limit() -> None:
     import json
 
     assert "maxLength" not in json.dumps(A.ReviewFixOut.model_json_schema())
+
+
+# ---------- why a case finds nothing: citations, slow functions, honest counts ----------
+
+
+def test_a_citation_inside_a_supplied_passage_is_that_passage() -> None:
+    from timewraith.pipeline import _resolve_citation
+
+    keys = ["tests/rrule.test.ts:100-140", "README.md:5-9"]
+    assert _resolve_citation("tests/rrule.test.ts:120-125", keys) == "tests/rrule.test.ts:100-140"
+    assert _resolve_citation("./tests/rrule.test.ts:90-101", keys) == "tests/rrule.test.ts:100-140"
+    assert _resolve_citation("tests/other.test.ts:120-125", keys) is None, "a file code never supplied"
+    assert _resolve_citation("tests/rrule.test.ts:10-20", keys) is None, "lines no passage covers"
+    assert _resolve_citation("not a citation", keys) is None
+
+
+def test_thin_points_keep_the_instants_around_dst_changes() -> None:
+    ny = sorted(S.zone_points("America/New_York", [], (2026,)))
+    utc = sorted(S.zone_points("UTC", [], (2026,)))
+    thin = S.thin_points({"America/New_York": ny, "UTC": utc})
+    changes = [S._ms(tr) for tr in S.dst_transitions("America/New_York", 2026)]
+    assert thin["America/New_York"] and len(thin["America/New_York"]) < len(ny)
+    assert all(any(abs(t - c) <= 2 * 3_600_000 for c in changes) for t in thin["America/New_York"])
+    assert 0 < len(thin["UTC"]) <= 26, "a zone without DST keeps a thin spread"
+
+
+class _CitingPumpkin(Rt):
+    def __init__(self) -> None:
+        super().__init__(sessions=False)
+        self.prompts: list[str] = []
+
+    def call(self, agent: str, step: str, prompt: str, schema: Any) -> Any:
+        self.prompts.append(prompt)
+        first = len(self.prompts) == 1
+        return A.AdapterOut(
+            claim="c",
+            fields=["calendar_cases"] if first else ["next"],
+            invariants=[InvariantUse(id="calendar_contract", reason="r", expectation_ref="tests/x.ts:1-2")],
+            adapter_code="import { nextAfter } from '../months.js';\nexport function run(ctx) { return { next: 1 }; }",
+        )
+
+
+def test_the_second_look_says_what_code_dropped_and_what_it_accepts(engine: Engine, ws: Path) -> None:
+    inv, ex = _design_setup(engine, ws)
+    rt = _CitingPumpkin()
+    engine._design(inv, rt, ex, None)  # type: ignore[arg-type]
+    review = rt.prompts[1]
+    assert "Dropped unrecognized expectation citation for calendar_contract" in review
+    assert "No repository test or documentation passage about this API was found" in review
+    assert "instant, date, next, flag or next_early" in review
+
+
+def _slow(engine: Engine, ws: Path) -> tuple[Investigation, Experiment]:
+    inv, ex = _design_setup(engine, ws)
+    ex.status, ex.invariants, ex.fields = "designed", [InvariantUse(id="next_after_now", reason="r")], ["next"]
+    inv.test_plan = TestPlan(experiments=[ex])
+    pts = {z: sorted(S.zone_points(z, [], (2026,))) for z in ("UTC", "America/New_York")}
+    (ws / ".tw").mkdir(exist_ok=True)
+    (ws / ".tw" / f"points-{ex.id}.json").write_text(__import__("json").dumps(pts), "utf8")
+    ex.point_count = sum(map(len, pts.values()))
+    return inv, ex
+
+
+TIMEOUT = ["UTC: no harness output. TIMEOUT: src/__tw__/x.tw.test.ts exceeded 300 s"]
+
+
+def test_a_function_too_slow_for_the_full_sweep_is_swept_on_the_instants_near_dst_changes(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    inv, ex = _slow(engine, ws)
+    full_count = ex.point_count
+    start = S._ms(datetime(2026, 11, 1, 6, 0, tzinfo=S.UTC))
+    data = {"America/New_York": [{"t": start, "r0": {"next": start + 1}, "r1": {"next": start + 1}}]}
+    answers = iter([({}, TIMEOUT), (data, [])])
+    monkeypatch.setattr(engine, "_sweep", lambda inv, exps, zones, set_name="points": {ex.id: next(answers)})
+    engine._sweep_and_verify(inv, Rt(sessions=False), [ex], set())  # type: ignore[arg-type]
+    assert ex.status == "swept" and ex.point_count < full_count
+    assert (ws / ".tw" / f"points-{ex.id}.full.json").is_file()
+    assert any("hit the time limit" in n and "around DST changes" in n for n in inv.notes)
+
+
+def test_an_experiment_that_measured_nothing_did_not_run(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    inv, ex = _slow(engine, ws)
+    monkeypatch.setattr(engine, "_sweep", lambda inv, exps, zones, set_name="points": {ex.id: ({}, TIMEOUT)})
+    engine._sweep_and_verify(inv, Rt(sessions=False), [ex], set())  # type: ignore[arg-type]
+    assert ex.status == "not_run" and ex.failure_kind == "timeout"
+    engine._run_health(inv)
+    assert inv.run_summary and inv.run_summary.ran == 0 and inv.run_summary.timeout == 1
+    assert any(n.startswith("Attention:") and "could not run" in n for n in inv.notes)
