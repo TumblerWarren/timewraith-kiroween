@@ -875,7 +875,7 @@ class Engine:
             self._plan_rounds(inv, rt, swept, baseline_keys, t0, first)
         inv.coverage = self._ledger(inv)
         self.store.save(inv)
-        owed = [b for b in inv.bugs if b.fix.state == "not-started"]
+        owed = [b for b in self._distinct(inv.bugs) if b.fix.state == "not-started"]
         if owed:
             self._fix_bugs(inv, rt, owed[: self.s.max_bugs_to_fix], swept, baseline_keys, t0)
         if not inv.bugs and not inv.intended and not any(r.violations for r in inv.sweeps):
@@ -2132,8 +2132,9 @@ class Engine:
 
         # Follow-on: Fix
         if inv.bugs:
-            self._fix_bugs(inv, rt, inv.bugs[: self.s.max_bugs_to_fix], valid, baseline_keys, t0)
-            for bug in inv.bugs[self.s.max_bugs_to_fix :]:
+            distinct = self._distinct(inv.bugs)
+            self._fix_bugs(inv, rt, distinct[: self.s.max_bugs_to_fix], valid, baseline_keys, t0)
+            for bug in distinct[self.s.max_bugs_to_fix :]:
                 bug.fix.state, bug.fix.label = "skipped", "Fix not attempted: fix budget reached"
         elif inv.intended:
             n = len(inv.intended)
@@ -2145,6 +2146,23 @@ class Engine:
         self._run_health(inv)
         self._reveal(inv, rt)
         self._finish(inv)
+
+    @staticmethod
+    def _distinct(bugs: list[Bug]) -> list[Bug]:
+        """The bugs that each need their own fix. A bug that fails at the same zone and instant as an earlier one and
+        cites overlapping source lines is the same failure seen through another rule or experiment: it is not fixed
+        again, and says which bug it follows. Without this, three copies of one bug spent three fix attempts each."""
+        reps: list[Bug] = []
+        for bug in bugs:
+            twin = next((r for r in reps if _same_failure(r, bug)), None)
+            if twin is None:
+                reps.append(bug)
+            elif bug.fix.state == "not-started":
+                bug.fix = Fix(
+                    state="skipped",
+                    label=f"Same failure point and source line as {twin.id}: not fixed separately",
+                )
+        return reps
 
     def _fix_bugs(
         self,
@@ -3998,7 +4016,8 @@ class Engine:
         finding = (
             f"{bug.title}\nRule {bug.invariant}: {S.INVARIANTS[bug.invariant][1]}\n"
             f"Violation: {bug.violation.detail} at {bug.violation.local} ({bug.violation.zone})\n"
-            f"Code under test: {cand.unit.name} in {cand.unit.path}:{cand.unit.start_line}"
+            f"Code under test: {cand.unit.name} in {cand.unit.path}:{cand.unit.start_line}\n"
+            f"The rule does not count this as a violation (so do not make it one): {S.INVARIANTS[bug.invariant][2]}"
         )
         feedback: str | None = None
         previous_diff: str | None = None
@@ -4414,7 +4433,7 @@ class Engine:
             after_keys |= _keys(eid, vs)
         worse = sorted(after_keys - baseline_keys)
         detail = (
-            ("New violations: " + "; ".join(f"{k[1]} {k[2]}" for k in worse[:4]))
+            _new_violation_detail(worse, after)
             if worse
             else (f"{len(exps)} experiments swept again, no new violations")
         )
@@ -4841,6 +4860,55 @@ def _next_bug_id(inv: Investigation, ex: Experiment) -> str:
         index += 1
         candidate = f"{base}_{index}"
     return candidate
+
+
+def _new_violation_detail(worse: list[VKey], after: dict[str, list[Violation]]) -> str:
+    """What the patch broke, in words the fixer can act on. The keys alone say which rule failed where; the violation
+    says what happened ("next moved backwards from A to B"), and that is what shows which rule the patch got wrong."""
+    said: dict[VKey, str] = {}
+    for eid, vs in after.items():
+        for v in vs:
+            said[(eid, v.invariant, v.zone, v.instant, v.failure_kind)] = v.detail
+    seen: set[tuple[str, str, str]] = set()
+    lines: list[str] = []
+    for key in worse:
+        _eid, invariant, zone, instant, kind = key
+        if (invariant, zone, kind) in seen:
+            continue
+        seen.add((invariant, zone, kind))
+        lines.append(f"{invariant} ({kind}) in {zone} at {instant}: {said.get(key, 'no detail')}")
+        if len(lines) == 4:
+            break
+    return (
+        "New violations after the patch: "
+        + "; ".join(lines)
+        + ". The patch made other inputs wrong. Make the same rule hold for every start time around the transition: "
+        "just before it, inside it and just after it."
+    )
+
+
+_SOURCE_REF = re.compile(r"^(?P<path>.+?):(?P<a>\d+)(?:-(?P<b>\d+))?$")
+
+
+def _source_spans(bug: Bug) -> list[tuple[str, int, int]]:
+    spans = []
+    for e in bug.evidence:
+        m = _SOURCE_REF.match(e.ref) if e.kind == "source" else None
+        if m:
+            spans.append((m["path"], int(m["a"]), int(m["b"] or m["a"])))
+    return spans
+
+
+def _same_failure(a: Bug, b: Bug) -> bool:
+    """The same zone and instant, and a source line both cite. Both together: a shared instant alone is a coincidence
+    (two functions can break at one DST change), and a shared line alone can be two different inputs."""
+    if (a.violation.zone, a.violation.instant) != (b.violation.zone, b.violation.instant):
+        return False
+    return any(
+        pa == pb and lo_a <= hi_b and lo_b <= hi_a
+        for pa, lo_a, hi_a in _source_spans(a)
+        for pb, lo_b, hi_b in _source_spans(b)
+    )
 
 
 def _keys(exp_id: str, vs: list[Violation]) -> set[VKey]:
