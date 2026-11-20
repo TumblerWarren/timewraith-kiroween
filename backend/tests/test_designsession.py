@@ -454,3 +454,124 @@ def test_a_design_that_stays_weak_runs_and_is_marked(engine: Engine, ws: Path) -
     inv.test_plan = TestPlan(experiments=[ex])
     engine._run_health(inv)
     assert any("could not find a time bug" in n for n in inv.notes)
+
+
+# ---------- the reviewer's objection counts only when code can reproduce it ----------
+
+from timewraith.models import Bug, ClockConfig, GateResult, Violation  # noqa: E402
+
+PROBE = "const m = await load('src/time');\ncheck(m.next() === 1, 'next is 1');"
+START = "2027-04-03T13:30:00.000Z"
+LATER = "2027-04-03T14:30:00.000Z"
+
+
+def _bug() -> Bug:
+    return Bug(
+        id="bug_1", candidate_id="c1", experiment_id="exp_1", title="t", category="dst_transition",
+        invariant="next_clock_independent", status="reproduced", failure="f",
+        clock=ClockConfig(instant=START, time_zone="UTC", label="l"),
+        violation=Violation(failure_kind="k", invariant="next_clock_independent", zone="UTC", instant=START,
+                            local=START, detail="d"),
+        regression_test_path="src/__tw__/bug_1.regression.test.js", regression_test="test()",
+        reproduction={"code": "check(true, 'x')"},
+    )  # fmt: skip
+
+
+class _Reviewer(Rt):
+    def __init__(self, reply: A.ReviewFixOut) -> None:
+        super().__init__(sessions=False)
+        self.reply, self.prompts = reply, []
+
+    def call(self, agent: str, step: str, prompt: str, schema: Any) -> Any:
+        assert step == "review_fix"
+        self.prompts.append(prompt)
+        return self.reply
+
+
+def _review(engine: Engine, ws: Path, mp: pytest.MonkeyPatch, reply: A.ReviewFixOut, statuses: list[str]) -> Any:
+    """Run the gate with a fake sandbox that answers probe runs from `statuses`, in order."""
+    from timewraith import pipeline as P
+
+    inv = case()
+    inv.capabilities = CapabilityReport(test_runner="jest")
+    runs: list[str] = []
+
+    def fake_probe(s: Any, w: Path, caps: Any, rel: str, zone: str, ms: int, **kw: Any) -> ProbeResult:
+        runs.append(S.iso(ms))
+        return ProbeResult(statuses[len(runs) - 1], ["CHECK FAILED: next is 1"])
+
+    mp.setattr(P.sandbox, "probe", fake_probe)
+    mp.setattr(engine, "_clean_tree", lambda w: None)
+    rt = _Reviewer(reply)
+    gate = engine._review_gate(inv, rt, _bug(), "diff", [GateResult(gate="fixed", passed=True, detail="ok")], None)  # type: ignore[arg-type]
+    return gate, rt, runs
+
+
+def _probe(control: str | None = None) -> A.ReviewProbe:
+    return A.ReviewProbe(code=PROBE, zone="Australia/Lord_Howe", instant=START, control_instant=control)
+
+
+def test_an_approval_passes_and_the_reviewer_is_shown_what_already_passed(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gate, rt, runs = _review(engine, ws, monkeypatch, A.ReviewFixOut(approve=True, reason="fine"), [])
+    assert gate.passed and gate.detail == "fine" and runs == []
+    assert "fixed: passed. ok" in rt.prompts[0] and "check(true, 'x')" in rt.prompts[0]
+
+
+def test_a_worry_without_a_probe_is_a_note_and_does_not_block(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reply = A.ReviewFixOut(approve=False, reason="might skip a run")
+    gate, _, runs = _review(engine, ws, monkeypatch, reply, [])
+    assert gate.passed and "does not block" in gate.detail and "might skip a run" in gate.detail and runs == []
+
+
+def test_a_probe_that_fails_on_the_patch_and_passes_on_the_original_blocks_it(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reply = A.ReviewFixOut(approve=False, reason="breaks Lord Howe", probe=_probe())
+    gate, _, runs = _review(engine, ws, monkeypatch, reply, ["check_failed"] * 3 + ["passed"])
+    assert not gate.passed and "Reproduced by code" in gate.detail and "passes on the original" in gate.detail
+    assert len(runs) == 4
+
+
+def test_a_probe_that_fails_everywhere_does_not_block_without_a_control(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reply = A.ReviewFixOut(approve=False, reason="wrong", probe=_probe())
+    gate, _, _ = _review(engine, ws, monkeypatch, reply, ["check_failed"] * 3 + ["check_failed"])
+    assert gate.passed and "also fails on the original" in gate.detail
+
+
+def test_a_control_point_that_passes_makes_an_incomplete_fix_count(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reply = A.ReviewFixOut(approve=False, reason="still wrong", probe=_probe(control=LATER))
+    gate, _, runs = _review(engine, ws, monkeypatch, reply, ["check_failed"] * 3 + ["passed", "check_failed"])
+    assert not gate.passed and "passes at" in gate.detail and runs[3] == LATER
+
+
+def test_a_probe_that_passes_on_the_patch_refutes_the_worry(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reply = A.ReviewFixOut(approve=False, reason="wrong", probe=_probe())
+    gate, _, runs = _review(engine, ws, monkeypatch, reply, ["passed"])
+    assert gate.passed and "did not fail its check" in gate.detail and len(runs) == 1
+
+
+def test_a_probe_that_does_not_load_the_code_or_has_a_bad_instant_is_not_run(
+    engine: Engine, ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    no_load = A.ReviewProbe(code="check(false, 'x')", zone="UTC", instant=START)
+    gate, _, runs = _review(engine, ws, monkeypatch, A.ReviewFixOut(approve=False, reason="r", probe=no_load), [])
+    assert gate.passed and "load()" in gate.detail and runs == []
+    bad = A.ReviewProbe(code=PROBE, zone="UTC", instant="yesterday")
+    gate, _, runs = _review(engine, ws, monkeypatch, A.ReviewFixOut(approve=False, reason="r", probe=bad), [])
+    assert gate.passed and "ISO 8601" in gate.detail and runs == []
+
+
+def test_the_reply_schema_names_no_length_limit() -> None:
+    import json
+
+    assert "maxLength" not in json.dumps(A.ReviewFixOut.model_json_schema())
