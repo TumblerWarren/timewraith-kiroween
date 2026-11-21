@@ -701,7 +701,9 @@ a.status-pill:hover {
   font-size: var(--text-xs);
 }
 /* A run you started has finished (app/FinishedNotices.tsx): a notice you cannot miss while looking at something else. */
-.finished-notices { display: grid; gap: var(--space-3); padding: var(--space-3) clamp(16px, 5vw, 80px) 0; }
+/* The notices sit above <main>, so they take the same container as the page (width cap, centring and gutter). Without
+   it they ran from one edge of the window to the other, wider than the content under them. */
+.finished-notices { display: grid; gap: var(--space-3); max-width: var(--content-max); margin-inline: auto; padding: var(--space-3) var(--gutter) 0; }
 .finished-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--midnight-success); border-inline-start-width: 6px; border-radius: 12px; background: var(--midnight-panel); }
 .finished-notice[data-tone="attention"] { border-color: var(--midnight-warning); }
 .finished-notice[data-tone="failed"] { border-color: var(--midnight-error); }
