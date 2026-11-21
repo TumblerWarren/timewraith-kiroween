@@ -74,3 +74,37 @@ def test_a_case_comes_over_with_its_folders_and_working_paths(tmp_path: Path) ->
     assert (src / "timewraith.sqlite3").read_bytes() == before or s_store.get("case-1"), "the source is only read"
     assert importer.import_cases(src, dest) == [], "an existing case is skipped"
     assert importer.import_cases(src, dest, replace=True) == ["case-1"]
+
+
+def test_only_branches_and_artifacts_are_copied_when_workspaces_are_left_out(tmp_path: Path) -> None:
+    src = tmp_path / "src" / ".timewraith"
+    s_settings = Settings(data_dir=src)
+    s_settings.check_paths()
+    Store(s_settings.db_path).save(_case(tmp_path / "src", "case-2"))
+    (src / "workspaces" / "case-2" / "repo").mkdir(parents=True)
+    (src / "workspaces" / "case-2" / "repo" / "big.txt").write_text("big")
+    (src / "artifacts" / "case-2").mkdir(parents=True)
+    (src / "artifacts" / "case-2" / "a.patch").write_text("p")
+    dest = Settings(data_dir=tmp_path / "volume")
+    assert importer.import_cases(src, dest, folders=("branches", "artifacts")) == ["case-2"]
+    assert (dest.data_dir / "artifacts" / "case-2" / "a.patch").is_file()
+    assert not (dest.data_dir / "workspaces" / "case-2").exists()
+    assert Store(dest.db_path).get("case-2") is not None
+
+
+def test_the_seed_is_copied_once_per_volume(tmp_path: Path) -> None:
+    seed = tmp_path / "seed"
+    seed_settings = Settings(data_dir=seed)
+    seed_settings.check_paths()
+    Store(seed_settings.db_path).save(_case(seed, "case-3"))
+    dest = Settings(data_dir=tmp_path / "volume")
+    assert importer.import_seed_once(seed, dest) == ["case-3"]
+    assert (dest.data_dir / importer.SEEDED_MARK).read_text().strip() == "case-3"
+    assert importer.import_seed_once(seed, dest) == [], "a restart does not copy it again"
+    assert Store(dest.db_path).get("case-3") is not None
+
+
+def test_a_missing_seed_folder_does_nothing(tmp_path: Path) -> None:
+    dest = Settings(data_dir=tmp_path / "volume")
+    assert importer.import_seed_once(tmp_path / "no-seed", dest) == []
+    assert not (dest.data_dir / importer.SEEDED_MARK).exists()

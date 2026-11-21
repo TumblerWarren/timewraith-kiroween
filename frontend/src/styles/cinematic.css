@@ -24,10 +24,16 @@ html[data-reduce-motion="false"] .archive-reveal:has(> .archive-reveal__skip[hid
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
-.archive-reveal__skip { position: absolute; inset: 0 auto auto 0; z-index: 3; }
+/* The skip control sits at the bottom of the window, where case-awakening-skip puts its own, and stays in view while the page scrolls. */
+.archive-reveal__skip {
+  position: fixed;
+  inset: auto 24px 24px auto;
+  z-index: var(--z-overlay, 10);
+  min-height: 44px;
+  padding: 8px 16px;
+}
 .archive-reveal__skip[hidden] { display: none; }
 #cases-footer-skip { display: none; }
-body:has(.archive-reveal__skip:not([hidden])) #cases-footer-skip { display: inline-flex; }
 body:has(.archive-reveal__skip:not([hidden])):has(#cases-footer-skip) #page-animation-replay { display: none; }
 .clock-landing {
   position: fixed;

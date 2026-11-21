@@ -458,7 +458,7 @@ def test_a_design_that_stays_weak_runs_and_is_marked(engine: Engine, ws: Path) -
 
 # ---------- the reviewer's objection counts only when code can reproduce it ----------
 
-from timewraith.models import Bug, ClockConfig, GateResult, Violation  # noqa: E402
+from timewraith.models import Bug, ClockConfig, Evidence, GateResult, Violation  # noqa: E402
 
 PROBE = "const m = await load('src/time');\ncheck(m.next() === 1, 'next is 1');"
 START = "2027-04-03T13:30:00.000Z"
@@ -666,3 +666,54 @@ def test_an_experiment_that_measured_nothing_did_not_run(
     engine._run_health(inv)
     assert inv.run_summary and inv.run_summary.ran == 0 and inv.run_summary.timeout == 1
     assert any(n.startswith("Attention:") and "could not run" in n for n in inv.notes)
+
+
+# ---------- a fix attempt that fails a gate says why, and copies of one bug are fixed once ----------
+
+
+def _found(bug_id: str, zone: str, instant: str, *refs: str, rule: str = "next_after_now") -> Bug:
+    b = _bug()
+    b.id = bug_id
+    b.invariant = rule  # type: ignore[assignment]
+    b.violation = Violation(failure_kind="k", invariant=rule, zone=zone, instant=instant, local=instant, detail="d")  # type: ignore[arg-type]
+    b.evidence = [Evidence(kind="source", ref=r, why="w") for r in refs]
+    return b
+
+
+SYD = "Australia/Sydney"
+FALL = "2027-04-03T16:00:00.000Z"
+
+
+def test_the_same_failure_seen_through_another_rule_or_experiment_is_fixed_once() -> None:
+    first = _found("b1", SYD, FALL, "src/cron.ts:345")
+    other_rule = _found("b2", SYD, FALL, "src/cron.ts:345", rule="next_clock_independent")
+    other_experiment = _found("b3", SYD, FALL, "src/cron.ts:342-353", "src/schedulers/timer-based.ts:22-25")
+    other_zone = _found("b4", "America/Los_Angeles", "2027-11-07T09:00:00.000Z", "src/cron.ts:345")
+    other_code = _found("b5", SYD, FALL, "src/utils.ts:10-12")
+    bugs = [first, other_rule, other_experiment, other_zone, other_code]
+    assert [b.id for b in Engine._distinct(bugs)] == ["b1", "b4", "b5"]
+    assert first.fix.state == "not-started"
+    for twin in (other_rule, other_experiment):
+        assert twin.fix.state == "skipped" and "b1" in twin.fix.label
+
+
+def test_a_bug_that_already_has_a_fix_result_is_left_alone() -> None:
+    first = _found("b1", SYD, FALL, "src/cron.ts:345")
+    done = _found("b2", SYD, FALL, "src/cron.ts:345")
+    done.fix.state, done.fix.label = "verified", "Suggested fix"
+    Engine._distinct([first, done])
+    assert done.fix.state == "verified" and done.fix.label == "Suggested fix"
+
+
+def test_the_gate_tells_the_fixer_what_the_patch_broke() -> None:
+    from timewraith.pipeline import _new_violation_detail
+
+    v = Violation(
+        failure_kind="moves_backwards", invariant="next_after_now", zone=SYD, instant=FALL, local=FALL,
+        detail="next moved backwards from 2027-04-04T16:30:00.000Z to 2027-04-03T16:30:00.000Z",
+    )  # fmt: skip
+    key = ("exp_1", v.invariant, v.zone, v.instant, v.failure_kind)
+    text = _new_violation_detail([key], {"exp_1": [v]})
+    assert "next moved backwards from 2027-04-04T16:30:00.000Z" in text and "just before it" in text
+    twin = ("exp_2", v.invariant, v.zone, v.instant, v.failure_kind)
+    assert _new_violation_detail([key, twin], {"exp_1": [v], "exp_2": [v]}).count("moves_backwards") == 1

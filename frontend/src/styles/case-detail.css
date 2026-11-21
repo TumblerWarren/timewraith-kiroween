@@ -473,8 +473,11 @@ p.case-card { max-width: none; }
   position: fixed;
   inset: 0;
   margin: auto;
+  box-sizing: border-box;
+  /* Size to the content, never to the window: a dialog that is not told its height can stretch to fill it. */
   width: min(calc(100% - var(--space-6)), 30rem);
-  max-height: calc(100% - var(--space-6));
+  height: fit-content;
+  max-height: calc(100dvh - var(--space-6));
   overflow: auto;
   padding: var(--space-5);
   border: 1px solid var(--midnight-violet);

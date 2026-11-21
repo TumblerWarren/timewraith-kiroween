@@ -1,0 +1,91 @@
+From 9ceb806607c8af03a46911fa2cd2364383bd58b4 Mon Sep 17 00:00:00 2001
+From: TimeWraith <timewraith@localhost>
+Date: Wed, 18 Nov 2026 15:09:10 +0000
+Subject: [PATCH] Default dtstart (now) shifts by one hour during the repeated
+ DST hour
+
+The default dtstart in parseOptions is now computed from the epoch
+milliseconds: `new Date(Math.floor(Date.now() / 1000) * 1000)`. The old
+code was `new Date(new Date().setMilliseconds(0))`.
+
+Cause: `Date.prototype.setMilliseconds` works in local time. It converts
+  the instant to local wall-clock time, sets the milliseconds, and
+  converts back with UTC().
+
+Test: test/parseoptions.default-dtstart-now-shifts.test.ts fails without
+  the fix and passes with it.
+---
+ src/parseoptions.ts                           |  4 +-
+ ...options.default-dtstart-now-shifts.test.ts | 45 +++++++++++++++++++
+ 2 files changed, 48 insertions(+), 1 deletion(-)
+ create mode 100644 test/parseoptions.default-dtstart-now-shifts.test.ts
+
+diff --git a/src/parseoptions.ts b/src/parseoptions.ts
+index 60e2567..9526f2e 100644
+--- a/src/parseoptions.ts
++++ b/src/parseoptions.ts
+@@ -40,7 +40,9 @@ export function parseOptions(options: Partial<Options>) {
+     throw new Error(`Invalid frequency: ${opts.freq} ${options.freq}`)
+   }
+ 
+-  if (!opts.dtstart) opts.dtstart = new Date(new Date().setMilliseconds(0))
++  if (!opts.dtstart) {
++    opts.dtstart = new Date(Math.floor(Date.now() / 1000) * 1000)
++  }
+ 
+   if (!isPresent(opts.wkst)) {
+     opts.wkst = RRule.MO.weekday
+diff --git a/test/parseoptions.default-dtstart-now-shifts.test.ts b/test/parseoptions.default-dtstart-now-shifts.test.ts
+new file mode 100644
+index 0000000..0802bc8
+--- /dev/null
++++ b/test/parseoptions.default-dtstart-now-shifts.test.ts
+@@ -0,0 +1,45 @@
++/* eslint-disable */
++// @ts-nocheck
++// Regression test, drafted by TimeWraith: Raven Archivist's reproduction, rerun by code before it was accepted.
++// Failed on jkbrzt/rrule@9f2061febeeb at 2026-11-01T09:00:00.000Z, 2026-11-01T09:00:00.000Z. Run with TZ=America/Los_Angeles.
++
++function print() {}
++function check(cond, msg) {
++  const rule = String(msg || 'check')
++  expect({ rule, holds: Boolean(cond) }).toEqual({ rule, holds: true })
++}
++async function load(p) {
++  return require('../' + String(p).replace(/^\/+/, ''))
++}
++
++test('Default dtstart (now) shifts by one hour during the repeated DST hour', async () => {
++  jest.useFakeTimers()
++  jest.setSystemTime(new Date(1793523600000))
++  const now = new Date(1793523600000) // the same `now` the probe had
++  try {
++    const m = await load('src/parseoptions')
++    const d = m.parseOptions({ freq: 3 }).parsedOptions.dtstart
++    check(
++      d.getTime() === Date.now(),
++      'default dtstart should equal now: ' + d.toISOString()
++    )
++  } finally {
++    jest.useRealTimers()
++  }
++}, 60000)
++
++test('Default dtstart (now) shifts by one hour during the repeated DST hour (through the public API)', async () => {
++  jest.useFakeTimers()
++  jest.setSystemTime(new Date(1793523600000))
++  const now = new Date(1793523600000) // the same `now` the probe had
++  try {
++    const { RRule } = await load('src/rrule')
++    const r = new RRule({ freq: RRule.DAILY, count: 1 })
++    check(
++      r.options.dtstart.getTime() === Date.now(),
++      'RRule default dtstart ' + r.options.dtstart.toISOString()
++    )
++  } finally {
++    jest.useRealTimers()
++  }
++}, 60000)
+-- 
+2.39.5
+

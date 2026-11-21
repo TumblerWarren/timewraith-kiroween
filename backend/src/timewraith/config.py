@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     # Set when the backend runs in Docker: the name of the volume that holds `data_dir`, so sandbox containers can
     # mount a case's folder from it (sandbox._mount). Empty on a PC, where folders are bind-mounted.
     data_volume: str = ""
+    # The example cases shipped in the image (seed/). Loaded once per data volume; ignored when the folder is missing.
+    seed_dir: Path = Path("/app/seed")
     # Where the built frontend is served from (the Docker image sets it). Empty: API only; Vite serves the UI.
     web_dir: str = ""
     # The Kiro Crew container, its volume and the Docker network it joins (compose names them explicitly).
