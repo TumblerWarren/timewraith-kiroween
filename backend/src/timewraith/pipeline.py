@@ -464,11 +464,20 @@ class Engine:
                         detail=tail(before.failure or before.outcome),
                     )
                 )
-                # 2. the fix must still apply
+                # 2. the fix must still apply: as it is, or merged in when upstream changed the lines around it
                 try:
-                    git(ws, ["apply", "--whitespace=nowarn", "-"], stdin=attempt.diff)
+                    if _carry_fix(ws, attempt.diff, "FETCH_HEAD"):
+                        notes.append(
+                            f"{rs.default_branch} changed the code around the fix, so it was merged in with a "
+                            "three-way merge (the same change, on the new surroundings). The checks below ran on "
+                            "that result"
+                        )
                 except IngestError as e:
-                    raise Stop("rebase_conflict", f"The fix no longer applies to {rs.default_branch}: {e}") from e
+                    raise Stop(
+                        "rebase_conflict",
+                        f"The fix no longer applies to {rs.default_branch}, even with a three-way merge, because "
+                        f"upstream changed the same lines: {e}",
+                    ) from e
                 # 3. format and lint with the repository's own tools; the strict typing of the test may need relaxing
                 owned = [test_path, *(src_paths if src_formatted else [])]
                 for attempt_no in (1, 2):
@@ -4605,6 +4614,24 @@ class Engine:
         inv.stage = "completed"
         inv.replay_label = "Recorded investigation replay"
         self._event(inv, "wraith-director", "stage", "Case filed", data={"stage": "completed"})
+
+
+def _carry_fix(ws: Path, diff_text: str, base: str = "HEAD") -> bool:
+    """Put a verified fix onto the upstream's latest code. A plain apply first. When upstream changed the lines around
+    the fix it fails, and a three-way merge is tried: git rebuilds the code the fix was made on from the blob ids in the
+    diff (the workspace holds the pinned commit), and merges the fix into the new code. A conflict is not guessed at:
+    the tree is put back to `base` (the upstream code the fix was being carried onto) and the original error is
+    raised. Returns True when the three-way merge was needed."""
+    try:
+        git(ws, ["apply", "--whitespace=nowarn", "-"], stdin=diff_text)
+        return False
+    except IngestError as plain:
+        try:
+            git(ws, ["apply", "--3way", "--whitespace=nowarn", "-"], stdin=diff_text)
+        except IngestError:
+            git(ws, ["checkout", "-q", base, "--", "."])  # a conflict leaves markers in the files and the index
+            raise plain from None
+        return True
 
 
 _CITATION = re.compile(r"^(?P<path>.+?):(?P<a>\d+)(?:\s*[-–]\s*(?P<b>\d+))?$")

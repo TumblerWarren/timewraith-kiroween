@@ -167,7 +167,7 @@ export const FIX_SHARING = {
     repo_archived: "This repository is archived and cannot receive pull requests.",
     duplicate_exists: "GitHub found existing pull requests for this bug. Read them and confirm before continuing.",
     already_fixed_upstream: "This bug is already fixed on the repository's default branch.",
-    rebase_conflict: "The fix could not be applied to the latest code on the repository's default branch.",
+    rebase_conflict: "The fix could not be applied to the latest code on the repository's default branch, even with a three-way merge: the repository changed the same lines. Run the case again on the latest code to get a fix for it.",
     contribution_failed: "TimeWraith could not check the fix against the repository's rules. Try again.",
     fork_changed: "The branch on your fork has commits TimeWraith did not push. Review the branch on GitHub before trying again.",
     pr_closed: "This pull request was closed on GitHub. Reopen it before sending another commit.",
