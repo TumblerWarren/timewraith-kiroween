@@ -237,7 +237,7 @@ class FixSession(RepoReader):
     max_other_tests: int
     # Re-runs the bug's experiment in every sweep zone; returns where the rule still breaks (pipeline supplies it).
     zone_check: Callable[[], str] | None = None
-    max_zone_checks: int = 3
+    max_zone_checks: int = 100
     zone_checks: int = 0
     tracked: frozenset[str] = frozenset()
     calls: int = 0
@@ -483,6 +483,7 @@ class SessionRegistry:
             max_tests=settings.max_test_runs,
             max_other_tests=settings.max_other_test_runs,
             zone_check=zone_check,
+            max_zone_checks=settings.max_zone_checks,
             tracked=tracked,
         )
         with self._lock:

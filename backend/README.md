@@ -50,11 +50,11 @@ Edits are exact text (`replace`) or line ranges (`replace_lines`), keep the file
 
 ## Adapter repair sessions (Pumpkin Mechanic with tools)
 
-After install, an adapter must run at ordinary instants in UTC and New York, return its fields, and keep every rule its fields feed. An adapter that fails gets one Kiro CLI session with the profile `tw-pumpkin-mechanic` (`designsession.py`): read the code, rewrite the adapter, run it at points he picks, recheck, submit. Code reruns the check on submit. A rule that still breaks at ordinary instants is dropped. Limits: `TW_DESIGN_SESSION_S` (480), `TW_MAX_DESIGN_CALLS` (25), `TW_MAX_ADAPTER_RUNS` (8). Details in [docs/agent-flow.md](../docs/agent-flow.md#baseline-check-and-adapter-repair-pumpkin-with-tools).
+After install, an adapter must run at ordinary instants in UTC and New York, return its fields, and keep every rule its fields feed. An adapter that fails gets one Kiro CLI session with the profile `tw-pumpkin-mechanic` (`designsession.py`): read the code, rewrite the adapter, run it at points he picks, recheck, submit. Code reruns the check on submit. A rule that still breaks at ordinary instants is dropped. Limits: `TW_DESIGN_SESSION_S` (480), `TW_MAX_DESIGN_CALLS` (100), `TW_MAX_ADAPTER_RUNS` (100). Details in [docs/agent-flow.md](../docs/agent-flow.md#baseline-check-and-adapter-repair-pumpkin-with-tools).
 
 ## Verification sessions (Raven Archivist with tools)
 
-With the Kiro Crew container runtime, selected repeated violations can receive a Kiro CLI session when budget permits with the profile `tw-raven-archivist`. Her tools (`verifysession.py`) read the repository, run probes against the real code with a frozen clock in a read-only sandbox, run repository tests, search issues and pull requests, and submit a verdict. A defect is accepted only when code reruns her reproduction: its check fails 3/3 at the failing point, passes at a control point, and the regression test made from it fails with an assertion. The full rules are in [docs/agent-flow.md](../docs/agent-flow.md#agentic-verification-raven-with-tools). Limits: `TW_VERIFY_SESSION_S` (600), `TW_MAX_VERIFY_CALLS` (30), `TW_MAX_PROBES` (12).
+With the Kiro Crew container runtime, selected repeated violations can receive a Kiro CLI session when budget permits with the profile `tw-raven-archivist`. Her tools (`verifysession.py`) read the repository, run probes against the real code with a frozen clock in a read-only sandbox, run repository tests, search issues and pull requests, and submit a verdict. A defect is accepted only when code reruns her reproduction: its check fails 3/3 at the failing point, passes at a control point, and the regression test made from it fails with an assertion. The full rules are in [docs/agent-flow.md](../docs/agent-flow.md#agentic-verification-raven-with-tools). Limits: `TW_VERIFY_SESSION_S` (600), `TW_MAX_VERIFY_CALLS` (100), `TW_MAX_PROBES` (100).
 
 ## Dependency install and self-healing
 
@@ -113,10 +113,10 @@ Settings are read from `TW_*` environment variables or `backend/.env`. The ones 
 | `TW_DATA_DIR` | `~/.timewraith` | SQLite database, workspaces and patches. Must be outside this repository |
 | `TW_AGENT_RUNTIME` | `auto` | `auto`, `stub` or `command` |
 | `TW_INVESTIGATION_BUDGET_S` | `10800` | Active time per investigation (three hours) |
-| `TW_MAX_AGENT_CALLS` | `40` | Agent calls per investigation |
+| `TW_MAX_AGENT_CALLS` | `100` | Agent calls per investigation |
 | `TW_MAX_FIX_ATTEMPTS` | `3` | Fix attempts per bug |
 | `TW_FIX_SESSION_S` | `720` | Time per fix session |
-| `TW_MAX_TOOL_CALLS` | `40` | Tool calls per fix session |
+| `TW_MAX_TOOL_CALLS` | `100` | Tool calls per fix session |
 | `TW_INSTALL_RETRIES` | `3` | Quick fixed retries after a failed dependency install, before the install mechanic |
 | `TW_INSTALL_ROUNDS` | `3` | Install mechanic rounds, each told what the earlier ones tried |
 | `TW_INSTALL_SESSION_S` | `2700` | Time for one install mechanic round |
