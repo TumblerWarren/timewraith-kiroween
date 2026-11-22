@@ -144,11 +144,11 @@ With the Kiro Crew container runtime, an adapter that fails this check goes to P
 |---|---|---|
 | `list_files`, `search`, `read_file` | Read git-tracked files, the adapter and the harness | As for Doctor Stitch |
 | `write_adapter` | Replace the adapter (must define `run`) | |
-| `run_adapter` | Run the adapter once with the clock frozen at a point he picks, and show what `run()` returned | 8 runs |
-| `check_baseline` | The same check code runs on submit | 3 checks |
+| `run_adapter` | Run the adapter once with the clock frozen at a point he picks, and show what `run()` returned | 100 runs |
+| `check_baseline` | The same check code runs on submit | 100 checks |
 | `submit_adapter` | Final fields and claim; code reruns the baseline check and sends problems back (up to 2 times) | |
 
-The session has 25 tool calls and 8 minutes. If a rule still breaks at ordinary instants after the repair, code drops that rule and keeps the experiment for the rules that hold. Without the container runtime, the single-reply redesign runs instead. On run 7's adapters, the check caught three of the four that Raven had to dismiss as adapter errors, and left the experiment with the real Lord Howe bug untouched.
+The session has 100 tool calls and 8 minutes. If a rule still breaks at ordinary instants after the repair, code drops that rule and keeps the experiment for the rules that hold. Without the container runtime, the single-reply redesign runs instead. On run 7's adapters, the check caught three of the four that Raven had to dismiss as adapter errors, and left the experiment with the real Lord Howe bug untouched.
 
 ## Agentic verification (Raven with tools)
 
@@ -157,12 +157,12 @@ With the Kiro Crew container runtime, Raven verifies each repeated violation in 
 | Tool | Does | Limit per session |
 |---|---|---|
 | `list_files`, `search`, `read_file` | Read git-tracked files and the adapter | As for Doctor Stitch |
-| `run_probe` | Runs her short script against the real code (`load('src/x')`, `print`, `check`) with the clock frozen at a point she picks and the process zone set; the repository is mounted read-only | 12 probes |
-| `run_tests` | Runs one repository test file as written | 4 runs |
-| `search_issues` | Searches public issues and pull requests; threads labelled question, discussion and similar are skipped | 3 searches |
+| `run_probe` | Runs her short script against the real code (`load('src/x')`, `print`, `check`) with the clock frozen at a point she picks and the process zone set; the repository is mounted read-only | 100 probes |
+| `run_tests` | Runs one repository test file as written | 100 runs |
+| `search_issues` | Searches public issues and pull requests; threads labelled question, discussion and similar are skipped | 100 searches |
 | `submit_verdict` | Her verdict with evidence and, where needed, a reproduction | |
 
-The session has 30 tool calls and 10 minutes. Code checks the verdict before it counts, and a rejected verdict goes back to her with the reason (up to 2 times):
+The session has 100 tool calls and 10 minutes. Code checks the verdict before it counts, and a rejected verdict goes back to her with the reason (up to 2 times):
 
 | Verdict | Code requires |
 |---|---|
@@ -197,12 +197,12 @@ Each bug gets up to 3 attempts. Each attempt is one Kiro CLI session in the Kiro
 | `list_files`, `search`, `read_file` | Read git-tracked files, the regression test and the adapter | 200 files, 100 hits, 400 lines per call |
 | `replace`, `replace_lines` | Edit one source file: exact text, or line numbers. Keeps line endings | Tests, config, manifests, lockfiles, CI and generated files refused |
 | `show_diff` | `git diff` of the working copy | |
-| `run_regression_test` | Runs the generated test at the failing clock point in the sandbox | 8 runs |
-| `check_all_zones` | Runs the bug's experiment in all 13 zones | 3 runs |
-| `run_tests` | Runs one repository test file | 4 runs |
+| `run_regression_test` | Runs the generated test at the failing clock point in the sandbox | 100 runs |
+| `check_all_zones` | Runs the bug's experiment in all 13 zones | 100 runs |
+| `run_tests` | Runs one repository test file | 100 runs |
 | `submit` | Ends the session. Refused once if the regression test has not passed since the last edit | Summary 300 characters, root cause 1,200 |
 
-The session has 40 tool calls and 12 minutes. When the budget is spent, every tool except `submit` refuses.
+The session has 100 tool calls and 12 minutes. When the budget is spent, every tool except `submit` refuses.
 
 After `submit`:
 
@@ -261,11 +261,11 @@ When the user checks the fix against the repository's rules again after a push, 
 | Limit | Value | Setting |
 |---|---|---|
 | Active time | 3 hours | `TW_INVESTIGATION_BUDGET_S` |
-| Agent calls | 40 | `TW_MAX_AGENT_CALLS` |
+| Agent calls | 100 | `TW_MAX_AGENT_CALLS` |
 | Bugs to fix | 5 | `TW_MAX_BUGS_TO_FIX` |
 | Fix attempts per bug | 3 | `TW_MAX_FIX_ATTEMPTS` |
 | Patch size | 3 files, 60 lines | `TW_MAX_PATCH_FILES`, `TW_MAX_PATCH_LINES` |
-| Fix session | 12 minutes, 40 tool calls | `TW_FIX_SESSION_S`, `TW_MAX_TOOL_CALLS` |
+| Fix session | 12 minutes, 100 tool calls | `TW_FIX_SESSION_S`, `TW_MAX_TOOL_CALLS` |
 
 If the time budget runs out during the fix step, the case keeps its bugs and their regression tests.
 

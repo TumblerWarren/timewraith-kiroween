@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     max_review_candidates: int = 15
     max_experiment_candidates: int = 8
     max_bugs_to_fix: int = 5
-    max_agent_calls: int = 40
+    max_agent_calls: int = 100
     max_fix_attempts: int = 3
     investigation_budget_s: int = 3 * 60 * 60  # active time per case; installing, fixing and reviewing all draw on it
     repeat_runs: int = 3
@@ -55,9 +55,10 @@ class Settings(BaseSettings):
 
     # Fix sessions (Doctor Stitch with tools, fixsession.py)
     fix_session_s: int = 12 * 60
-    max_tool_calls: int = 40
-    max_test_runs: int = 8
-    max_other_test_runs: int = 4
+    max_tool_calls: int = 100
+    max_test_runs: int = 100
+    max_other_test_runs: int = 100
+    max_zone_checks: int = 100
 
     # Planner rounds (Wraith Director reads the coverage ledger and proposes new directions)
     max_plan_rounds: int = 2
@@ -83,16 +84,16 @@ class Settings(BaseSettings):
     temporal_polyfill: str = "temporal-polyfill"
     # Waits before retrying an agent request the service throttled; a throttle is not a failed repair.
     throttle_waits_s: tuple[int, ...] = (20, 60, 120)
-    max_design_calls: int = 25
-    max_adapter_runs: int = 8
-    max_baseline_checks: int = 3
+    max_design_calls: int = 100
+    max_adapter_runs: int = 100
+    max_baseline_checks: int = 100
 
     # Verification sessions (Raven Archivist with tools, verifysession.py)
     verify_session_s: int = 10 * 60
-    max_verify_calls: int = 30
-    max_probes: int = 12
-    max_verify_tests: int = 4
-    max_issue_searches: int = 3
+    max_verify_calls: int = 100
+    max_probes: int = 100
+    max_verify_tests: int = 100
+    max_issue_searches: int = 100
     # How the Kiro Crew container reaches this backend's fix tools (Docker Desktop maps host.docker.internal).
     crew_backend_url: str = "http://host.docker.internal:8787"
 
